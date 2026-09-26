@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Bedtime AI",
+    "slug": "bedtime-ai-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Bedtime AI requires microphone access to record your storytelling voice sample for personalized bedtime stories."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F172A"
+      },
+      "permissions": ["RECORD_AUDIO"],
+      "usesCleartextTraffic": true
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Bedtime AI to access your microphone for parent voice cloning."
+        }
+      ]
+    ]
+  }
+}

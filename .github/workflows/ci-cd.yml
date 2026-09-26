@@ -1,0 +1,64 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-build:
+    name: Test & Build (Backend & Mobile)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            mobile/package-lock.json
+
+      # Backend Checks
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run Backend Tests
+        working-directory: ./backend
+        run: npm test
+
+      - name: Build Backend TypeScript
+        working-directory: ./backend
+        run: npm run build
+
+      # Mobile Checks
+      - name: Install Mobile Dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      - name: Typecheck Mobile TypeScript
+        working-directory: ./mobile
+        run: npx tsc --noEmit
+
+  deploy-render:
+    name: Deploy Backend to Render
+    needs: test-and-build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Deploy Hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "🚀 Triggering Render Deploy Hook..."
+            curl -s -X POST "$RENDER_DEPLOY_HOOK_URL"
+            echo "✅ Deploy triggered successfully."
+          else
+            echo "ℹ️ RENDER_DEPLOY_HOOK_URL secret not set. If using Render Auto-Deploy on Git Push, Render will deploy automatically."
+          fi
