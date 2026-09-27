@@ -27,7 +27,7 @@ export const StoryPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   const { controller, playerState } = useAudioPlayer();
 
   const totalDurationSeconds = story?.audioDurationSeconds || 304; // default 5:04
-  const [playbackSeconds, setPlaybackSeconds] = useState(92); // demo start 01:32
+  const [playbackSeconds, setPlaybackSeconds] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
 
   // Load real audio if story has audioUrl
@@ -36,6 +36,13 @@ export const StoryPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
       controller.load(story.audioUrl);
     }
   }, [story?.audioUrl, controller]);
+
+  // Sync position from real audio player when available
+  useEffect(() => {
+    if (playerState.isLoaded && playerState.positionSeconds > 0) {
+      setPlaybackSeconds(Math.floor(playerState.positionSeconds));
+    }
+  }, [playerState.positionSeconds, playerState.isLoaded]);
 
   // Audio timer simulation / sync
   useEffect(() => {
@@ -74,12 +81,13 @@ export const StoryPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   const handlePlayPause = () => {
-    if (playerState.isPlaying) {
+    if (isPlaying) {
       controller.pause();
+      setIsPlaying(false);
     } else {
       controller.play();
+      setIsPlaying(true);
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleSeekBackward = () => {

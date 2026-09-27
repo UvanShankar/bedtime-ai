@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Bedtime AI",
+    "name": "Nila",
     "slug": "bedtime-ai-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,11 +8,13 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.uvanshankar.nila",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Bedtime AI requires microphone access to record your storytelling voice sample for personalized bedtime stories."
+        "NSMicrophoneUsageDescription": "Nila requires microphone access to record your storytelling voice sample for personalized bedtime stories."
       }
     },
     "android": {
+      "package": "com.uvanshankar.nila",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F172A"

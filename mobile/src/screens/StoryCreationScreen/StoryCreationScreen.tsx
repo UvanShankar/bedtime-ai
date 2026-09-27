@@ -82,6 +82,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
             narrationVersion: "1.0",
             audioStatus: "ready",
             audioDurationSeconds: (request?.durationMinutes || 5) * 60,
+            audioUrl: "https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg",
             narratorName: "Dad's Voice",
             narratorStyle: "Tamil · Chennai style",
             inspiredByMemory: "Marina Beach",
