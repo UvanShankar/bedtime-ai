@@ -14,7 +14,7 @@ interface Props {
 
 export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
   const { request } = route.params || {};
-  const { selectedChild, addStory } = useNila();
+  const { parent, selectedChild, memories, addStory, ensureBackendProfile } = useNila();
 
   const [activeStep, setActiveStep] = useState(0);
 
@@ -29,77 +29,102 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
   useEffect(() => {
     let isMounted = true;
 
-    // Smooth step interval
+    // Smooth step interval: advances up to step 3 while generation is in flight
     const stepInterval = setInterval(() => {
       if (isMounted) {
-        setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
+        setActiveStep((prev) => Math.min(prev + 1, steps.length - 2));
       }
-    }, 1200);
+    }, 2800);
 
     const executeStoryGeneration = async () => {
+      let generatedStory: Story | null = null;
+      const topic = request?.topic || "A bedtime adventure";
+
       try {
-        let generatedStory: Story | null = null;
-        if (request?.parentId) {
-          try {
-            const apiRes = await StoryApi.createStory({
-              parentId: request.parentId,
-              childId: request.childId,
-              topic: request.topic || "A bedtime adventure",
-              storyType: request.storyType || "Bedtime Adventure",
-              mood: request.mood || "Gentle & Sleepy",
-              durationMinutes: request.durationMinutes || 5,
-              bedtimeCalmness: request.bedtimeCalmness || 0.8,
-              includeChildName: request.includeChildName ?? true,
-              realWorldFacts: false,
-            });
-            generatedStory = apiRes?.story;
-          } catch (apiErr) {
-            console.log("Real backend error, switching to offline story generator:", apiErr);
-          }
+        // 1. Ensure parent and child exist on backend
+        const { parentId, childId } = await ensureBackendProfile();
+
+        // 2. Prepare contextual instructions (memories, interests)
+        let additionalInstruction = "";
+        if (request?.includeLifeMemories && memories && memories.length > 0) {
+          const mem = memories[0];
+          additionalInstruction += ` Weave in this memory: "${mem.title} - ${mem.description}".`;
+        }
+        if (request?.includeFavoriteThings && selectedChild?.interests?.length) {
+          additionalInstruction += ` Child's favorites: ${selectedChild.interests.join(", ")}.`;
         }
 
-        if (!generatedStory) {
-          // Fallback realistic story
+        console.log(`[StoryCreation] Requesting backend generation for parent=${parentId}, child=${childId}`);
+        const apiStory = await StoryApi.generateStory({
+          parentId,
+          childId,
+          topic,
+          storyType: request?.storyType || "Bedtime Adventure",
+          mood: request?.mood || "Gentle & Sleepy",
+          durationMinutes: request?.durationMinutes || 5,
+          bedtimeCalmness: request?.bedtimeCalmness ?? 0.8,
+          includeChildName: request?.includeChildName ?? true,
+          realWorldFacts: false,
+          additionalInstruction: additionalInstruction || undefined,
+        });
+
+        if (apiStory && apiStory.title) {
+          console.log("[StoryCreation] Live story generated successfully:", apiStory.title);
           generatedStory = {
-            id: `story-${Date.now()}`,
-            requestId: `req-${Date.now()}`,
-            parentId: request?.parentId || "parent-001",
-            childId: request?.childId || "child-001",
-            title: request?.topic
-              ? request.topic.length > 35
-                ? request.topic.substring(0, 32) + "..."
-                : request.topic
-              : "THE LITTLE ELEPHANT WHO COULDN'T SLEEP",
-            languageCode: "ta",
-            text: `கண்ணா ${selectedChild?.name || "ஆரவ்"}... அந்த பெரிய காட்டுல ஒரு குட்டி யானை இருந்துச்சாம். அது நள்ளிரவு நேரத்துல வானத்துல இருக்கற நட்சத்திரங்களை எண்ணி பாக்க விரும்புச்சாம். மெரினா கடற்கரை மணல்ல கட்டின கோட்டை ஞாபகம் வந்துச்சாம். அப்புறம் தன் தும்பிக்கையை மெதுவா அசைச்சு படுத்து தூங்கிடுச்சாம். நல்லா தூங்கு கண்ணா... இனிமையான கனவுகள் வரட்டும்.`,
-            segments: [
-              { id: "1", order: 1, text: `கண்ணா ${selectedChild?.name || "ஆரவ்"}... அந்த பெரிய காட்டுல ஒரு குட்டி யானை இருந்துச்சாம்.` },
-              { id: "2", order: 2, text: "அது நள்ளிரவு நேரத்துல வானத்துல இருக்கற நட்சத்திரங்களை எண்ணி பாக்க விரும்புச்சாம்." },
-              { id: "3", order: 3, text: "மெரினா கடற்கரை மணல்ல கட்டின கோட்டை ஞாபகம் வந்துச்சாம்." },
-              { id: "4", order: 4, text: "அப்புறம் தன் தும்பிக்கையை மெதுவா அசைச்சு படுத்து தூங்கிடுச்சாம்." },
-              { id: "5", order: 5, text: "நல்லா தூங்கு கண்ணா... இனிமையான கனவுகள் வரட்டும்." },
-            ],
-            narrationVersion: "1.0",
-            audioStatus: "ready",
-            audioDurationSeconds: (request?.durationMinutes || 5) * 60,
-            audioUrl: "https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg",
-            narratorName: "Dad's Voice",
-            narratorStyle: "Tamil · Chennai style",
-            inspiredByMemory: "Marina Beach",
+            ...apiStory,
+            narratorName: apiStory.narratorName || `${parent?.name || "Dad"}'s Voice`,
+            narratorStyle: apiStory.narratorStyle || "Tamil · Natural conversational",
+            inspiredByMemory: request?.includeLifeMemories && memories?.[0] ? memories[0].location || memories[0].title : undefined,
             isFavorite: true,
-            createdAt: "Tonight",
           };
         }
+      } catch (apiErr) {
+        console.warn("[StoryCreation] Real backend generation encountered an error or timeout, generating offline spoken Tamil fallback:", apiErr);
+      }
 
+      if (!generatedStory) {
+        // Fallback realistic spoken Tamil story tailored to the user's prompt
+        const childName = selectedChild?.name || "ஆரவ்";
+        const topicTitle = topic.length > 38 ? topic.substring(0, 35) + "..." : topic;
+        generatedStory = {
+          id: `story-${Date.now()}`,
+          requestId: `req-${Date.now()}`,
+          parentId: parent?.id || "parent-001",
+          childId: selectedChild?.id || "child-001",
+          title: topicTitle.toUpperCase(),
+          languageCode: "ta",
+          summary: `${childName}-க்கு ஒரு இனிமையான இரவு தூக்கக் கதை.`,
+          text: `கண்ணா ${childName}... இன்னைக்கு ஒரு அழகான கதை சொல்லட்டுமா? ${topic} பத்தி ஒரு குட்டி கதை கேளு. வானத்துல மெல்ல நிலா வந்துச்சாம். குளிர்ந்த தென்றல் காற்று இதமா வீசிச்சாம். நட்சத்திரங்கள் உன்ன பாத்து கண் சிமிட்டி தாலாட்டு பாடுச்சாம். நல்லா தூங்கு கண்ணா... இனிமையான கனவுகள் வரட்டும்.`,
+          segments: [
+            { id: "1", order: 1, text: `கண்ணா ${childName}... இன்னைக்கு ஒரு அழகான கதை சொல்லட்டுமா?` },
+            { id: "2", order: 2, text: `${topic} பத்தி ஒரு குட்டி கதை கேளு.` },
+            { id: "3", order: 3, text: "வானத்துல மெல்ல நிலா வந்து அமைதியா வெளிச்சம் கொடுத்துச்சாம்." },
+            { id: "4", order: 4, text: "குளிர்ந்த தென்றல் காற்று இதமா வீசிச்சாம்." },
+            { id: "5", order: 5, text: "நட்சத்திரங்கள் உன்ன பாத்து கண் சிமிட்டி தாலாட்டு பாடுச்சாம்." },
+            { id: "6", order: 6, text: "நல்லா தூங்கு கண்ணா... இனிமையான கனவுகள் வரட்டும்." },
+          ],
+          narrationVersion: "1.0",
+          audioStatus: "ready",
+          audioDurationSeconds: (request?.durationMinutes || 5) * 60,
+          audioUrl: "https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg",
+          narratorName: `${parent?.name || "Dad"}'s Voice`,
+          narratorStyle: "Tamil · Chennai spoken style",
+          inspiredByMemory: request?.includeLifeMemories && memories?.[0] ? memories[0].location || memories[0].title : undefined,
+          isFavorite: true,
+          createdAt: "Tonight",
+        };
+      }
+
+      if (isMounted) {
+        clearInterval(stepInterval);
+        setActiveStep(steps.length - 1); // Step 4: Getting bedtime ready
         addStory(generatedStory);
 
         setTimeout(() => {
           if (isMounted) {
             navigation.replace("StoryReady", { story: generatedStory });
           }
-        }, 3000);
-      } catch (err) {
-        console.error("Story creation flow error:", err);
+        }, 1000);
       }
     };
 

@@ -51,7 +51,10 @@ export const StoriesScreen: React.FC<Props> = ({ navigation }) => {
   // Group by createdAt
   const groups: { [key: string]: Story[] } = {};
   filteredStories.forEach((s) => {
-    const grp = s.createdAt || "Recent";
+    let grp = s.createdAt || "Recent";
+    if (grp.includes("T") && (grp.includes("Z") || grp.includes("+") || grp.includes("-"))) {
+      grp = "Tonight";
+    }
     if (!groups[grp]) groups[grp] = [];
     groups[grp].push(s);
   });

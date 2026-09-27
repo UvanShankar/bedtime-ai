@@ -9,6 +9,7 @@ import {
   UserSettings,
 } from "../models";
 import { StoryApi } from "../services/api/StoryApi";
+import { ParentApi } from "../services/api/ParentApi";
 
 interface NilaContextType {
   parent: ParentProfile;
@@ -36,6 +37,7 @@ interface NilaContextType {
   isOnboarded: boolean;
   setIsOnboarded: (value: boolean) => void;
   refreshStoriesFromBackend: () => Promise<void>;
+  ensureBackendProfile: () => Promise<{ parentId: string; childId: string }>;
 }
 
 const defaultParent: ParentProfile = {
@@ -249,10 +251,89 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [isOnboarded, setIsOnboarded] = useState<boolean>(true); // default true for immediate browsing, can reset
 
-  // Try fetching stories from real backend on mount
+  // Ensure profile is synced on backend and stories refreshed
   useEffect(() => {
-    refreshStoriesFromBackend();
-  }, [parent.id]);
+    ensureBackendProfile().then(({ parentId }) => {
+      if (parentId && !parentId.startsWith("parent-uvan")) {
+        refreshStoriesFromBackend();
+      }
+    }).catch((e) => console.log("Init sync note:", e));
+  }, []);
+
+  const ensureBackendProfile = async (): Promise<{ parentId: string; childId: string }> => {
+    let currentParentId = parent.id;
+    let currentChildId = selectedChild.id;
+
+    try {
+      // 1. Check parent validity on backend
+      let needCreateParent = false;
+      if (!currentParentId || currentParentId.startsWith("parent-uvan")) {
+        needCreateParent = true;
+      } else {
+        try {
+          await ParentApi.getParent(currentParentId);
+        } catch {
+          needCreateParent = true;
+        }
+      }
+
+      if (needCreateParent) {
+        console.log("[NilaContext] Syncing parent profile with backend...");
+        const newParent = await ParentApi.createParent({
+          name: parent.name || "Uvan",
+          relationship: (parent.relationship as any) || "father",
+          language: parent.language || "Tamil",
+          languageCode: parent.languageCode || "ta",
+          dialect: parent.dialect || "Madurai",
+          script: parent.script || "Tamil",
+        });
+        currentParentId = newParent.id;
+        setParent((prev) => ({ ...prev, id: newParent.id }));
+      }
+
+      // 2. Check child validity on backend
+      let needCreateChild = false;
+      try {
+        const backendChildren = await ParentApi.getChildrenForParent(currentParentId);
+        if (backendChildren && backendChildren.length > 0) {
+          const match = backendChildren.find(
+            (c) => c.name?.trim().toLowerCase() === (selectedChild.name || "").trim().toLowerCase()
+          );
+          if (match) {
+            currentChildId = match.id;
+            setSelectedChild((prev) => ({ ...prev, id: match.id, parentId: currentParentId }));
+          } else {
+            currentChildId = backendChildren[0].id;
+            setSelectedChild((prev) => ({ ...prev, id: backendChildren[0].id, parentId: currentParentId }));
+          }
+        } else {
+          needCreateChild = true;
+        }
+      } catch {
+        needCreateChild = true;
+      }
+
+      if (needCreateChild) {
+        console.log("[NilaContext] Syncing child profile with backend...");
+        const newChild = await ParentApi.createChild({
+          parentId: currentParentId,
+          name: selectedChild.name || "Aarav",
+          age: selectedChild.age || 4,
+          interests: selectedChild.interests || ["Trains", "Stars"],
+          personality: selectedChild.personality || ["Curious", "Playful"],
+          avoidTopics: selectedChild.avoidTopics || ["Monsters"],
+          favoriteCharacters: selectedChild.favoriteCharacters || [],
+        });
+        currentChildId = newChild.id;
+        setSelectedChild((prev) => ({ ...prev, id: newChild.id, parentId: currentParentId }));
+        setChildrenList((prev) => [newChild, ...prev.filter((c) => c.id !== newChild.id)]);
+      }
+    } catch (err) {
+      console.warn("[NilaContext] Profile backend sync encountered error:", err);
+    }
+
+    return { parentId: currentParentId, childId: currentChildId };
+  };
 
   const refreshStoriesFromBackend = async () => {
     try {
@@ -374,6 +455,7 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isOnboarded,
         setIsOnboarded,
         refreshStoriesFromBackend,
+        ensureBackendProfile,
       }}
     >
       {children}
