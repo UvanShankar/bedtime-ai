@@ -1,4 +1,5 @@
-import { ApiClient } from "./ApiClient";
+import * as FileSystem from "expo-file-system/legacy";
+import { ApiClient, ApiError } from "./ApiClient";
 import { AppConfig } from "../../config";
 import { VoiceProfile } from "../../models";
 
@@ -17,20 +18,41 @@ export class VoiceApi {
     mimeType?: string;
     consent: boolean;
   }): Promise<VoiceUploadResponse> {
-    const formData = new FormData();
-    formData.append("consent", input.consent ? "true" : "false");
+    const uploadUrl = `${AppConfig.apiBaseUrl}/parents/${input.parentId}/voice`;
 
-    const filename = input.audioUri.split("/").pop() || "parent_voice.m4a";
-    const type = input.mimeType || "audio/m4a";
+    const response = await FileSystem.uploadAsync(uploadUrl, input.audioUri, {
+      fieldName: "audio",
+      httpMethod: "POST",
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      parameters: {
+        consent: input.consent ? "true" : "false",
+      },
+      headers: {
+        Accept: "application/json",
+      },
+      mimeType: input.mimeType || "audio/m4a",
+    });
 
-    // React Native FormData file representation
-    formData.append("audio", {
-      uri: input.audioUri,
-      name: filename,
-      type,
-    } as any);
+    if (response.status < 200 || response.status >= 300) {
+      let errorMessage = `Upload failed with status ${response.status}`;
+      let errorCode = "UPLOAD_ERROR";
+      try {
+        const errorData = JSON.parse(response.body);
+        if (errorData?.error?.message) {
+          errorMessage = errorData.error.message;
+        }
+        if (errorData?.error?.code) {
+          errorCode = errorData.error.code;
+        }
+      } catch {
+        if (response.body) {
+          errorMessage = response.body;
+        }
+      }
+      throw new ApiError(errorMessage, errorCode);
+    }
 
-    return apiClient.upload<VoiceUploadResponse>(`/parents/${input.parentId}/voice`, formData);
+    return JSON.parse(response.body) as VoiceUploadResponse;
   }
 
   static async getVoiceProfile(parentId: string): Promise<VoiceProfile> {

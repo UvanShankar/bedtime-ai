@@ -1,5 +1,13 @@
 import { useState, useRef, useEffect } from "react";
-import { Audio } from "expo-av";
+import {
+  useAudioRecorder,
+  createAudioPlayer,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  RecordingPresets,
+  AudioPlayer,
+  AudioStatus,
+} from "expo-audio";
 
 export type RecorderState =
   | "idle"
@@ -35,44 +43,57 @@ export function useVoiceRecorder(): UseVoiceRecorderResult {
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY, (status) => {
+    if (status.hasError && status.error) {
+      setErrorMessage(status.error);
+      setState("error");
+    }
+  });
+
+  const previewPlayerRef = useRef<AudioPlayer | null>(null);
+  const previewSubRef = useRef<{ remove: () => void } | null>(null);
   const timerRef = useRef<any>(null);
+
+  const stopPreviewInternal = () => {
+    if (previewSubRef.current) {
+      previewSubRef.current.remove();
+      previewSubRef.current = null;
+    }
+    if (previewPlayerRef.current) {
+      previewPlayerRef.current.pause();
+      previewPlayerRef.current.remove();
+      previewPlayerRef.current = null;
+    }
+    setIsPlayingPreview(false);
+  };
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (soundRef.current) {
-        soundRef.current.unloadAsync().catch(() => {});
-      }
+      stopPreviewInternal();
     };
   }, []);
 
   const startRecording = async () => {
     try {
       setErrorMessage(null);
-      const permission = await Audio.requestPermissionsAsync();
+      stopPreviewInternal();
+
+      const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
         setState("error");
         setErrorMessage("Microphone permission was denied.");
         return;
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
 
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
+      await recorder.prepareToRecordAsync();
+      recorder.record();
 
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await recording.startAsync();
-
-      recordingRef.current = recording;
       setState("recording");
       setDurationSeconds(0);
 
@@ -88,14 +109,14 @@ export function useVoiceRecorder(): UseVoiceRecorderResult {
   const stopRecording = async () => {
     try {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (!recordingRef.current) return;
+      if (recorder.isRecording) {
+        await recorder.stop();
+      }
 
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-      recordingRef.current = null;
+      const uri = recorder.uri || recorder.getStatus().url;
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
+      await setAudioModeAsync({
+        allowsRecording: false,
       });
 
       setRecordingUri(uri);
@@ -109,22 +130,29 @@ export function useVoiceRecorder(): UseVoiceRecorderResult {
   const playPreview = async () => {
     if (!recordingUri) return;
     try {
-      if (!soundRef.current) {
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: recordingUri },
-          { shouldPlay: true },
-          (status) => {
-            if (status.isLoaded) {
-              setIsPlayingPreview(status.isPlaying);
-              if (status.didJustFinish) {
-                setIsPlayingPreview(false);
-              }
+      if (!previewPlayerRef.current) {
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          shouldPlayInBackground: false,
+          interruptionMode: "duckOthers",
+        });
+
+        const player = createAudioPlayer(recordingUri, { updateInterval: 200 });
+        previewPlayerRef.current = player;
+
+        const sub = (player as any).addListener(
+          "playbackStatusUpdate",
+          (status: AudioStatus) => {
+            setIsPlayingPreview(status.playing);
+            if (status.didJustFinish) {
+              setIsPlayingPreview(false);
             }
           }
         );
-        soundRef.current = sound;
+        previewSubRef.current = sub;
+        player.play();
       } else {
-        await soundRef.current.playAsync();
+        previewPlayerRef.current.play();
       }
       setIsPlayingPreview(true);
     } catch (err: any) {
@@ -134,8 +162,8 @@ export function useVoiceRecorder(): UseVoiceRecorderResult {
 
   const pausePreview = async () => {
     try {
-      if (soundRef.current) {
-        await soundRef.current.pauseAsync();
+      if (previewPlayerRef.current) {
+        previewPlayerRef.current.pause();
         setIsPlayingPreview(false);
       }
     } catch (err: any) {
@@ -145,11 +173,11 @@ export function useVoiceRecorder(): UseVoiceRecorderResult {
 
   const resetRecording = async () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    if (soundRef.current) {
-      await soundRef.current.unloadAsync().catch(() => {});
-      soundRef.current = null;
+    if (recorder.isRecording) {
+      await recorder.stop().catch(() => {});
     }
-    recordingRef.current = null;
+    stopPreviewInternal();
+
     setRecordingUri(null);
     setDurationSeconds(0);
     setIsPlayingPreview(false);

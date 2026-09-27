@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F172A"
-    },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -22,16 +17,19 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F172A"
       },
-      "permissions": ["RECORD_AUDIO"],
-      "usesCleartextTraffic": true
+      "permissions": [
+        "RECORD_AUDIO"
+      ]
     },
     "plugins": [
       [
-        "expo-av",
+        "expo-audio",
         {
           "microphonePermission": "Allow Bedtime AI to access your microphone for parent voice cloning."
         }
-      ]
+      ],
+      "expo-asset",
+      "expo-font"
     ]
   }
 }

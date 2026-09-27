@@ -1,9 +1,24 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Platform } from "react-native";
-import { Audio, AVPlaybackStatus } from "expo-av";
+import {
+  createAudioPlayer,
+  setAudioModeAsync,
+  AudioPlayer as ExpoAudioPlayer,
+  AudioStatus,
+} from "expo-audio";
 import { AudioSource } from "../models";
+import { AppConfig } from "../config";
 
 function normalizeAudioUrl(url: string): string {
+  if (!url) return url;
+  if (
+    AppConfig.apiBaseUrl.startsWith("http") &&
+    !AppConfig.apiBaseUrl.includes("localhost") &&
+    !AppConfig.apiBaseUrl.includes("10.0.2.2")
+  ) {
+    const origin = AppConfig.apiBaseUrl.replace(/\/api\/v1\/?$/, "");
+    return url.replace(/^http:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?/, origin);
+  }
   if (Platform.OS === "android") {
     return url.replace(/http:\/\/(localhost|127\.0\.0\.1):(\d+)/g, "http://10.0.2.2:$2");
   }
@@ -38,63 +53,76 @@ export function useAudioPlayer() {
     error: null,
   });
 
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const playerRef = useRef<ExpoAudioPlayer | null>(null);
+  const subscriptionRef = useRef<{ remove: () => void } | null>(null);
 
-  const onPlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
-    if (!status.isLoaded) {
-      if (status.error) {
-        setState((prev) => ({ ...prev, error: status.error || "Audio playback error" }));
+  const load = useCallback(async (source: string | AudioSource) => {
+    try {
+      const rawUrl =
+        typeof source === "string"
+          ? source
+          : source.type === "file"
+          ? source.url
+          : source.streamUrl;
+      const audioUrl = normalizeAudioUrl(rawUrl);
+      console.log("[useAudioPlayer] Loading audio URL:", audioUrl);
+
+      setState((prev) => ({ ...prev, isBuffering: true, error: null }));
+
+      if (subscriptionRef.current) {
+        subscriptionRef.current.remove();
+        subscriptionRef.current = null;
       }
-      return;
-    }
+      if (playerRef.current) {
+        playerRef.current.pause();
+        playerRef.current.remove();
+        playerRef.current = null;
+      }
 
-    setState({
-      isLoaded: true,
-      isPlaying: status.isPlaying,
-      isBuffering: status.isBuffering,
-      positionSeconds: Math.floor(status.positionMillis / 1000),
-      durationSeconds: Math.floor((status.durationMillis || 0) / 1000),
-      error: null,
-    });
-  }, []);
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: false,
+      });
 
-  const load = useCallback(
-    async (source: string | AudioSource) => {
-      try {
-        setState((prev) => ({ ...prev, isBuffering: true, error: null }));
+      const player = createAudioPlayer(audioUrl, { updateInterval: 300 });
+      playerRef.current = player;
 
-        if (soundRef.current) {
-          await soundRef.current.unloadAsync().catch(() => {});
-          soundRef.current = null;
+      const subscription = (player as any).addListener(
+        "playbackStatusUpdate",
+        (status: AudioStatus) => {
+          console.log("[useAudioPlayer] status update:", {
+            isLoaded: status.isLoaded,
+            playing: status.playing,
+            isBuffering: status.isBuffering,
+            currentTime: status.currentTime,
+            duration: status.duration,
+            error: status.error,
+          });
+          setState({
+            isLoaded: status.isLoaded,
+            isPlaying: status.playing,
+            isBuffering: status.isBuffering,
+            positionSeconds: Math.floor(status.currentTime || 0),
+            durationSeconds: Math.floor(status.duration || 0),
+            error: status.error || null,
+          });
         }
-
-        const rawUrl = typeof source === "string" ? source : source.type === "file" ? source.url : source.streamUrl;
-        const audioUrl = normalizeAudioUrl(rawUrl);
-
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: true,
-          shouldDuckAndroid: true,
-        });
-
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: audioUrl },
-          { shouldPlay: false, progressUpdateIntervalMillis: 300 },
-          onPlaybackStatusUpdate
-        );
-
-        soundRef.current = sound;
-      } catch (err: any) {
-        setState((prev) => ({ ...prev, isBuffering: false, error: err.message || "Failed to load audio" }));
-      }
-    },
-    [onPlaybackStatusUpdate]
-  );
+      );
+      subscriptionRef.current = subscription;
+    } catch (err: any) {
+      console.error("[useAudioPlayer] load error:", err);
+      setState((prev) => ({
+        ...prev,
+        isBuffering: false,
+        error: err.message || "Failed to load audio",
+      }));
+    }
+  }, []);
 
   const play = useCallback(async () => {
     try {
-      if (soundRef.current) {
-        await soundRef.current.playAsync();
+      if (playerRef.current) {
+        playerRef.current.play();
       }
     } catch (err: any) {
       setState((prev) => ({ ...prev, error: err.message }));
@@ -103,8 +131,8 @@ export function useAudioPlayer() {
 
   const pause = useCallback(async () => {
     try {
-      if (soundRef.current) {
-        await soundRef.current.pauseAsync();
+      if (playerRef.current) {
+        playerRef.current.pause();
       }
     } catch (err: any) {
       setState((prev) => ({ ...prev, error: err.message }));
@@ -113,8 +141,9 @@ export function useAudioPlayer() {
 
   const stop = useCallback(async () => {
     try {
-      if (soundRef.current) {
-        await soundRef.current.stopAsync();
+      if (playerRef.current) {
+        playerRef.current.pause();
+        await playerRef.current.seekTo(0);
       }
     } catch (err: any) {
       setState((prev) => ({ ...prev, error: err.message }));
@@ -123,8 +152,8 @@ export function useAudioPlayer() {
 
   const seek = useCallback(async (seconds: number) => {
     try {
-      if (soundRef.current) {
-        await soundRef.current.setPositionAsync(seconds * 1000);
+      if (playerRef.current) {
+        await playerRef.current.seekTo(seconds);
       }
     } catch (err: any) {
       setState((prev) => ({ ...prev, error: err.message }));
@@ -133,8 +162,9 @@ export function useAudioPlayer() {
 
   const replay = useCallback(async () => {
     try {
-      if (soundRef.current) {
-        await soundRef.current.replayAsync();
+      if (playerRef.current) {
+        await playerRef.current.seekTo(0);
+        playerRef.current.play();
       }
     } catch (err: any) {
       setState((prev) => ({ ...prev, error: err.message }));
@@ -143,20 +173,29 @@ export function useAudioPlayer() {
 
   useEffect(() => {
     return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync().catch(() => {});
+      if (subscriptionRef.current) {
+        subscriptionRef.current.remove();
+        subscriptionRef.current = null;
+      }
+      if (playerRef.current) {
+        playerRef.current.pause();
+        playerRef.current.remove();
+        playerRef.current = null;
       }
     };
   }, []);
 
-  const controller: AudioPlayerController = {
-    load,
-    play,
-    pause,
-    stop,
-    seek,
-    replay,
-  };
+  const controller: AudioPlayerController = useMemo(
+    () => ({
+      load,
+      play,
+      pause,
+      stop,
+      seek,
+      replay,
+    }),
+    [load, play, pause, stop, seek, replay]
+  );
 
   return {
     controller,

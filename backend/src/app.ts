@@ -11,6 +11,7 @@ import { MockLLMProvider } from "./providers/llm/mock/MockLLMProvider.js";
 
 import { SarvamTTSProvider } from "./providers/tts/sarvam/SarvamTTSProvider.js";
 import { ElevenLabsTTSProvider } from "./providers/tts/elevenlabs/ElevenLabsTTSProvider.js";
+import { OpenAITTSProvider } from "./providers/tts/openai/OpenAITTSProvider.js";
 import { MockTTSProvider } from "./providers/tts/mock/MockTTSProvider.js";
 
 import { SarvamVoiceCloneProvider } from "./providers/voice/sarvam/SarvamVoiceCloneProvider.js";
@@ -37,17 +38,21 @@ export function initializeProviders() {
   );
 
   // 2. TTS Providers
+  const openAITTS = new OpenAITTSProvider(config.openai.apiKey);
   providerRegistry.registerTTS(new MockTTSProvider());
+  providerRegistry.registerTTS(openAITTS);
   providerRegistry.registerTTS(
     new SarvamTTSProvider({
       apiKey: config.sarvam.apiKey,
       baseUrl: config.sarvam.baseUrl,
+      openaiFallback: openAITTS,
     })
   );
   providerRegistry.registerTTS(
     new ElevenLabsTTSProvider({
       apiKey: config.elevenlabs.apiKey,
       baseUrl: config.elevenlabs.baseUrl,
+      openaiFallback: openAITTS,
     })
   );
 
@@ -68,8 +73,13 @@ export function initializeProviders() {
 
   // 4. Storage Providers
   providerRegistry.registerStorage(new MockStorageProvider());
+  const storageBaseUrl =
+    process.env.PUBLIC_API_URL || process.env.RENDER_EXTERNAL_URL
+      ? `${(process.env.PUBLIC_API_URL || process.env.RENDER_EXTERNAL_URL)!.replace(/\/$/, "")}/api/v1/storage`
+      : `http://localhost:${config.port}/api/v1/storage`;
+
   providerRegistry.registerStorage(
-    new LocalStorageProvider(config.localStorageDir, `http://localhost:${config.port}/api/v1/storage`)
+    new LocalStorageProvider(config.localStorageDir, storageBaseUrl)
   );
   providerRegistry.registerStorage(
     new S3StorageProvider({

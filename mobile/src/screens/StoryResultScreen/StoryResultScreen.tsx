@@ -16,10 +16,10 @@ export const StoryResultScreen: React.FC<Props> = ({ route, navigation }) => {
   const { controller, playerState } = useAudioPlayer();
 
   useEffect(() => {
-    if (story.audioUrl) {
+    if (story?.audioUrl) {
       controller.load(story.audioUrl);
     }
-  }, [story.audioUrl, controller]);
+  }, [story?.audioUrl]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
