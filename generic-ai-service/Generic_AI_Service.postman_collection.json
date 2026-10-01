@@ -1,0 +1,303 @@
+{
+  "info": {
+    "_postman_id": "a9d7b420-1a2b-4c3d-9e8f-genericai001",
+    "name": "Generic AI Service APIs",
+    "description": "Postman Collection for Generic AI Service: ChatGPT wrapper, LLM generation, TTS speech synthesis, voice cloning, and async background pipeline jobs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "test-ai-key-secret-12345",
+      "type": "string"
+    },
+    {
+      "key": "clonedVoiceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pipelineJobId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "x-api-key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{apiKey}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1. Health Probe",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/healthy",
+          "host": ["{{baseUrl}}"],
+          "path": ["healthy"]
+        },
+        "description": "Checks liveness of the Generic AI Service without requiring API keys."
+      }
+    },
+    {
+      "name": "2. ChatGPT Wrapper",
+      "item": [
+        {
+          "name": "Chat - Simple Input Text",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"What is a bedtime story and why is it helpful for kids?\",\n  \"systemPrompt\": \"You are a warm, gentle bedtime storytelling assistant.\",\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.7,\n  \"maxTokens\": 500\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai", "chat"]
+            },
+            "description": "Direct ChatGPT wrapper. Takes simple input text and returns output text with token usage."
+          }
+        },
+        {
+          "name": "Chat - Multi-turn Messages",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a Tamil bedtime storyteller. Speak in natural conversational Tamil.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"5 வயசு குழந்தைக்கு தூங்குறதுக்கு ஒரு குட்டி கதை சொல்லுங்க.\"\n    }\n  ],\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.7\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/chat/completions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai", "chat", "completions"]
+            },
+            "description": "ChatGPT wrapper accepting standard multi-turn conversation messages."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Text Generation",
+      "item": [
+        {
+          "name": "Generate Text (Gemini / OpenAI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"gemini\",\n  \"model\": \"gemini-2.5-flash\",\n  \"prompt\": \"Write a bedtime story about {{childName}} and a magical friendly blue train that travels to the stars.\",\n  \"templateVariables\": {\n    \"childName\": \"Aarav\"\n  },\n  \"systemInstruction\": \"You are a gentle Tamil bedtime storyteller. Use home conversational tone.\",\n  \"temperature\": 0.7,\n  \"maxTokens\": 1024\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/text/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai", "text", "generate"]
+            },
+            "description": "Multi-provider prompt execution with variable interpolation."
+          }
+        },
+        {
+          "name": "Generate Structured JSON",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"gemini\",\n  \"prompt\": \"Extract themes and bedtime mood for child Aarav who likes trains and space.\",\n  \"jsonSchema\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"calmnessScore\": { \"type\": \"number\" },\n      \"recommendedMorals\": {\n        \"type\": \"array\",\n        \"items\": { \"type\": \"string\" }\n      },\n      \"suggestedPacing\": { \"type\": \"string\" }\n    },\n    \"required\": [\"calmnessScore\", \"recommendedMorals\", \"suggestedPacing\"]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/text/structured",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai", "text", "structured"]
+            },
+            "description": "Enforces strict JSON schema output from LLM."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Speech Synthesis (TTS)",
+      "item": [
+        {
+          "name": "Synthesize Speech to Audio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"கண்ணா ஆரவ், நல்லா தூங்கு. நாளைக்கு ஒரு அழகான நாள் வரப்போகுது. இனிமையான கனவுகள் வரட்டும்.\",\n  \"languageCode\": \"ta-IN\",\n  \"emotion\": \"bedtime_calm\",\n  \"speakingRate\": 0.9,\n  \"outputFormat\": \"mp3\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/speech/synthesize",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai", "speech", "synthesize"]
+            },
+            "description": "Synthesizes spoken narration into an audio file stored in S3 and served via CloudFront CDN."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Voice Cloning & Registry",
+      "item": [
+        {
+          "name": "Clone Voice from Audio Samples",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.aiVoiceId) {",
+                  "  pm.collectionVariables.set('clonedVoiceId', json.data.aiVoiceId);",
+                  "  console.log('Saved clonedVoiceId:', json.data.aiVoiceId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ownerProject\": \"nila\",\n  \"externalReferenceId\": \"voice_parent_001\",\n  \"displayName\": \"Appa Tamil Voice\",\n  \"sampleAudioUrls\": [\n    \"https://nila-media-uploads.s3.amazonaws.com/samples/sample_recording_1.m4a\"\n  ],\n  \"language\": \"ta\",\n  \"speakerGender\": \"male\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/voice/clone",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai", "voice", "clone"]
+            },
+            "description": "Registers voice cloning request and returns new aiVoiceId."
+          }
+        },
+        {
+          "name": "Get Cloned Voice Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/voice/{{clonedVoiceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai", "voice", "{{clonedVoiceId}}"]
+            },
+            "description": "Fetches metadata and status of registered cloned voice."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Async AI Pipeline & Jobs",
+      "item": [
+        {
+          "name": "Enqueue Story Pipeline Job",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.jobId) {",
+                  "  pm.collectionVariables.set('pipelineJobId', json.data.jobId);",
+                  "  console.log('Saved pipelineJobId:', json.data.jobId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jobType\": \"STORY_PIPELINE\",\n  \"ownerProject\": \"nila\",\n  \"externalReferenceId\": \"story_req_001\",\n  \"payload\": {\n    \"childName\": \"Aarav\",\n    \"promptIdea\": \"A magical cloud that gives soft hugs and puts little animals to sleep\",\n    \"dialect\": \"Chennai\",\n    \"systemInstruction\": \"Conversational spoken Tamil for bedtime.\"\n  },\n  \"callbackWebhookUrl\": \"http://localhost:8080/api/v1/stories/callback\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/jobs/pipeline",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai", "jobs", "pipeline"]
+            },
+            "description": "Submits full background story generation and audio synthesis pipeline."
+          }
+        },
+        {
+          "name": "Get Job Status & Result",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/jobs/{{pipelineJobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai", "jobs", "{{pipelineJobId}}"]
+            },
+            "description": "Polls async job progress (PENDING, PROCESSING, COMPLETED, FAILED) and retrieves final output."
+          }
+        }
+      ]
+    }
+  ]
+}

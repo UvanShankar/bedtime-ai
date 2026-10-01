@@ -1,0 +1,426 @@
+{
+  "info": {
+    "_postman_id": "c7e8d910-3b4c-5d6e-7f8a-bedtimeai001",
+    "name": "Bedtime AI - Complete Platform APIs",
+    "description": "Comprehensive Postman Collection covering both Generic AI Service (ChatGPT wrapper, LLM, TTS, Voice Cloning) and Nila Core Service (Auth, Children, Memories, Stories, Playback).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "aiBaseUrl",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "aiApiKey",
+      "value": "test-ai-key-secret-12345",
+      "type": "string"
+    },
+    {
+      "key": "coreBaseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "coreAuthToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "childId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "storyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "voiceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pipelineJobId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Generic AI Service (:8081)",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{aiBaseUrl}}/healthy",
+              "host": ["{{aiBaseUrl}}"],
+              "path": ["healthy"]
+            }
+          }
+        },
+        {
+          "name": "ChatGPT Wrapper - Direct Text In / Text Out",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{aiApiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"What is a bedtime story and why is it helpful for kids?\",\n  \"systemPrompt\": \"You are a gentle, warm storytelling assistant.\",\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.7\n}"
+            },
+            "url": {
+              "raw": "{{aiBaseUrl}}/api/v1/ai/chat",
+              "host": ["{{aiBaseUrl}}"],
+              "path": ["api", "v1", "ai", "chat"]
+            }
+          }
+        },
+        {
+          "name": "ChatGPT Wrapper - Multi-turn Messages",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{aiApiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"You are a Tamil bedtime storyteller.\" },\n    { \"role\": \"user\", \"content\": \"5 வயசு குழந்தைக்கு ஒரு குட்டி நிலா கதை சொல்லுங்க.\" }\n  ],\n  \"model\": \"gpt-4o-mini\"\n}"
+            },
+            "url": {
+              "raw": "{{aiBaseUrl}}/api/v1/ai/chat/completions",
+              "host": ["{{aiBaseUrl}}"],
+              "path": ["api", "v1", "ai", "chat", "completions"]
+            }
+          }
+        },
+        {
+          "name": "Text Generation (Gemini / OpenAI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{aiApiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"gemini\",\n  \"model\": \"gemini-2.5-flash\",\n  \"prompt\": \"Tell a story about {{childName}} and a little elephant.\",\n  \"templateVariables\": { \"childName\": \"Aarav\" },\n  \"temperature\": 0.7\n}"
+            },
+            "url": {
+              "raw": "{{aiBaseUrl}}/api/v1/ai/text/generate",
+              "host": ["{{aiBaseUrl}}"],
+              "path": ["api", "v1", "ai", "text", "generate"]
+            }
+          }
+        },
+        {
+          "name": "Speech Synthesis (TTS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{aiApiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"கண்ணா, நல்லா தூங்கு. இனிமையான கனவுகள் வரட்டும்.\",\n  \"languageCode\": \"ta-IN\",\n  \"emotion\": \"bedtime_calm\",\n  \"speakingRate\": 0.9\n}"
+            },
+            "url": {
+              "raw": "{{aiBaseUrl}}/api/v1/ai/speech/synthesize",
+              "host": ["{{aiBaseUrl}}"],
+              "path": ["api", "v1", "ai", "speech", "synthesize"]
+            }
+          }
+        },
+        {
+          "name": "Voice Cloning",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{aiApiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ownerProject\": \"nila\",\n  \"externalReferenceId\": \"voice_parent_001\",\n  \"displayName\": \"Appa Voice\",\n  \"sampleAudioUrls\": [\n    \"https://nila-media-uploads.s3.amazonaws.com/samples/sample_recording_1.m4a\"\n  ],\n  \"language\": \"ta\"\n}"
+            },
+            "url": {
+              "raw": "{{aiBaseUrl}}/api/v1/ai/voice/clone",
+              "host": ["{{aiBaseUrl}}"],
+              "path": ["api", "v1", "ai", "voice", "clone"]
+            }
+          }
+        },
+        {
+          "name": "Enqueue Story Pipeline Job",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.jobId) {",
+                  "  pm.collectionVariables.set('pipelineJobId', json.data.jobId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{aiApiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jobType\": \"STORY_PIPELINE\",\n  \"ownerProject\": \"nila\",\n  \"externalReferenceId\": \"story_demo_001\",\n  \"payload\": {\n    \"childName\": \"Aarav\",\n    \"promptIdea\": \"A little blue train in space\",\n    \"dialect\": \"Chennai\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{aiBaseUrl}}/api/v1/ai/jobs/pipeline",
+              "host": ["{{aiBaseUrl}}"],
+              "path": ["api", "v1", "ai", "jobs", "pipeline"]
+            }
+          }
+        },
+        {
+          "name": "Get Job Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{aiApiKey}}" }
+            ],
+            "url": {
+              "raw": "{{aiBaseUrl}}/api/v1/ai/jobs/{{pipelineJobId}}",
+              "host": ["{{aiBaseUrl}}"],
+              "path": ["api", "v1", "ai", "jobs", "{{pipelineJobId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Nila Core Service (:8080)",
+      "item": [
+        {
+          "name": "Auth - Register Parent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('coreAuthToken', json.data.accessToken);",
+                  "  console.log('Saved coreAuthToken');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Uvan Shankar\",\n  \"email\": \"uvan@example.com\",\n  \"mobile\": \"+919876543210\",\n  \"password\": \"Password@123\",\n  \"role\": \"father\",\n  \"language\": \"ta\",\n  \"dialect\": \"Madurai\"\n}"
+            },
+            "url": {
+              "raw": "{{coreBaseUrl}}/api/v1/auth/register",
+              "host": ["{{coreBaseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Auth - Login Parent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('coreAuthToken', json.data.accessToken);",
+                  "  console.log('Updated coreAuthToken from login');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"+919876543210\",\n  \"password\": \"Password@123\"\n}"
+            },
+            "url": {
+              "raw": "{{coreBaseUrl}}/api/v1/auth/login",
+              "host": ["{{coreBaseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Parent - Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{coreAuthToken}}" }
+            ],
+            "url": {
+              "raw": "{{coreBaseUrl}}/api/v1/parents/me",
+              "host": ["{{coreBaseUrl}}"],
+              "path": ["api", "v1", "parents", "me"]
+            }
+          }
+        },
+        {
+          "name": "Child - Create Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.childId) {",
+                  "  pm.collectionVariables.set('childId', json.data.childId);",
+                  "  console.log('Saved childId:', json.data.childId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{coreAuthToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Aarav\",\n  \"age\": 5,\n  \"interests\": [\"Trains\", \"Space\", \"Elephants\"],\n  \"personality\": [\"Curious\", \"Playful\"],\n  \"avoidTopics\": [\"Monsters\", \"Darkness\"],\n  \"favoriteCharacters\": [\"Leo the Lion\"]\n}"
+            },
+            "url": {
+              "raw": "{{coreBaseUrl}}/api/v1/children",
+              "host": ["{{coreBaseUrl}}"],
+              "path": ["api", "v1", "children"]
+            }
+          }
+        },
+        {
+          "name": "Child - List Children",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{coreAuthToken}}" }
+            ],
+            "url": {
+              "raw": "{{coreBaseUrl}}/api/v1/children",
+              "host": ["{{coreBaseUrl}}"],
+              "path": ["api", "v1", "children"]
+            }
+          }
+        },
+        {
+          "name": "Memories - Create Family Memory",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{coreAuthToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"childId\": \"{{childId}}\",\n  \"title\": \"Trip to Marina Beach\",\n  \"description\": \"Aarav built a giant sandcastle and saw the lighthouse with Appa.\",\n  \"category\": \"family_trip\"\n}"
+            },
+            "url": {
+              "raw": "{{coreBaseUrl}}/api/v1/memories",
+              "host": ["{{coreBaseUrl}}"],
+              "path": ["api", "v1", "memories"]
+            }
+          }
+        },
+        {
+          "name": "Story - Create Bedtime Story Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.storyId) {",
+                  "  pm.collectionVariables.set('storyId', json.data.storyId);",
+                  "  console.log('Saved storyId:', json.data.storyId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{coreAuthToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"childId\": \"{{childId}}\",\n  \"promptIdea\": \"A friendly blue train that takes Aarav to the moon to count stars\",\n  \"storyType\": \"Bedtime Adventure\",\n  \"mood\": \"Gentle & Sleepy\",\n  \"durationMinutes\": 5,\n  \"bedtimeCalmness\": 0.8,\n  \"dialect\": \"Madurai\"\n}"
+            },
+            "url": {
+              "raw": "{{coreBaseUrl}}/api/v1/stories",
+              "host": ["{{coreBaseUrl}}"],
+              "path": ["api", "v1", "stories"]
+            }
+          }
+        },
+        {
+          "name": "Story - Get Story Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{coreAuthToken}}" }
+            ],
+            "url": {
+              "raw": "{{coreBaseUrl}}/api/v1/stories/{{storyId}}",
+              "host": ["{{coreBaseUrl}}"],
+              "path": ["api", "v1", "stories", "{{storyId}}"]
+            }
+          }
+        },
+        {
+          "name": "Story - Update Playback Progress",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{coreAuthToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"playbackPositionSeconds\": 75,\n  \"durationSeconds\": 150,\n  \"completed\": false,\n  \"backgroundSoundId\": \"rain_soft\"\n}"
+            },
+            "url": {
+              "raw": "{{coreBaseUrl}}/api/v1/stories/{{storyId}}/playback",
+              "host": ["{{coreBaseUrl}}"],
+              "path": ["api", "v1", "stories", "{{storyId}}", "playback"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
