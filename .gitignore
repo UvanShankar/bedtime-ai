@@ -8,6 +8,11 @@ dist/
 build/
 .expo/
 web-build/
+*.apk
+
+# CDK Outputs
+cdk.out/
+.cdk.staging/
 
 # Environment Variables & Secrets (CRITICAL: Never commit to Git)
 .env
