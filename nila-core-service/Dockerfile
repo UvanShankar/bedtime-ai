@@ -20,7 +20,7 @@ ENV AWS_LWA_READINESS_CHECK_PATH=/healthy
 
 # Include official AWS Lambda Web Adapter (enables zero-cost serverless execution on Lambda)
 RUN mkdir -p /opt/extensions
-COPY --from=public.ecr.aws/awslabs/aws-lambda-adapter:0.8.4 /lambda-adapter /opt/extensions/lambda-adapter
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 /lambda-adapter /opt/extensions/lambda-adapter
 RUN chmod +x /opt/extensions/lambda-adapter
 
 COPY package*.json ./
