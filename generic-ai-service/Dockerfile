@@ -14,8 +14,8 @@ FROM node:20-alpine AS runner
 WORKDIR /usr/src/app
 
 ENV NODE_ENV=production
-ENV PORT=8081
-ENV AWS_LWA_PORT=8081
+ENV PORT=8082
+ENV AWS_LWA_PORT=8082
 ENV AWS_LWA_READINESS_CHECK_PATH=/healthy
 
 # Include official AWS Lambda Web Adapter (enables zero-cost serverless execution on Lambda)
@@ -27,6 +27,6 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /usr/src/app/dist ./dist
 
-EXPOSE 8081
+EXPOSE 8082
 
 CMD ["node", "dist/server.js"]
