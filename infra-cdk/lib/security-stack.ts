@@ -17,26 +17,23 @@ export interface SecurityStackProps extends cdk.StackProps {
 export class SecurityStack extends cdk.Stack {
   public readonly nilaServiceRole: iam.Role;
   public readonly aiServiceRole: iam.Role;
-  public readonly dataEncryptionKey: kms.Key;
 
   constructor(scope: Construct, id: string, props: SecurityStackProps) {
     super(scope, id, props);
 
     const env = props.environmentName || 'prod';
 
-    // 1. KMS Key for Data Encryption
-    this.dataEncryptionKey = new kms.Key(this, 'NilaDataKey', {
-      alias: `alias/nila-encryption-key-${env}`,
-      description: 'KMS Key for Nila Bedtime AI data and audio encryption',
-      enableKeyRotation: true,
-      removalPolicy: env === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
-    });
-
-    // 2. IAM Role for Nila Core Service
+    // 1. IAM Role for Nila Core Service (Assumed by Lambda & ECS)
     this.nilaServiceRole = new iam.Role(this, 'NilaCoreServiceRole', {
       roleName: `nila-core-service-role-${env}`,
-      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+      assumedBy: new iam.CompositePrincipal(
+        new iam.ServicePrincipal('lambda.amazonaws.com'),
+        new iam.ServicePrincipal('ecs-tasks.amazonaws.com')
+      ),
       description: 'IAM execution role for Nila Core Backend Service',
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
     });
 
     // Grant DynamoDB permissions to Nila Core Service
@@ -56,11 +53,17 @@ export class SecurityStack extends cdk.Stack {
     props.queuesStack.storyGenerationQueue.grantSendMessages(this.nilaServiceRole);
     props.queuesStack.voiceCloningQueue.grantSendMessages(this.nilaServiceRole);
 
-    // 3. IAM Role for Generic AI Service
+    // 2. IAM Role for Generic AI Service (Assumed by Lambda & ECS)
     this.aiServiceRole = new iam.Role(this, 'GenericAIServiceRole', {
       roleName: `generic-ai-service-role-${env}`,
-      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+      assumedBy: new iam.CompositePrincipal(
+        new iam.ServicePrincipal('lambda.amazonaws.com'),
+        new iam.ServicePrincipal('ecs-tasks.amazonaws.com')
+      ),
       description: 'IAM execution role for Generic AI Platform Service',
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
     });
 
     // Grant DynamoDB permissions to Generic AI Service

@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for Generic AI Service
+# Multi-stage Dockerfile for Generic AI Service (Runs locally, in Docker, and on AWS Lambda)
 FROM node:20-alpine AS builder
 
 WORKDIR /usr/src/app
@@ -15,6 +15,12 @@ WORKDIR /usr/src/app
 
 ENV NODE_ENV=production
 ENV PORT=8081
+ENV AWS_LWA_PORT=8081
+ENV AWS_LWA_READINESS_CHECK_PATH=/healthy
+
+# Include official AWS Lambda Web Adapter (enables zero-cost serverless execution on Lambda)
+COPY --from=public.ecr.aws/awslabs/aws-lambda-adapter:0.8.4 /lambda-adapter /opt/extensions/lambda-adapter
+RUN chmod +x /opt/extensions/lambda-adapter
 
 COPY package*.json ./
 RUN npm ci --omit=dev
@@ -22,7 +28,5 @@ RUN npm ci --omit=dev
 COPY --from=builder /usr/src/app/dist ./dist
 
 EXPOSE 8081
-
-USER node
 
 CMD ["node", "dist/server.js"]

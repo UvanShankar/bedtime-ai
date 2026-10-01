@@ -13,15 +13,14 @@ Comprehensive AWS CloudFormation infrastructure defined using AWS CDK TypeScript
 3. **`QueuesStack`**:
    - SQS FIFO and Standard queues with Dead Letter Queues (DLQs) for resilient asynchronous story and voice processing.
 4. **`SecurityStack`**:
-   - AWS KMS customer managed key for encryption.
-   - IAM least-privilege roles for ECS Fargate task roles.
+   - IAM least-privilege roles for AWS Lambda and ECS execution with AWS-managed encryption ($0.00 base cost).
    - SSM parameter store exports for dynamic endpoint discovery.
-5. **`ComputeStack`**:
-   - 2-AZ VPC with NAT Gateway.
-   - ECS Fargate cluster running `nila-core-service` and `generic-ai-service`.
-   - Shared Application Load Balancer with path-based routing:
-     - `/api/v1/ai/*` -> `generic-ai-service`
-     - All other paths -> `nila-core-service`
+5. **`ComputeStack` (Serverless — $0.00 Idle Bill)**:
+   - AWS Lambda Container Functions running with official AWS Lambda Web Adapter.
+   - HTTP API Gateway (v2) with intelligent path routing:
+     - `/api/v1/ai/*` -> `generic-ai-service` Lambda
+     - All other paths -> `nila-core-service` Lambda
+   - **Cost at 0 traffic: $0.00 / month** (no NAT Gateway, no ALB, no 24/7 VMs).
 
 ## CDK Commands
 
