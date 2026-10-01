@@ -20,6 +20,9 @@ app.use(cors({ origin: '*' }));
 app.get('/healthy', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'generic-ai-service', timestamp: new Date().toISOString() });
 });
+app.get('/api/v1/ai/healthy', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'generic-ai-service', timestamp: new Date().toISOString() });
+});
 
 // Secure API Routes with API Key authentication
 app.use(apiKeyAuth);

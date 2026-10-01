@@ -4,7 +4,7 @@ import { ApiError } from '../exceptions/ApiError';
 
 export function apiKeyAuth(req: Request, res: Response, next: NextFunction) {
   // Allow healthcheck without auth
-  if (req.path === '/healthy' || req.path === '/health') {
+  if (req.path === '/healthy' || req.path === '/health' || req.path.endsWith('/healthy') || req.path.endsWith('/health')) {
     return next();
   }
 
