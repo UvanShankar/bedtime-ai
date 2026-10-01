@@ -26,6 +26,10 @@ Thumbs.db
 .idea/
 
 # Local Debug Artifacts
-*.png
-bundle.js
+debug_screenshot_*.png
+# Android Build Outputs
+android/app/build/
+android/.gradle/
+android/local.properties
+android/build/
 

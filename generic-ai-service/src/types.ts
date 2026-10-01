@@ -88,3 +88,31 @@ export interface IAIJobResult {
   createdAt: string;
   completedAt?: string;
 }
+
+export interface IChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface IChatGPTRequestDTO {
+  text?: string;
+  prompt?: string;
+  messages?: IChatMessage[];
+  systemPrompt?: string;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  allowMockFallback?: boolean;
+}
+
+export interface IChatGPTResponseDTO {
+  inputText: string;
+  outputText: string;
+  provider: string;
+  model: string;
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+  };
+}
