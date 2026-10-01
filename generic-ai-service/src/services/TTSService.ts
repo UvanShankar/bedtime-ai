@@ -1,4 +1,5 @@
 import { ITTSProvider } from '../providers/tts/ITTSProvider';
+import { SarvamTTSProvider } from '../providers/tts/SarvamTTSProvider';
 import { ElevenLabsProvider } from '../providers/tts/ElevenLabsProvider';
 import { MockTTSProvider } from '../providers/tts/MockTTSProvider';
 import { ISpeechSynthesizeDTO, ISpeechSynthesizeResult } from '../types';
@@ -9,6 +10,7 @@ export class TTSService {
   private providers: Map<string, ITTSProvider> = new Map();
 
   constructor() {
+    this.registerProvider(new SarvamTTSProvider());
     this.registerProvider(new ElevenLabsProvider());
     this.registerProvider(new MockTTSProvider());
   }
@@ -17,7 +19,14 @@ export class TTSService {
     this.providers.set(provider.name, provider);
   }
 
-  private getProvider(): ITTSProvider {
+  private getProvider(preferred?: string): ITTSProvider {
+    if (preferred && this.providers.has(preferred)) {
+      return this.providers.get(preferred)!;
+    }
+    // Prioritize Sarvam for Indian languages or if key is provided
+    if (process.env.SARVAM_API_KEY && this.providers.has('sarvam')) {
+      return this.providers.get('sarvam')!;
+    }
     if (process.env.ELEVENLABS_API_KEY && this.providers.has('elevenlabs')) {
       return this.providers.get('elevenlabs')!;
     }

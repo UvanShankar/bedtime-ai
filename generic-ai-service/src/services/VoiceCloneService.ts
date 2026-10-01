@@ -1,3 +1,4 @@
+import { SarvamTTSProvider } from '../providers/tts/SarvamTTSProvider';
 import { ElevenLabsProvider } from '../providers/tts/ElevenLabsProvider';
 import { MockTTSProvider } from '../providers/tts/MockTTSProvider';
 import { ITTSProvider } from '../providers/tts/ITTSProvider';
@@ -6,18 +7,22 @@ import aiVoiceRegistryDao from '../dao/AIVoiceRegistryDao';
 import { v4 as uuidv4 } from 'uuid';
 
 export class VoiceCloneService {
-  private provider: ITTSProvider;
-
-  constructor() {
-    if (process.env.ELEVENLABS_API_KEY) {
-      this.provider = new ElevenLabsProvider();
-    } else {
-      this.provider = new MockTTSProvider();
+  private getProvider(preferred?: string): ITTSProvider {
+    if (preferred === 'sarvam' || (process.env.SARVAM_API_KEY && preferred !== 'elevenlabs')) {
+      return new SarvamTTSProvider();
     }
+    if (process.env.ELEVENLABS_API_KEY) {
+      return new ElevenLabsProvider();
+    }
+    if (process.env.SARVAM_API_KEY) {
+      return new SarvamTTSProvider();
+    }
+    return new MockTTSProvider();
   }
 
   async cloneVoice(params: IVoiceCloneDTO): Promise<IVoiceCloneResult> {
-    const cloneResult = await this.provider.cloneVoice(params);
+    const provider = this.getProvider();
+    const cloneResult = await provider.cloneVoice(params);
     const aiVoiceId = uuidv4();
     const timestamp = new Date().toISOString();
 
