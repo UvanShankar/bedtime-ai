@@ -1,0 +1,75 @@
+name: Deploy AWS Infrastructure (CDK Serverless)
+
+on:
+  workflow_dispatch: # Allows manual 1-click trigger from GitHub Actions tab
+  push:
+    branches: [main]
+
+jobs:
+  deploy-aws:
+    name: Build & Deploy Serverless Stacks to AWS
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout nila-infra-cdk repository into ./infra-cdk folder
+      - name: Checkout infra-cdk
+        uses: actions/checkout@v4
+        with:
+          path: infra-cdk
+
+      # 2. Checkout generic-ai-service repository into sibling folder ../generic-ai-service
+      - name: Checkout generic-ai-service
+        uses: actions/checkout@v4
+        with:
+          repository: UvanShankar/generic-ai-service
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          path: generic-ai-service
+
+      # 3. Checkout nila-core-service repository into sibling folder ../nila-core-service
+      - name: Checkout nila-core-service
+        uses: actions/checkout@v4
+        with:
+          repository: UvanShankar/nila-core-service
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          path: nila-core-service
+
+      # 4. Setup Node.js 20 environment
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: infra-cdk/package-lock.json
+
+      # 5. Authenticate to AWS
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
+
+      # 6. Install CDK dependencies & build
+      - name: Install CDK Dependencies
+        working-directory: ./infra-cdk
+        run: npm ci
+
+      - name: Build TypeScript
+        working-directory: ./infra-cdk
+        run: npm run build
+
+      # 7. Bootstrap & Deploy Serverless Stacks
+      - name: CDK Bootstrap
+        working-directory: ./infra-cdk
+        run: npx cdk bootstrap
+
+      - name: CDK Deploy All Stacks
+        working-directory: ./infra-cdk
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          AI_SERVICE_API_KEY: ${{ secrets.AI_SERVICE_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: npx cdk deploy --all --require-approval never
