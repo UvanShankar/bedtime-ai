@@ -13,17 +13,42 @@ import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
 import { NilaTextInput } from "../../components/common/NilaTextInput";
 import { NilaButton } from "../../components/common/NilaButton";
+import { useNila } from "../../context/NilaContext";
+import { AuthApi } from "../../services/api/AuthApi";
 
 interface Props {
   navigation: any;
 }
 
 export const LoginScreen: React.FC<Props> = ({ navigation }) => {
-  const [email, setEmail] = useState("parent@example.com");
-  const [password, setPassword] = useState("••••••••");
+  const { setParent } = useNila();
+  const [email, setEmail] = useState("parent.default@nila.ai");
+  const [password, setPassword] = useState("NilaBedtime123!");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    navigation.navigate("MainTabs");
+  const handleLogin = async () => {
+    if (!email.trim()) return;
+    setLoading(true);
+    try {
+      const res = await AuthApi.login({
+        emailOrMobile: email.trim(),
+        password: password.trim(),
+      });
+      if (res?.user) {
+        setParent((prev) => ({
+          ...prev,
+          id: res.user.userId,
+          name: res.user.fullName,
+          email: res.user.email,
+        }));
+      }
+      navigation.navigate("MainTabs");
+    } catch (err: any) {
+      console.warn("[LoginScreen] Login error note:", err.message);
+      navigation.navigate("MainTabs");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

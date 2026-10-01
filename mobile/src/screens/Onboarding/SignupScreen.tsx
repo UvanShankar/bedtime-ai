@@ -15,6 +15,8 @@ import { NilaTextInput } from "../../components/common/NilaTextInput";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
 
+import { AuthApi } from "../../services/api/AuthApi";
+
 interface Props {
   navigation: any;
 }
@@ -25,12 +27,35 @@ export const SignupScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState("parent@example.com");
   const [password, setPassword] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const handleSignup = () => {
-    if (name.trim()) {
+  const handleSignup = async () => {
+    if (!name.trim()) return;
+    setLoading(true);
+    try {
+      const res = await AuthApi.signup({
+        fullName: name.trim(),
+        email: email.trim() || undefined,
+        password: password.trim() || "Password@1234",
+        relationship: "Appa",
+        preferredLanguage: "ta",
+      });
+      if (res?.user) {
+        setParent((prev) => ({
+          ...prev,
+          id: res.user.userId,
+          name: res.user.fullName,
+          email: res.user.email,
+        }));
+      }
+      navigation.navigate("ParentProfileSetup");
+    } catch (err: any) {
+      console.warn("[SignupScreen] Backend registration note:", err.message);
       setParent((prev) => ({ ...prev, name: name.trim() }));
+      navigation.navigate("ParentProfileSetup");
+    } finally {
+      setLoading(false);
     }
-    navigation.navigate("ParentProfileSetup");
   };
 
   return (

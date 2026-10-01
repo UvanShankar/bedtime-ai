@@ -10,6 +10,9 @@ import {
 } from "../models";
 import { StoryApi } from "../services/api/StoryApi";
 import { ParentApi } from "../services/api/ParentApi";
+import { AuthApi } from "../services/api/AuthApi";
+import { MemoryApi } from "../services/api/MemoryApi";
+import { VoiceApi } from "../services/api/VoiceApi";
 
 interface NilaContextType {
   parent: ParentProfile;
@@ -254,7 +257,7 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Ensure profile is synced on backend and stories refreshed
   useEffect(() => {
     ensureBackendProfile().then(({ parentId }) => {
-      if (parentId && !parentId.startsWith("parent-uvan")) {
+      if (parentId) {
         refreshStoriesFromBackend();
       }
     }).catch((e) => console.log("Init sync note:", e));
@@ -265,69 +268,71 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let currentChildId = selectedChild.id;
 
     try {
-      // 1. Check parent validity on backend
-      let needCreateParent = false;
-      if (!currentParentId || currentParentId.startsWith("parent-uvan")) {
-        needCreateParent = true;
-      } else {
-        try {
-          await ParentApi.getParent(currentParentId);
-        } catch {
-          needCreateParent = true;
-        }
-      }
+      // 1. Authenticate with AWS backend (restores saved token or registers session)
+      await AuthApi.ensureAuth(parent.name || "Uvan");
 
-      if (needCreateParent) {
-        console.log("[NilaContext] Syncing parent profile with backend...");
-        const newParent = await ParentApi.createParent({
-          name: parent.name || "Uvan",
-          relationship: (parent.relationship as any) || "father",
-          language: parent.language || "Tamil",
-          languageCode: parent.languageCode || "ta",
-          dialect: parent.dialect || "Madurai",
-          script: parent.script || "Tamil",
-        });
-        currentParentId = newParent.id;
-        setParent((prev) => ({ ...prev, id: newParent.id }));
-      }
-
-      // 2. Check child validity on backend
-      let needCreateChild = false;
+      // 2. Fetch authenticated parent profile from DynamoDB
       try {
-        const backendChildren = await ParentApi.getChildrenForParent(currentParentId);
-        if (backendChildren && backendChildren.length > 0) {
-          const match = backendChildren.find(
-            (c) => c.name?.trim().toLowerCase() === (selectedChild.name || "").trim().toLowerCase()
-          );
-          if (match) {
-            currentChildId = match.id;
-            setSelectedChild((prev) => ({ ...prev, id: match.id, parentId: currentParentId }));
-          } else {
-            currentChildId = backendChildren[0].id;
-            setSelectedChild((prev) => ({ ...prev, id: backendChildren[0].id, parentId: currentParentId }));
-          }
-        } else {
-          needCreateChild = true;
+        const liveParent = await ParentApi.getProfile();
+        if (liveParent?.userId) {
+          currentParentId = liveParent.userId;
+          setParent((prev) => ({
+            ...prev,
+            id: liveParent.userId,
+            name: liveParent.fullName || prev.name,
+            relationship: (liveParent.relationship?.toLowerCase() as any) || prev.relationship,
+          }));
         }
-      } catch {
-        needCreateChild = true;
+      } catch (parentErr) {
+        console.warn("[NilaContext] Parent profile fetch note:", parentErr);
       }
 
-      if (needCreateChild) {
-        console.log("[NilaContext] Syncing child profile with backend...");
-        const newChild = await ParentApi.createChild({
-          parentId: currentParentId,
-          name: selectedChild.name || "Aarav",
-          age: selectedChild.age || 4,
-          interests: selectedChild.interests || ["Trains", "Stars"],
-          personality: selectedChild.personality || ["Curious", "Playful"],
-          avoidTopics: selectedChild.avoidTopics || ["Monsters"],
-          favoriteCharacters: selectedChild.favoriteCharacters || [],
-        });
-        currentChildId = newChild.id;
-        setSelectedChild((prev) => ({ ...prev, id: newChild.id, parentId: currentParentId }));
-        setChildrenList((prev) => [newChild, ...prev.filter((c) => c.id !== newChild.id)]);
+      // 3. Fetch live children from DynamoDB Nila_Children_prod
+      try {
+        const backendChildren = await ParentApi.getChildren();
+        if (backendChildren && backendChildren.length > 0) {
+          setChildrenList(backendChildren);
+          currentChildId = backendChildren[0].id;
+          setSelectedChild(backendChildren[0]);
+        } else {
+          // Create initial child in DynamoDB
+          console.log("[NilaContext] Creating default child in DynamoDB...");
+          const newChild = await ParentApi.createChild({
+            name: selectedChild.name || "Aarav",
+            age: selectedChild.age || 4,
+            interests: selectedChild.interests || ["Trains", "Stars"],
+            personality: selectedChild.personality || ["Curious", "Playful"],
+            avoidTopics: selectedChild.avoidTopics || ["Monsters"],
+            favoriteCharacters: selectedChild.favoriteCharacters || [],
+          });
+          currentChildId = newChild.id;
+          setSelectedChild(newChild);
+          setChildrenList([newChild]);
+        }
+      } catch (childErr) {
+        console.warn("[NilaContext] Children sync note:", childErr);
       }
+
+      // 4. Fetch live memories from DynamoDB Nila_Memories_prod
+      try {
+        const liveMemories = await MemoryApi.getMemories(currentChildId);
+        if (liveMemories && liveMemories.length > 0) {
+          setMemories(liveMemories);
+        }
+      } catch (memErr) {
+        console.warn("[NilaContext] Memories sync note:", memErr);
+      }
+
+      // 5. Fetch live voices from DynamoDB Nila_VoiceProfiles_prod
+      try {
+        const liveVoices = await VoiceApi.getVoices();
+        if (liveVoices && liveVoices.length > 0) {
+          setVoiceProfile(liveVoices[0]);
+        }
+      } catch (voiceErr) {
+        console.warn("[NilaContext] Voice sync note:", voiceErr);
+      }
+
     } catch (err) {
       console.warn("[NilaContext] Profile backend sync encountered error:", err);
     }
@@ -337,22 +342,19 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshStoriesFromBackend = async () => {
     try {
-      if (parent.id && parent.id !== "parent-uvan-001") {
-        const backendStories = await StoryApi.getStories(parent.id);
-        if (backendStories && backendStories.length > 0) {
-          setStories((prev) => {
-            const combined = [...backendStories];
-            for (const s of prev) {
-              if (!combined.some((item) => item.id === s.id)) {
-                combined.push(s);
-              }
+      const backendStories = await StoryApi.getStories();
+      if (backendStories && backendStories.length > 0) {
+        setStories((prev) => {
+          const combined = [...backendStories];
+          for (const s of prev) {
+            if (!combined.some((item) => item.id === s.id)) {
+              combined.push(s);
             }
-            return combined;
-          });
-        }
+          }
+          return combined;
+        });
       }
     } catch (err) {
-      // Backend maybe offline, fallback silently to local mock stories
       console.log("Using cached/local stories:", err);
     }
   };
@@ -362,11 +364,19 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (selectedChild.id === updated.id) {
       setSelectedChild(updated);
     }
+    // Sync with DynamoDB asynchronously
+    ParentApi.updateChild(updated.id, {
+      name: updated.name,
+      age: updated.age,
+      interests: updated.interests,
+      fearsToAvoid: updated.avoidTopics,
+    }).catch((err) => console.warn("[NilaContext] Child update sync note:", err));
   };
 
   const addChild = (newChildData: Partial<ChildProfile>) => {
+    const tempId = `child-${Date.now()}`;
     const newChild: ChildProfile = {
-      id: `child-${Date.now()}`,
+      id: tempId,
       parentId: parent.id,
       name: newChildData.name || "Little One",
       age: newChildData.age || 3,
@@ -380,6 +390,18 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setChildrenList((prev) => [...prev, newChild]);
     setSelectedChild(newChild);
+
+    // Persist to DynamoDB
+    ParentApi.createChild({
+      name: newChild.name,
+      age: newChild.age,
+      interests: newChild.interests,
+      fearsToAvoid: newChild.avoidTopics,
+      favoriteCharacters: newChild.favoriteCharacters,
+    }).then((created) => {
+      setChildrenList((prev) => prev.map((c) => (c.id === tempId ? created : c)));
+      setSelectedChild((prev) => (prev.id === tempId ? created : prev));
+    }).catch((err) => console.warn("[NilaContext] Child creation sync note:", err));
   };
 
   const deleteVoiceProfile = () => {
@@ -387,14 +409,26 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addMemory = (memoryData: Omit<LifeMemory, "id" | "timesUsed" | "createdAt" | "updatedAt">) => {
+    const tempId = `mem-${Date.now()}`;
     const newMem: LifeMemory = {
       ...memoryData,
-      id: `mem-${Date.now()}`,
+      id: tempId,
       timesUsed: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     setMemories((prev) => [newMem, ...prev]);
+
+    // Persist to DynamoDB
+    MemoryApi.createMemory({
+      childId: selectedChild.id,
+      title: memoryData.title,
+      description: memoryData.description,
+      eventDate: memoryData.date,
+      tags: memoryData.emotions || (memoryData.category ? [memoryData.category] : []),
+    }).then((created) => {
+      setMemories((prev) => prev.map((m) => (m.id === tempId ? created : m)));
+    }).catch((err) => console.warn("[NilaContext] Memory creation sync note:", err));
   };
 
   const updateMemory = (updated: LifeMemory) => {
@@ -403,6 +437,7 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const deleteMemory = (id: string) => {
     setMemories((prev) => prev.filter((m) => m.id !== id));
+    MemoryApi.deleteMemory(id).catch((err) => console.warn("[NilaContext] Memory delete note:", err));
   };
 
   const addStory = (story: Story) => {
@@ -413,6 +448,7 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setStories((prev) =>
       prev.map((s) => (s.id === id ? { ...s, isFavorite: !s.isFavorite } : s))
     );
+    StoryApi.toggleFavorite(id).catch((err) => console.warn("[NilaContext] Story favorite note:", err));
   };
 
   const deleteStory = (id: string) => {
