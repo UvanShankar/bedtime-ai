@@ -54,13 +54,13 @@ export class QueuesStack extends cdk.Stack {
     });
 
     // 3. Generic AI Multi-Project Task DLQ & Main Queue
-    this.aiTaskDLQ = new sqs.Queue(this, 'AITaskDLQ', {
-      queueName: `generic-ai-tasks-dlq-${env}`,
+    this.aiTaskDLQ = new sqs.Queue(this, 'NilaAITaskDLQ', {
+      queueName: `nila-generic-ai-tasks-dlq-${env}`,
       retentionPeriod: cdk.Duration.days(14),
     });
 
-    this.aiTaskQueue = new sqs.Queue(this, 'AITaskQueue', {
-      queueName: `generic-ai-tasks-queue-${env}`,
+    this.aiTaskQueue = new sqs.Queue(this, 'NilaAITaskQueue', {
+      queueName: `nila-generic-ai-tasks-queue-${env}`,
       visibilityTimeout: cdk.Duration.seconds(300),
       deadLetterQueue: {
         maxReceiveCount: 3,

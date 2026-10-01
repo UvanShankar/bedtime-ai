@@ -157,8 +157,8 @@ export class DatabaseStack extends cdk.Stack {
     });
 
     // 8. Generic AI Service: AIVoiceRegistry Table (Cross-project voices)
-    this.aiVoiceRegistryTable = new dynamodb.Table(this, 'AIVoiceRegistryTable', {
-      tableName: `AI_VoiceRegistry_${env}`,
+    this.aiVoiceRegistryTable = new dynamodb.Table(this, 'NilaAIVoiceRegistryTable', {
+      tableName: `Nila_AI_VoiceRegistry_${env}`,
       partitionKey: { name: 'aiVoiceId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: isProd },
@@ -173,8 +173,8 @@ export class DatabaseStack extends cdk.Stack {
     });
 
     // 9. Generic AI Service: AIJobs Table (Async LLM/TTS Jobs)
-    this.aiJobsTable = new dynamodb.Table(this, 'AIJobsTable', {
-      tableName: `AI_Jobs_${env}`,
+    this.aiJobsTable = new dynamodb.Table(this, 'NilaAIJobsTable', {
+      tableName: `Nila_AI_Jobs_${env}`,
       partitionKey: { name: 'jobId', type: dynamodb.AttributeType.STRING },
       timeToLiveAttribute: 'expiresAt',
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,

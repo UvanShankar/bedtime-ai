@@ -54,8 +54,8 @@ export class SecurityStack extends cdk.Stack {
     props.queuesStack.voiceCloningQueue.grantSendMessages(this.nilaServiceRole);
 
     // 2. IAM Role for Generic AI Service (Assumed by Lambda & ECS)
-    this.aiServiceRole = new iam.Role(this, 'GenericAIServiceRole', {
-      roleName: `generic-ai-service-role-${env}`,
+    this.aiServiceRole = new iam.Role(this, 'NilaGenericAIServiceRole', {
+      roleName: `nila-generic-ai-service-role-${env}`,
       assumedBy: new iam.CompositePrincipal(
         new iam.ServicePrincipal('lambda.amazonaws.com'),
         new iam.ServicePrincipal('ecs-tasks.amazonaws.com')

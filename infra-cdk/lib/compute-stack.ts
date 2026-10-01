@@ -28,8 +28,8 @@ export class ComputeStack extends cdk.Stack {
 
     // 1. Generic AI Service Lambda (Serverless Container)
     // Generous 120s timeout and 2048 MB RAM for LLM / TTS / Voice processing
-    this.aiFunction = new lambda.DockerImageFunction(this, 'GenericAIFunction', {
-      functionName: `generic-ai-service-${env}`,
+    this.aiFunction = new lambda.DockerImageFunction(this, 'NilaGenericAIFunction', {
+      functionName: `nila-generic-ai-service-${env}`,
       code: lambda.DockerImageCode.fromImageAsset('../generic-ai-service'),
       memorySize: 2048,
       timeout: cdk.Duration.seconds(120),
@@ -75,7 +75,7 @@ export class ComputeStack extends cdk.Stack {
       },
     });
 
-    const aiIntegration = new HttpLambdaIntegration('GenericAIIntegration', this.aiFunction);
+    const aiIntegration = new HttpLambdaIntegration('NilaGenericAIIntegration', this.aiFunction);
     const nilaIntegration = new HttpLambdaIntegration('NilaCoreIntegration', this.nilaFunction);
 
     // Route /api/v1/ai and /api/v1/ai/{proxy+} to Generic AI Service Lambda

@@ -65,8 +65,8 @@ export class StorageStack extends cdk.Stack {
     });
 
     // 3. Generic AI Speech Bucket (Multi-project TTS & audio assets)
-    this.aiSpeechBucket = new s3.Bucket(this, 'AISpeechBucket', {
-      bucketName: `generic-ai-speech-output-${env}-${cdk.Aws.ACCOUNT_ID}`,
+    this.aiSpeechBucket = new s3.Bucket(this, 'NilaAISpeechBucket', {
+      bucketName: `nila-ai-speech-output-${env}-${cdk.Aws.ACCOUNT_ID}`,
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       enforceSSL: true,
