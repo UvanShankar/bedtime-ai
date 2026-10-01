@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,6 @@ import { NilaColors } from "../../theme/colors";
 import { NilaTextInput } from "../../components/common/NilaTextInput";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
-
 import { AuthApi } from "../../services/api/AuthApi";
 
 interface Props {
@@ -23,36 +22,103 @@ interface Props {
 
 export const SignupScreen: React.FC<Props> = ({ navigation }) => {
   const { setParent } = useNila();
-  const [name, setName] = useState("David");
-  const [email, setEmail] = useState("parent@example.com");
-  const [password, setPassword] = useState("");
+  const [name, setName] = useState("Uvan");
+  const [relationship, setRelationship] = useState("Appa");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState<"phone" | "otp">("phone");
   const [termsAccepted, setTermsAccepted] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
+  const [resendTimer, setResendTimer] = useState(0);
 
-  const handleSignup = async () => {
-    if (!name.trim()) return;
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  const formatPhoneNumber = (input: string) => {
+    const cleaned = input.replace(/[^\d+]/g, "");
+    if (cleaned.startsWith("+")) return cleaned;
+    if (cleaned.length === 10) return `+91${cleaned}`;
+    return cleaned ? `+91${cleaned}` : "";
+  };
+
+  const handleSendOtp = async () => {
+    setErrorMessage("");
+    setInfoMessage("");
+    if (!name.trim()) {
+      setErrorMessage("Please enter your name");
+      return;
+    }
+
+    const digitsOnly = phoneNumber.replace(/[^\d]/g, "");
+    if (digitsOnly.length < 10) {
+      setErrorMessage("Please enter a valid 10-digit mobile number");
+      return;
+    }
+
     setLoading(true);
+    const fullPhone = formatPhoneNumber(phoneNumber);
+
     try {
-      const res = await AuthApi.signup({
+      const res = await AuthApi.sendOtp(fullPhone);
+      setStep("otp");
+      setResendTimer(30);
+      if (res?.otp) {
+        setInfoMessage(`Verification code sent! (Code: ${res.otp})`);
+        setOtp(res.otp);
+      } else {
+        setInfoMessage(`Verification code sent to ${fullPhone}`);
+      }
+    } catch (err: any) {
+      console.warn("[SignupScreen] Send OTP note:", err.message);
+      setStep("otp");
+      setResendTimer(30);
+      setInfoMessage("Verification code ready (Demo: 123456)");
+      setOtp("123456");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    setErrorMessage("");
+    if (!otp.trim() || otp.trim().length < 4) {
+      setErrorMessage("Please enter the 6-digit verification code");
+      return;
+    }
+
+    setLoading(true);
+    const fullPhone = formatPhoneNumber(phoneNumber);
+
+    try {
+      const res = await AuthApi.verifyOtp({
+        phoneNumber: fullPhone,
+        otp: otp.trim(),
         fullName: name.trim(),
-        email: email.trim() || undefined,
-        password: password.trim() || "Password@1234",
-        relationship: "Appa",
-        preferredLanguage: "ta",
+        relationship: relationship.trim() || "Appa",
       });
+
       if (res?.user) {
         setParent((prev) => ({
           ...prev,
           id: res.user.userId,
-          name: res.user.fullName,
-          email: res.user.email,
+          name: res.user.fullName || name.trim(),
+          phone: res.user.mobile,
+          relationship: res.user.relationship || relationship,
         }));
       }
       navigation.navigate("ParentProfileSetup");
     } catch (err: any) {
-      console.warn("[SignupScreen] Backend registration note:", err.message);
-      setParent((prev) => ({ ...prev, name: name.trim() }));
-      navigation.navigate("ParentProfileSetup");
+      console.warn("[SignupScreen] Verify OTP error:", err.message);
+      setErrorMessage(err.message || "Invalid verification code. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -67,61 +133,137 @@ export const SignupScreen: React.FC<Props> = ({ navigation }) => {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              if (step === "otp") {
+                setStep("phone");
+                setErrorMessage("");
+                setInfoMessage("");
+              } else {
+                navigation.goBack();
+              }
+            }}
             activeOpacity={0.7}
           >
             <Ionicons name="chevron-back" size={24} color={NilaColors.textPrimary} />
           </TouchableOpacity>
 
-          <Text style={styles.title}>Create your account</Text>
+          <Text style={styles.title}>
+            {step === "phone" ? "Create your account" : "Verify code"}
+          </Text>
           <Text style={styles.subtitle}>
-            Begin the magical journey of personalized bedtime tales.
+            {step === "phone"
+              ? "Begin the magical journey of personalized bedtime stories."
+              : `Enter the 6-digit code sent to ${formatPhoneNumber(phoneNumber)}`}
           </Text>
 
-          <NilaTextInput
-            label="Your Name"
-            placeholder="e.g. Priya or David"
-            value={name}
-            onChangeText={setName}
-          />
-
-          <NilaTextInput
-            label="Email address"
-            placeholder="parent@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-
-          <NilaTextInput
-            label="Password"
-            placeholder="Create a strong password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-
-          <TouchableOpacity
-            style={styles.checkboxRow}
-            onPress={() => setTermsAccepted(!termsAccepted)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
-              {termsAccepted && <Ionicons name="checkmark" size={14} color={NilaColors.midnight} />}
+          {infoMessage ? (
+            <View style={styles.infoBadge}>
+              <Ionicons name="information-circle" size={18} color={NilaColors.gold} />
+              <Text style={styles.infoText}>{infoMessage}</Text>
             </View>
-            <Text style={styles.checkboxText}>
-              I agree to Nila's <Text style={styles.linkText}>Terms of Service</Text> and{" "}
-              <Text style={styles.linkText}>Privacy Policy</Text>.
-            </Text>
-          </TouchableOpacity>
+          ) : null}
 
-          <NilaButton
-            title="Create account"
-            onPress={handleSignup}
-            disabled={!termsAccepted}
-            style={styles.submitButton}
-          />
+          {errorMessage ? (
+            <View style={styles.errorBadge}>
+              <Ionicons name="alert-circle" size={18} color="#FF6B6B" />
+              <Text style={styles.errorBadgeText}>{errorMessage}</Text>
+            </View>
+          ) : null}
+
+          {step === "phone" ? (
+            <View>
+              <NilaTextInput
+                label="Your Name"
+                placeholder="e.g. Priya or David"
+                value={name}
+                onChangeText={(text) => {
+                  setName(text);
+                  setErrorMessage("");
+                }}
+              />
+
+              <Text style={styles.fieldLabel}>Mobile Number</Text>
+              <View style={styles.phoneInputRow}>
+                <View style={styles.countryCodeBox}>
+                  <Text style={styles.flagText}>🇮🇳</Text>
+                  <Text style={styles.countryCodeText}>+91</Text>
+                </View>
+                <View style={styles.phoneInputWrapper}>
+                  <NilaTextInput
+                    placeholder="98765 43210"
+                    value={phoneNumber}
+                    onChangeText={(text) => {
+                      setPhoneNumber(text);
+                      setErrorMessage("");
+                    }}
+                    keyboardType="phone-pad"
+                    maxLength={14}
+                    containerStyle={{ marginBottom: 0 }}
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                onPress={() => setTermsAccepted(!termsAccepted)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.checkbox, termsAccepted && styles.checkboxActive]}>
+                  {termsAccepted && <Ionicons name="checkmark" size={14} color={NilaColors.midnight} />}
+                </View>
+                <Text style={styles.checkboxText}>
+                  I agree to Nila's <Text style={styles.linkText}>Terms of Service</Text> and{" "}
+                  <Text style={styles.linkText}>Privacy Policy</Text>.
+                </Text>
+              </TouchableOpacity>
+
+              <NilaButton
+                title={loading ? "Sending Code..." : "Send Verification Code"}
+                onPress={handleSendOtp}
+                disabled={!termsAccepted || loading}
+                style={styles.submitButton}
+              />
+            </View>
+          ) : (
+            <View>
+              <NilaTextInput
+                label="6-Digit Verification Code"
+                placeholder="123456"
+                value={otp}
+                onChangeText={(text) => {
+                  setOtp(text);
+                  setErrorMessage("");
+                }}
+                keyboardType="number-pad"
+                maxLength={6}
+                style={styles.otpInput}
+              />
+
+              <View style={styles.resendRow}>
+                <TouchableOpacity
+                  onPress={() => setStep("phone")}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.editPhoneText}>Edit phone number</Text>
+                </TouchableOpacity>
+
+                {resendTimer > 0 ? (
+                  <Text style={styles.timerText}>Resend in {resendTimer}s</Text>
+                ) : (
+                  <TouchableOpacity onPress={handleSendOtp} activeOpacity={0.7}>
+                    <Text style={styles.resendActiveText}>Resend OTP</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <NilaButton
+                title={loading ? "Verifying..." : "Verify & Get Started"}
+                onPress={handleVerifyOtp}
+                disabled={loading}
+                style={styles.submitButton}
+              />
+            </View>
+          )}
 
           <TouchableOpacity
             style={styles.switchAuth}
@@ -167,7 +309,74 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: NilaColors.textSecondary,
     lineHeight: 20,
-    marginBottom: 28,
+    marginBottom: 24,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: NilaColors.textPrimary,
+    marginBottom: 8,
+  },
+  infoBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(245, 166, 35, 0.15)",
+    borderColor: "rgba(245, 166, 35, 0.4)",
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+    gap: 8,
+  },
+  infoText: {
+    color: NilaColors.gold,
+    fontSize: 13,
+    flex: 1,
+    fontWeight: "500",
+  },
+  errorBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 107, 107, 0.15)",
+    borderColor: "rgba(255, 107, 107, 0.4)",
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+    gap: 8,
+  },
+  errorBadgeText: {
+    color: "#FF6B6B",
+    fontSize: 13,
+    flex: 1,
+  },
+  phoneInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 16,
+  },
+  countryCodeBox: {
+    height: 52,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: NilaColors.surface,
+    borderWidth: 1,
+    borderColor: NilaColors.cardBorder,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  flagText: {
+    fontSize: 18,
+  },
+  countryCodeText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: NilaColors.textPrimary,
+  },
+  phoneInputWrapper: {
+    flex: 1,
   },
   checkboxRow: {
     flexDirection: "row",
@@ -197,6 +406,32 @@ const styles = StyleSheet.create({
   linkText: {
     color: NilaColors.gold,
     textDecorationLine: "underline",
+  },
+  otpInput: {
+    fontSize: 20,
+    letterSpacing: 8,
+    textAlign: "center",
+  },
+  resendRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 24,
+    marginTop: -4,
+  },
+  editPhoneText: {
+    color: NilaColors.textMuted,
+    fontSize: 13,
+    textDecorationLine: "underline",
+  },
+  timerText: {
+    color: NilaColors.textMuted,
+    fontSize: 13,
+  },
+  resendActiveText: {
+    color: NilaColors.gold,
+    fontSize: 13,
+    fontWeight: "600",
   },
   submitButton: {
     marginBottom: 24,

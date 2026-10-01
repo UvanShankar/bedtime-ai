@@ -49,6 +49,19 @@ export interface ILoginDTO {
   password?: string;
 }
 
+export interface ISendOtpDTO {
+  mobile?: string;
+  phoneNumber?: string;
+}
+
+export interface IVerifyOtpDTO {
+  mobile?: string;
+  phoneNumber?: string;
+  otp: string;
+  fullName?: string;
+  relationship?: 'Appa' | 'Amma' | 'Paati' | 'Thatha' | 'Other';
+}
+
 export interface ICreateChildDTO {
   name: string;
   gender?: 'boy' | 'girl' | 'unspecified';
