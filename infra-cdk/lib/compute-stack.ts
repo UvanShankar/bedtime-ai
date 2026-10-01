@@ -31,6 +31,7 @@ export class ComputeStack extends cdk.Stack {
     this.aiFunction = new lambda.DockerImageFunction(this, 'NilaGenericAIFunction', {
       functionName: `nila-generic-ai-service-${env}`,
       code: lambda.DockerImageCode.fromImageAsset('../generic-ai-service'),
+      architecture: lambda.Architecture.X86_64,
       memorySize: 2048,
       timeout: cdk.Duration.seconds(120),
       role: props.securityStack.aiServiceRole,
@@ -56,6 +57,7 @@ export class ComputeStack extends cdk.Stack {
     this.nilaFunction = new lambda.DockerImageFunction(this, 'NilaCoreFunction', {
       functionName: `nila-core-service-${env}`,
       code: lambda.DockerImageCode.fromImageAsset('../nila-core-service'),
+      architecture: lambda.Architecture.X86_64,
       memorySize: 1024,
       timeout: cdk.Duration.seconds(30),
       role: props.securityStack.nilaServiceRole,

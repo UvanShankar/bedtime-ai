@@ -49,7 +49,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
 
-      # 6. Install CDK dependencies & build
+      # 6. Authenticate Docker to Amazon ECR Public (avoids pull rate limits / 403)
+      - name: Log in to Amazon ECR Public
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws || true
+
+      # 7. Install CDK dependencies & build
       - name: Install CDK Dependencies
         working-directory: ./infra-cdk
         run: npm ci
@@ -58,7 +63,7 @@ jobs:
         working-directory: ./infra-cdk
         run: npm run build
 
-      # 7. Bootstrap & Deploy Serverless Stacks
+      # 8. Bootstrap & Deploy Serverless Stacks
       - name: CDK Bootstrap
         working-directory: ./infra-cdk
         run: npx cdk bootstrap
@@ -72,4 +77,4 @@ jobs:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           AI_SERVICE_API_KEY: ${{ secrets.AI_SERVICE_API_KEY }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        run: npx cdk deploy --all --require-approval never
+        run: npx cdk deploy --all --require-approval never --ci
