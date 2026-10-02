@@ -33,6 +33,7 @@ export interface IStructuredGenerateDTO<T = any> extends ITextGenerateDTO {
 
 export interface ISpeechSynthesizeDTO {
   text: string;
+  provider?: 'sarvam' | 'elevenlabs' | 'mock' | string;
   aiVoiceId?: string;
   languageCode?: string; // e.g. "ta-IN", "en-US"
   speakingRate?: number;
@@ -57,6 +58,7 @@ export interface ISpeechSynthesizeResult {
 export interface IVoiceCloneDTO {
   ownerProject: string; // e.g. "nila", "purpleone"
   externalReferenceId: string; // e.g. "voc_123"
+  provider?: 'sarvam' | 'elevenlabs' | 'mock' | string;
   sampleAudioUrls: string[];
   displayName?: string;
   speakerGender?: 'male' | 'female' | 'unspecified';

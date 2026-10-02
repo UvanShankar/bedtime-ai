@@ -20,9 +20,10 @@ export class TTSService {
   }
 
   private getProvider(preferred?: string): ITTSProvider {
+    const key = preferred ? preferred.toLowerCase().trim() : undefined;
     let selected: ITTSProvider;
-    if (preferred && this.providers.has(preferred)) {
-      selected = this.providers.get(preferred)!;
+    if (key && this.providers.has(key)) {
+      selected = this.providers.get(key)!;
     } else if (process.env.SARVAM_API_KEY && this.providers.has('sarvam')) {
       selected = this.providers.get('sarvam')!;
     } else if (process.env.ELEVENLABS_API_KEY && this.providers.has('elevenlabs')) {
@@ -36,7 +37,7 @@ export class TTSService {
   }
 
   async synthesizeSpeech(params: ISpeechSynthesizeDTO): Promise<ISpeechSynthesizeResult> {
-    const provider = this.getProvider();
+    const provider = this.getProvider(params.provider);
     const { audioBuffer, durationSeconds } = await provider.synthesizeSpeech(params);
 
     const bucket = params.targetBucket || process.env.STORY_AUDIO_BUCKET || process.env.AI_SPEECH_BUCKET || 'generic-ai-speech-output-prod';

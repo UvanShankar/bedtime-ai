@@ -8,8 +8,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 export class VoiceCloneService {
   private getProvider(preferred?: string): ITTSProvider {
+    const key = preferred ? preferred.toLowerCase().trim() : undefined;
     let selected: ITTSProvider;
-    if (preferred === 'sarvam' || (process.env.SARVAM_API_KEY && preferred !== 'elevenlabs')) {
+    if (key === 'sarvam' || (process.env.SARVAM_API_KEY && key !== 'elevenlabs')) {
       selected = new SarvamTTSProvider();
     } else if (process.env.ELEVENLABS_API_KEY) {
       selected = new ElevenLabsProvider();
@@ -24,7 +25,7 @@ export class VoiceCloneService {
   }
 
   async cloneVoice(params: IVoiceCloneDTO): Promise<IVoiceCloneResult> {
-    const provider = this.getProvider();
+    const provider = this.getProvider(params.provider);
     const cloneResult = await provider.cloneVoice(params);
     const aiVoiceId = uuidv4();
     const timestamp = new Date().toISOString();
