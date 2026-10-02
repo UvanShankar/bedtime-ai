@@ -25,17 +25,19 @@ export class LLMService {
   }
 
   private getProvider(preferred?: string): ILLMProvider {
+    let selected: ILLMProvider;
     if (preferred && this.providers.has(preferred)) {
-      return this.providers.get(preferred)!;
+      selected = this.providers.get(preferred)!;
+    } else if (process.env.OPENAI_API_KEY && this.providers.has('openai')) {
+      selected = this.providers.get('openai')!;
+    } else if (process.env.GEMINI_API_KEY && this.providers.has('gemini')) {
+      selected = this.providers.get('gemini')!;
+    } else {
+      selected = this.providers.get('mock')!;
     }
-    // Check OpenAI or Gemini
-    if (process.env.OPENAI_API_KEY && this.providers.has('openai')) {
-      return this.providers.get('openai')!;
-    }
-    if (process.env.GEMINI_API_KEY && this.providers.has('gemini')) {
-      return this.providers.get('gemini')!;
-    }
-    return this.providers.get('mock')!;
+
+    console.log(`[LLMService] Selected provider: "${selected.name}" (requested preferred: ${preferred ? `"${preferred}"` : 'none'})`);
+    return selected;
   }
 
   async generateText(params: ITextGenerateDTO): Promise<ITextGenerateResult> {

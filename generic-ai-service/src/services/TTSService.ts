@@ -20,17 +20,19 @@ export class TTSService {
   }
 
   private getProvider(preferred?: string): ITTSProvider {
+    let selected: ITTSProvider;
     if (preferred && this.providers.has(preferred)) {
-      return this.providers.get(preferred)!;
+      selected = this.providers.get(preferred)!;
+    } else if (process.env.SARVAM_API_KEY && this.providers.has('sarvam')) {
+      selected = this.providers.get('sarvam')!;
+    } else if (process.env.ELEVENLABS_API_KEY && this.providers.has('elevenlabs')) {
+      selected = this.providers.get('elevenlabs')!;
+    } else {
+      selected = this.providers.get('mock')!;
     }
-    // Prioritize Sarvam for Indian languages or if key is provided
-    if (process.env.SARVAM_API_KEY && this.providers.has('sarvam')) {
-      return this.providers.get('sarvam')!;
-    }
-    if (process.env.ELEVENLABS_API_KEY && this.providers.has('elevenlabs')) {
-      return this.providers.get('elevenlabs')!;
-    }
-    return this.providers.get('mock')!;
+
+    console.log(`[TTSService] Selected provider: "${selected.name}" (requested preferred: ${preferred ? `"${preferred}"` : 'none'})`);
+    return selected;
   }
 
   async synthesizeSpeech(params: ISpeechSynthesizeDTO): Promise<ISpeechSynthesizeResult> {
