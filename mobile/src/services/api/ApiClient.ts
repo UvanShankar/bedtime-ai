@@ -22,11 +22,19 @@ export class ApiError extends Error {
   }
 }
 
+const AWS_LIVE_ENDPOINT = "https://vchuxxma5j.execute-api.ap-south-1.amazonaws.com/api/v1";
+
 export class ApiClient {
   private static authToken: string | null = null;
   private static tokenFilePath = `${FileSystem.documentDirectory || ""}nila_auth_token.txt`;
+  private baseUrl: string;
 
-  constructor(private baseUrl: string) {
+  constructor(baseUrl: string) {
+    if (!baseUrl || baseUrl.includes("onrender.com")) {
+      this.baseUrl = AWS_LIVE_ENDPOINT;
+    } else {
+      this.baseUrl = baseUrl;
+    }
     ApiClient.loadToken();
   }
 
@@ -87,6 +95,12 @@ export class ApiClient {
     return (await response.text()) as unknown as T;
   }
 
+  private getEffectiveUrl(path: string): string {
+    const base = (!this.baseUrl || this.baseUrl.includes("onrender.com")) ? AWS_LIVE_ENDPOINT : this.baseUrl;
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    return `${base}${cleanPath}`;
+  }
+
   private getHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
     const headers: Record<string, string> = {
       Accept: "application/json",
@@ -99,7 +113,8 @@ export class ApiClient {
   }
 
   async get<T>(path: string, customHeaders: Record<string, string> = {}): Promise<T> {
-    const url = `${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+    const url = this.getEffectiveUrl(path);
+    console.log(`[ApiClient] GET ${url}`);
     const response = await fetch(url, {
       method: "GET",
       headers: this.getHeaders(customHeaders),
@@ -108,7 +123,8 @@ export class ApiClient {
   }
 
   async post<T>(path: string, body?: unknown, customHeaders: Record<string, string> = {}): Promise<T> {
-    const url = `${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+    const url = this.getEffectiveUrl(path);
+    console.log(`[ApiClient] POST ${url}`);
     const response = await fetch(url, {
       method: "POST",
       headers: this.getHeaders({ "Content-Type": "application/json", ...customHeaders }),
@@ -118,7 +134,8 @@ export class ApiClient {
   }
 
   async put<T>(path: string, body?: unknown, customHeaders: Record<string, string> = {}): Promise<T> {
-    const url = `${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+    const url = this.getEffectiveUrl(path);
+    console.log(`[ApiClient] PUT ${url}`);
     const response = await fetch(url, {
       method: "PUT",
       headers: this.getHeaders({ "Content-Type": "application/json", ...customHeaders }),
@@ -128,7 +145,8 @@ export class ApiClient {
   }
 
   async delete<T>(path: string, customHeaders: Record<string, string> = {}): Promise<T> {
-    const url = `${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+    const url = this.getEffectiveUrl(path);
+    console.log(`[ApiClient] DELETE ${url}`);
     const response = await fetch(url, {
       method: "DELETE",
       headers: this.getHeaders(customHeaders),
