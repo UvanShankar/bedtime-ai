@@ -39,13 +39,18 @@ declare global {
 export interface ISignupDTO {
   fullName: string;
   mobile?: string;
+  phoneNumber?: string;
+  otp?: string;
   email?: string;
   password?: string;
   relationship?: 'Appa' | 'Amma' | 'Paati' | 'Thatha' | 'Other';
 }
 
 export interface ILoginDTO {
-  emailOrMobile: string;
+  emailOrMobile?: string;
+  mobile?: string;
+  phoneNumber?: string;
+  otp?: string;
   password?: string;
 }
 

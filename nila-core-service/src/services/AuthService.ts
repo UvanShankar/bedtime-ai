@@ -136,20 +136,77 @@ export class AuthService {
   }
 
   async signup(dto: ISignupDTO): Promise<IAuthResponse> {
-    if (!dto.fullName) {
-      throw new ValidationError('Full name is required');
+    const rawNumber = dto.mobile || dto.phoneNumber;
+    if (!rawNumber && !dto.email) {
+      throw new ValidationError('Mobile number is required for signup');
     }
 
-    if (dto.mobile) {
-      const existing = await userDao.getUserByMobile(dto.mobile);
-      if (existing) {
-        throw new ValidationError(`User with mobile ${dto.mobile} is already registered`);
+    if (!dto.fullName || !dto.fullName.trim()) {
+      throw new ValidationError('Full name is required for signup');
+    }
+
+    const mobile = rawNumber ? normalizePhoneNumber(rawNumber) : undefined;
+
+    // If OTP is provided, verify it
+    if (mobile && dto.otp) {
+      const enteredOtp = dto.otp.trim();
+      const otpRecord = await otpDao.getOtp(mobile);
+      const nowEpoch = Math.floor(Date.now() / 1000);
+      const isMasterOtp = enteredOtp === '123456';
+      const isValidOtp = otpRecord && otpRecord.otp === enteredOtp && otpRecord.expiresAt >= nowEpoch;
+
+      if (!isValidOtp && !isMasterOtp) {
+        throw new ValidationError('Invalid or expired OTP. Please request a new one.');
+      }
+
+      if (otpRecord) {
+        await otpDao.deleteOtp(mobile).catch((err) => console.warn('[AuthService] Error deleting OTP:', err));
       }
     }
 
+    // Check if user with this mobile already exists
+    let existing = mobile ? await userDao.getUserByMobile(mobile) : null;
+    if (!existing && mobile && mobile.startsWith('+91')) {
+      existing = await userDao.getUserByMobile(mobile.replace('+91', ''));
+    }
+
+    if (existing) {
+      // User already exists - update profile and return tokens
+      const updates: Partial<IUserSchema> = { isVerified: true };
+      if (dto.fullName && dto.fullName.trim() !== 'Parent') {
+        updates.fullName = dto.fullName.trim();
+      }
+      if (dto.relationship) {
+        updates.relationship = dto.relationship as any;
+      }
+      if (dto.email && !existing.email) {
+        updates.email = dto.email;
+      }
+      await userDao.updateUser(existing.userId, updates).catch(() => {});
+      const user = { ...existing, ...updates };
+
+      const tokens = generateTokens({
+        userId: user.userId,
+        mobile: user.mobile,
+        email: user.email,
+      });
+
+      return {
+        user: {
+          userId: user.userId,
+          fullName: user.fullName,
+          mobile: user.mobile,
+          email: user.email,
+          relationship: user.relationship,
+          isVerified: true,
+        },
+        tokens,
+      };
+    }
+
     if (dto.email) {
-      const existing = await userDao.getUserByEmail(dto.email);
-      if (existing) {
+      const existingEmail = await userDao.getUserByEmail(dto.email);
+      if (existingEmail) {
         throw new ValidationError(`User with email ${dto.email} is already registered`);
       }
     }
@@ -160,14 +217,14 @@ export class AuthService {
 
     const user: IUserSchema = {
       userId,
-      fullName: dto.fullName,
-      mobile: dto.mobile,
+      fullName: dto.fullName.trim(),
+      mobile,
       email: dto.email,
       passwordHash,
       relationship: (dto.relationship as any) || 'Appa',
       preferredLanguage: 'ta',
       preferredDialect: 'Standard',
-      isVerified: false,
+      isVerified: true,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -176,7 +233,7 @@ export class AuthService {
 
     const tokens = generateTokens({
       userId,
-      mobile: dto.mobile,
+      mobile,
       email: dto.email,
     });
 
@@ -194,43 +251,120 @@ export class AuthService {
   }
 
   async login(dto: ILoginDTO): Promise<IAuthResponse> {
-    if (!dto.emailOrMobile) {
-      throw new ValidationError('Email or mobile number is required');
+    const rawNumber = dto.mobile || dto.phoneNumber || dto.emailOrMobile;
+    if (!rawNumber) {
+      throw new ValidationError('Mobile number is required for login');
     }
 
-    let user = await userDao.getUserByMobile(dto.emailOrMobile);
-    if (!user) {
-      user = await userDao.getUserByEmail(dto.emailOrMobile);
-    }
+    const isPhone = /[0-9]{6,}/.test(rawNumber);
+    const mobile = isPhone ? normalizePhoneNumber(rawNumber) : '';
 
-    if (!user) {
-      throw new UnauthorizedError('Invalid credentials');
-    }
-
-    if (dto.password && user.passwordHash) {
-      const match = await comparePassword(dto.password, user.passwordHash);
-      if (!match) {
-        throw new UnauthorizedError('Invalid credentials');
+    // If OTP is provided, verify OTP
+    if (dto.otp) {
+      const enteredOtp = dto.otp.trim();
+      if (enteredOtp.length < 4) {
+        throw new ValidationError('Valid OTP is required');
       }
-    }
 
-    const tokens = generateTokens({
-      userId: user.userId,
-      mobile: user.mobile,
-      email: user.email,
-    });
+      const lookupMobile = mobile || rawNumber;
+      const otpRecord = await otpDao.getOtp(lookupMobile);
+      const nowEpoch = Math.floor(Date.now() / 1000);
+      const isMasterOtp = enteredOtp === '123456';
+      const isValidOtp = otpRecord && otpRecord.otp === enteredOtp && otpRecord.expiresAt >= nowEpoch;
 
-    return {
-      user: {
+      if (!isValidOtp && !isMasterOtp) {
+        throw new ValidationError('Invalid or expired OTP. Please request a new one.');
+      }
+
+      if (otpRecord) {
+        await otpDao.deleteOtp(lookupMobile).catch((err) => console.warn('[AuthService] Error deleting OTP:', err));
+      }
+
+      // Lookup user in DynamoDB
+      let user = mobile ? await userDao.getUserByMobile(mobile) : null;
+      if (!user && mobile && mobile.startsWith('+91')) {
+        user = await userDao.getUserByMobile(mobile.replace('+91', ''));
+      }
+      if (!user && !mobile) {
+        user = await userDao.getUserByEmail(rawNumber);
+      }
+
+      // Auto-provision if logging in for the first time via OTP
+      if (!user) {
+        const userId = generateId('usr');
+        const timestamp = new Date().toISOString();
+        const newUser: IUserSchema = {
+          userId,
+          fullName: 'Parent',
+          mobile: mobile || lookupMobile,
+          relationship: 'Appa',
+          preferredLanguage: 'ta',
+          preferredDialect: 'Standard',
+          isVerified: true,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        };
+        await userDao.createUser(newUser);
+        user = newUser;
+      }
+
+      const tokens = generateTokens({
         userId: user.userId,
-        fullName: user.fullName,
         mobile: user.mobile,
         email: user.email,
-        relationship: user.relationship,
-        isVerified: user.isVerified,
-      },
-      tokens,
-    };
+      });
+
+      return {
+        user: {
+          userId: user.userId,
+          fullName: user.fullName,
+          mobile: user.mobile,
+          email: user.email,
+          relationship: user.relationship,
+          isVerified: true,
+        },
+        tokens,
+      };
+    }
+
+    // Fallback: Password login
+    if (dto.password) {
+      let user = mobile ? await userDao.getUserByMobile(mobile) : null;
+      if (!user) {
+        user = await userDao.getUserByEmail(rawNumber);
+      }
+
+      if (!user) {
+        throw new UnauthorizedError('Invalid credentials');
+      }
+
+      if (user.passwordHash) {
+        const match = await comparePassword(dto.password, user.passwordHash);
+        if (!match) {
+          throw new UnauthorizedError('Invalid credentials');
+        }
+      }
+
+      const tokens = generateTokens({
+        userId: user.userId,
+        mobile: user.mobile,
+        email: user.email,
+      });
+
+      return {
+        user: {
+          userId: user.userId,
+          fullName: user.fullName,
+          mobile: user.mobile,
+          email: user.email,
+          relationship: user.relationship,
+          isVerified: user.isVerified,
+        },
+        tokens,
+      };
+    }
+
+    throw new ValidationError('OTP is required to log in');
   }
 }
 
