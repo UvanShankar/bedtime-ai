@@ -3,12 +3,84 @@ import { StatusCodes } from 'http-status-codes';
 import voiceCloneService from '../services/VoiceCloneService';
 import aiVoiceRegistryDao from '../dao/AIVoiceRegistryDao';
 import { IResponse } from '../types';
-import { NotFoundError } from '../exceptions/ApiError';
+import { NotFoundError, ValidationError } from '../exceptions/ApiError';
 
 export class VoiceCloningController {
+  async uploadSample(req: Request, res: Response, next: NextFunction) {
+    try {
+      const ownerProject = (req.body?.ownerProject || 'general').trim();
+      const externalReferenceId = req.body?.externalReferenceId;
+
+      let audioBuffer: Buffer | null = null;
+      let originalName = 'audio-sample.wav';
+      let mimeType = 'audio/wav';
+
+      if (req.file) {
+        audioBuffer = req.file.buffer;
+        originalName = req.file.originalname || originalName;
+        mimeType = req.file.mimetype || mimeType;
+      } else if (req.body?.audioBase64) {
+        audioBuffer = Buffer.from(req.body.audioBase64, 'base64');
+        originalName = req.body.fileName || originalName;
+        mimeType = req.body.contentType || mimeType;
+      }
+
+      if (!audioBuffer || audioBuffer.length === 0) {
+        throw new ValidationError('No audio sample provided. Upload a file using multipart/form-data or send audioBase64 in JSON body.');
+      }
+
+      const result = await voiceCloneService.uploadSampleAudio({
+        buffer: audioBuffer,
+        fileName: originalName,
+        mimeType,
+        ownerProject,
+        externalReferenceId,
+      });
+
+      const response: IResponse<any> = {
+        data: result,
+        success: true,
+        statusCode: StatusCodes.OK,
+        error: null,
+      };
+      return res.status(StatusCodes.OK).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getPresignedSampleUrl(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { fileName, contentType, ownerProject } = req.body;
+      if (!fileName) {
+        throw new ValidationError('fileName is required to generate a presigned upload URL.');
+      }
+
+      const result = await voiceCloneService.getPresignedSampleUploadUrl({
+        fileName,
+        contentType,
+        ownerProject,
+      });
+
+      const response: IResponse<any> = {
+        data: result,
+        success: true,
+        statusCode: StatusCodes.OK,
+        error: null,
+      };
+      return res.status(StatusCodes.OK).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
   async cloneVoice(req: Request, res: Response, next: NextFunction) {
     try {
-      const result = await voiceCloneService.cloneVoice(req.body);
+      const body = { ...req.body };
+      // Allow passing either sampleAudioUrls (array), sampleAudioUrl (string), or audioS3Key (string)
+      if (!body.sampleAudioUrls && (body.sampleAudioUrl || body.audioS3Key)) {
+        body.sampleAudioUrls = [body.sampleAudioUrl || body.audioS3Key];
+      }
+      const result = await voiceCloneService.cloneVoice(body);
       const response: IResponse<any> = {
         data: result,
         success: true,

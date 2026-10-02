@@ -12,14 +12,18 @@ import {
 const region = process.env.AWS_REGION || 'ap-south-1';
 const isDebugMode = process.env.DEBUG === 'true';
 
+const hasExplicitAwsCredentials = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+
 let dynamoDBClientBase = new DynamoDBClient({
   region,
+  ...(hasExplicitAwsCredentials && {
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
+  }),
   ...(isDebugMode && {
     endpoint: process.env.DYNAMODB_ENDPOINT || 'http://localhost:4566',
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
-    },
   }),
 });
 

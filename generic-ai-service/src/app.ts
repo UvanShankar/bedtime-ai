@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import morgan from 'morgan';
 import { apiKeyAuth } from './middleware/apiKeyAuth';
@@ -15,6 +16,7 @@ const app = express();
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(cors({ origin: '*' }));
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Health Check
 app.get('/healthy', (req, res) => {

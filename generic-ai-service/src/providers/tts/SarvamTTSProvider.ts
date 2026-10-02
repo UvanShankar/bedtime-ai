@@ -1,6 +1,7 @@
 import { ITTSProvider } from './ITTSProvider';
 import { ISpeechSynthesizeDTO, IVoiceCloneDTO, IVoiceCloneResult } from '../../types';
 import { ApiError } from '../../exceptions/ApiError';
+import { getBufferFromUrlOrS3 } from '../../database/s3Operations';
 
 const SARVAM_SUPPORTED_LANGUAGES: Record<string, string> = {
   'ta': 'ta-IN',
@@ -15,6 +16,16 @@ const SARVAM_SUPPORTED_LANGUAGES: Record<string, string> = {
   'ml-in': 'ml-IN',
   'en': 'en-IN',
   'en-in': 'en-IN',
+  'bn': 'bn-IN',
+  'bn-in': 'bn-IN',
+  'gu': 'gu-IN',
+  'gu-in': 'gu-IN',
+  'mr': 'mr-IN',
+  'mr-in': 'mr-IN',
+  'od': 'od-IN',
+  'od-in': 'od-IN',
+  'pa': 'pa-IN',
+  'pa-in': 'pa-IN',
 };
 
 const VALID_SARVAM_SPEAKERS = [
@@ -46,15 +57,20 @@ export class SarvamTTSProvider implements ITTSProvider {
       throw new ApiError('Sarvam API key is not configured in SARVAM_API_KEY');
     }
 
-    const langKey = (params.languageCode || 'ta-IN').toLowerCase();
-    const targetLanguageCode = SARVAM_SUPPORTED_LANGUAGES[langKey] || 'ta-IN';
+    const rawLang = params.languageCode || (params as any).language || 'ta-IN';
+    const langKey = rawLang.toLowerCase();
+    const targetLanguageCode = SARVAM_SUPPORTED_LANGUAGES[langKey] || rawLang;
 
-    const isClonedVoice = typeof params.aiVoiceId === 'string' && params.aiVoiceId.startsWith('svc-');
-    const speakerCandidate = (params.aiVoiceId || 'priya').toLowerCase();
+    const rawSpeaker =
+      params.speaker ||
+      (Array.isArray(params.speakers) ? params.speakers[0] : params.speakers) ||
+      params.aiVoiceId;
+    const isClonedVoice = typeof rawSpeaker === 'string' && rawSpeaker.startsWith('svc-');
+    const speakerCandidate = (rawSpeaker || 'priya').toLowerCase();
     const speaker = VALID_SARVAM_SPEAKERS.includes(speakerCandidate) ? speakerCandidate : 'priya';
 
-    // Respect Sarvam character chunk limits
-    const maxChunkLength = isClonedVoice ? 900 : 480;
+    // Respect Sarvam character chunk limits (bulbul:v3 supports up to 2500 characters)
+    const maxChunkLength = isClonedVoice ? 900 : 2000;
     const textChunks: string[] = [];
 
     if (params.text.length <= maxChunkLength) {
@@ -82,7 +98,7 @@ export class SarvamTTSProvider implements ITTSProvider {
       if (isClonedVoice) {
         // Cloned Voice inference endpoint
         const formData = new FormData();
-        formData.append('voice_id', params.aiVoiceId!);
+        formData.append('voice_id', rawSpeaker!);
         formData.append('text', chunk);
         formData.append('language_code', targetLanguageCode);
         formData.append('pace', String(params.speakingRate ?? 0.9));
@@ -104,10 +120,10 @@ export class SarvamTTSProvider implements ITTSProvider {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            inputs: [chunk],
-            target_language_code: targetLanguageCode,
+            text: chunk,
+            language_code: targetLanguageCode,
             speaker,
-            model: 'bulbul:v2',
+            model: 'bulbul:v3',
             pace: params.speakingRate ?? 0.9,
             speech_sample_rate: 22050,
             enable_preprocessing: true,
@@ -153,27 +169,34 @@ export class SarvamTTSProvider implements ITTSProvider {
       throw new ApiError('Sarvam API key is not configured in SARVAM_API_KEY');
     }
 
-    // Fetch sample audio from first URL if provided
+    // Fetch sample audio from first URL or S3 key if provided
     let audioBuffer: Buffer;
     if (params.sampleAudioUrls && params.sampleAudioUrls.length > 0) {
       const sampleUrl = params.sampleAudioUrls[0];
-      const audioRes = await fetch(sampleUrl);
-      if (!audioRes.ok) {
-        throw new ApiError(`Failed to fetch sample audio for Sarvam voice cloning from ${sampleUrl}`);
+      try {
+        audioBuffer = await getBufferFromUrlOrS3(sampleUrl);
+      } catch (err: any) {
+        throw new ApiError(`Failed to fetch sample audio for Sarvam voice cloning from ${sampleUrl}: ${err.message}`);
       }
-      const arrayBuf = await audioRes.arrayBuffer();
-      audioBuffer = Buffer.from(arrayBuf);
     } else {
       throw new ApiError('No sampleAudioUrls provided for Sarvam voice cloning');
     }
 
-    const langKey = (params.language || 'ta-IN').toLowerCase();
-    const targetLanguageCode = SARVAM_SUPPORTED_LANGUAGES[langKey] || 'ta-IN';
+    const rawLang = params.language || (params as any).languageCode || 'ta-IN';
+    const langKey = rawLang.toLowerCase();
+    const targetLanguageCode = SARVAM_SUPPORTED_LANGUAGES[langKey] || rawLang;
+
+    const isMp3 = (params.sampleAudioUrls[0] || '').toLowerCase().includes('.mp3');
+    const mimeType = isMp3 ? 'audio/mpeg' : 'audio/wav';
+    const sampleFileName = isMp3 ? 'sample_voice.mp3' : 'sample_voice.wav';
+    const voiceName = (params.displayName || `Parent_${Date.now()}`).trim().slice(0, 100);
 
     const formData = new FormData();
-    const blob = new Blob([audioBuffer], { type: 'audio/wav' });
-    formData.append('file', blob, 'sample_voice.wav');
-    formData.append('voice_name', params.displayName || `Parent_${Date.now()}`);
+    const blob = new Blob([audioBuffer], { type: mimeType });
+    formData.append('file', blob, sampleFileName);
+    formData.append('name', voiceName);
+    formData.append('voice_name', voiceName);
+    formData.append('language', targetLanguageCode);
     formData.append('language_code', targetLanguageCode);
 
     const response = await fetch(`${this.baseUrl}/voices/create`, {

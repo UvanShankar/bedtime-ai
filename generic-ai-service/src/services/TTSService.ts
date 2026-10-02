@@ -4,6 +4,7 @@ import { ElevenLabsProvider } from '../providers/tts/ElevenLabsProvider';
 import { MockTTSProvider } from '../providers/tts/MockTTSProvider';
 import { ISpeechSynthesizeDTO, ISpeechSynthesizeResult } from '../types';
 import { uploadBufferToS3 } from '../database/s3Operations';
+import aiVoiceRegistryDao from '../dao/AIVoiceRegistryDao';
 import { v4 as uuidv4 } from 'uuid';
 
 export class TTSService {
@@ -37,8 +38,26 @@ export class TTSService {
   }
 
   async synthesizeSpeech(params: ISpeechSynthesizeDTO): Promise<ISpeechSynthesizeResult> {
-    const provider = this.getProvider(params.provider);
-    const { audioBuffer, durationSeconds } = await provider.synthesizeSpeech(params);
+    const resolvedParams = { ...params };
+    const voiceCandidate = resolvedParams.speaker || resolvedParams.aiVoiceId;
+
+    if (voiceCandidate && !voiceCandidate.startsWith('svc-')) {
+      try {
+        const registered = await aiVoiceRegistryDao.getVoice(voiceCandidate);
+        if (registered && registered.providerVoiceId) {
+          resolvedParams.speaker = registered.providerVoiceId;
+          resolvedParams.aiVoiceId = registered.providerVoiceId;
+          if (!resolvedParams.provider && registered.provider) {
+            resolvedParams.provider = registered.provider;
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[TTSService] Voice registry lookup note for "${voiceCandidate}":`, err.message);
+      }
+    }
+
+    const provider = this.getProvider(resolvedParams.provider);
+    const { audioBuffer, durationSeconds } = await provider.synthesizeSpeech(resolvedParams);
 
     const bucket = params.targetBucket || process.env.STORY_AUDIO_BUCKET || process.env.AI_SPEECH_BUCKET || 'generic-ai-speech-output-prod';
     const key = params.targetKey || `speech/${uuidv4()}.${params.outputFormat || 'mp3'}`;
