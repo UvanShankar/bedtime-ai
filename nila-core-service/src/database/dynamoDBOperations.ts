@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
   DynamoDBDocumentClient,
@@ -12,14 +15,20 @@ import {
 const region = process.env.AWS_REGION || 'ap-south-1';
 const isDebugMode = process.env.DEBUG === 'true';
 
+const isLambda = !!(process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.AWS_EXECUTION_ENV);
+const hasExplicitAwsCredentials = !isLambda && !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+
 let dynamoDBClientBase = new DynamoDBClient({
   region,
+  ...(hasExplicitAwsCredentials && {
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      ...(process.env.AWS_SESSION_TOKEN && { sessionToken: process.env.AWS_SESSION_TOKEN }),
+    },
+  }),
   ...(isDebugMode && {
     endpoint: process.env.DYNAMODB_ENDPOINT || 'http://localhost:4566',
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
-    },
   }),
 });
 
