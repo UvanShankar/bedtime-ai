@@ -1,0 +1,1329 @@
+{
+  "info": {
+    "_postman_id": "nila-complete-platform-v1",
+    "name": "Nila AI Platform - Complete API Collection",
+    "description": "Comprehensive Postman collection for all Nila services: Generic AI Service and Nila Core Service.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl_ai",
+      "value": "http://localhost:8082",
+      "type": "string"
+    },
+    {
+      "key": "baseUrl_core",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "aws_ai_gateway",
+      "value": "https://vchuxxma5j.execute-api.ap-south-1.amazonaws.com",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "test-ai-key-secret-12345",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sampleAudioUrl",
+      "value": "https://nila-media-uploads-prod-354953409985.s3.ap-south-1.amazonaws.com/voice-samples/nila/b93eb302-c6d0-4662-b900-0dcc3ebf996e.mp3",
+      "type": "string"
+    },
+    {
+      "key": "clonedVoiceId",
+      "value": "6499f547-7e92-4145-a605-2231019f1c56",
+      "type": "string"
+    },
+    {
+      "key": "childId",
+      "value": "child_123",
+      "type": "string"
+    },
+    {
+      "key": "storyId",
+      "value": "story_123",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Generic AI Service",
+      "item": [
+        {
+          "name": "Health",
+          "item": [
+            {
+              "name": "Health Check (Root)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl_ai}}/healthy",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "healthy"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Health Check (API Prefix)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/healthy",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "healthy"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Speech Synthesis (TTS)",
+          "item": [
+            {
+              "name": "Synthesize Speech - Sarvam AI (Tamil)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"provider\": \"sarvam\",\n  \"speaker\": \"priya\",\n  \"text\": \"ஒரு அழகான கிராமத்தில் நிலா என்ற ஒரு பாப்பா வாழ்ந்து வந்தாள்.\",\n  \"languageCode\": \"ta-IN\",\n  \"speakingRate\": 0.95\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/speech/synthesize",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "speech",
+                    "synthesize"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Synthesize Speech - ElevenLabs (George Storyteller)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"provider\": \"elevenlabs\",\n  \"speaker\": \"JBFqnCBsd6RMkjVDRZzb\",\n  \"text\": \"Once upon a time, under the peaceful starry sky, little Nila fell fast asleep.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/speech/synthesize",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "speech",
+                    "synthesize"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Synthesize Speech - Cloned Voice (aiVoiceId)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"speaker\": \"{{clonedVoiceId}}\",\n  \"text\": \"அன்பான நிலா, அப்பா குரலில் உனக்கு ஒரு அழகான கதை.\",\n  \"languageCode\": \"ta-IN\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/speech/synthesize",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "speech",
+                    "synthesize"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Synthesize Speech - Mock Provider",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"provider\": \"mock\",\n  \"text\": \"This is a test synthesis using the offline mock provider.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/speech/synthesize",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "speech",
+                    "synthesize"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Voice Cloning & Audio Samples",
+          "item": [
+            {
+              "name": "Upload Voice Sample (Multipart File)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": ""
+                    },
+                    {
+                      "key": "ownerProject",
+                      "value": "nila",
+                      "type": "text"
+                    },
+                    {
+                      "key": "externalReferenceId",
+                      "value": "parent_123",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/voice/upload-sample",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "voice",
+                    "upload-sample"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Upload Voice Sample (Base64 JSON)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ownerProject\": \"nila\",\n  \"externalReferenceId\": \"parent_123\",\n  \"fileName\": \"parent_recording.wav\",\n  \"contentType\": \"audio/wav\",\n  \"audioBase64\": \"UklGRiwAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQgAAAAAAAAAAAAAAA==\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/voice/upload-sample",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "voice",
+                    "upload-sample"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Presigned S3 Sample Upload URL",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fileName\": \"mom_voice.wav\",\n  \"contentType\": \"audio/wav\",\n  \"ownerProject\": \"nila\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/voice/presigned-sample-url",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "voice",
+                    "presigned-sample-url"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Clone Voice - Sarvam AI",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ownerProject\": \"nila\",\n  \"externalReferenceId\": \"parent_123\",\n  \"displayName\": \"Amma Tamil Voice\",\n  \"provider\": \"sarvam\",\n  \"language\": \"ta-IN\",\n  \"sampleAudioUrls\": [\n    \"{{sampleAudioUrl}}\"\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/voice/clone",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "voice",
+                    "clone"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Clone Voice - ElevenLabs",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ownerProject\": \"nila\",\n  \"externalReferenceId\": \"parent_123\",\n  \"displayName\": \"Dad English Voice\",\n  \"provider\": \"elevenlabs\",\n  \"sampleAudioUrls\": [\n    \"{{sampleAudioUrl}}\"\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/voice/clone",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "voice",
+                    "clone"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Clone Voice - Mock Provider",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ownerProject\": \"nila\",\n  \"externalReferenceId\": \"parent_123\",\n  \"displayName\": \"Mock Test Voice\",\n  \"provider\": \"mock\",\n  \"sampleAudioUrls\": [\n    \"https://dummy.audio/sample.mp3\"\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/voice/clone",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "voice",
+                    "clone"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Cloned Voice Details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/voice/{{clonedVoiceId}}",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "voice",
+                    "{{clonedVoiceId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "LLM Text & Chat",
+          "item": [
+            {
+              "name": "Generate Text / Story",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"prompt\": \"Write a calm, soothing bedtime story in Tamil for a 5-year-old child named Nila.\",\n  \"maxTokens\": 500,\n  \"temperature\": 0.7\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/text/generate",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "text",
+                    "generate"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Generate Structured JSON",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"prompt\": \"Create a bedtime story outline for child Nila.\",\n  \"jsonSchema\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"title\": {\n        \"type\": \"string\"\n      },\n      \"theme\": {\n        \"type\": \"string\"\n      },\n      \"durationMinutes\": {\n        \"type\": \"number\"\n      },\n      \"morals\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"string\"\n        }\n      }\n    },\n    \"required\": [\n      \"title\",\n      \"theme\"\n    ]\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/text/structured",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "text",
+                    "structured"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Chat Completions",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are Nila, a caring bedtime storyteller for young children.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Tell me a short bedtime tale about a little bunny who loves the stars.\"\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/chat/completions",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "chat",
+                    "completions"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Async AI Jobs",
+          "item": [
+            {
+              "name": "Submit Async Pipeline Job",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jobType\": \"VOICE_CLONE\",\n  \"ownerProject\": \"nila\",\n  \"externalReferenceId\": \"usr_job_1\",\n  \"payload\": {\n    \"provider\": \"sarvam\",\n    \"sampleAudioUrls\": [\n      \"{{sampleAudioUrl}}\"\n    ],\n    \"displayName\": \"Async Parent Voice\"\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/jobs",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "jobs"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get AI Job Status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{apiKey}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl_ai}}/api/v1/ai/jobs/:jobId",
+                  "host": [
+                    "{{baseUrl_ai}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ai",
+                    "jobs",
+                    ":jobId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "jobId",
+                      "value": "job_123"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Nila Core Service",
+      "item": [
+        {
+          "name": "Authentication",
+          "item": [
+            {
+              "name": "1. Send OTP (Phone Auth)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phoneNumber\": \"+919876543210\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/auth/send-otp",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "send-otp"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "2. Verify OTP",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    var json = pm.response.json();",
+                      "    if (json.data && json.data.token) {",
+                      "        pm.collectionVariables.set(\"authToken\", json.data.token);",
+                      "    }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phoneNumber\": \"+919876543210\",\n  \"otp\": \"123456\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/auth/verify-otp",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "verify-otp"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "3. Signup (Email & Password Fallback)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"parent@example.com\",\n  \"password\": \"Password123!\",\n  \"name\": \"Kavitha\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/auth/signup",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "signup"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "4. Login (Email & Password Fallback)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"parent@example.com\",\n  \"password\": \"Password123!\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/auth/login",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "login"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Parent Profile",
+          "item": [
+            {
+              "name": "Get Parent Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/parent/profile",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "parent",
+                    "profile"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Parent Profile",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Kavitha R\",\n  \"preferredLanguage\": \"ta-IN\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/parent/profile",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "parent",
+                    "profile"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Children Profiles",
+          "item": [
+            {
+              "name": "List Children",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/children",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "children"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Child Profile",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Nila\",\n  \"age\": 5,\n  \"gender\": \"female\",\n  \"interests\": [\n    \"stars\",\n    \"animals\",\n    \"fairytales\"\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/children",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "children"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Child Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/children/{{childId}}",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "children",
+                    "{{childId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Child Profile",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Nila\",\n  \"age\": 6,\n  \"interests\": [\n    \"space exploration\",\n    \"magical forests\"\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/children/{{childId}}",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "children",
+                    "{{childId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Child Profile",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/children/{{childId}}",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "children",
+                    "{{childId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stories",
+          "item": [
+            {
+              "name": "Request / Generate Bedtime Story",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"childId\": \"{{childId}}\",\n  \"prompt\": \"A story about a brave little rabbit searching for the glowing moon.\",\n  \"language\": \"ta-IN\",\n  \"voiceId\": \"{{clonedVoiceId}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/stories/generate",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "stories",
+                    "generate"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Stories",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/stories",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "stories"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Story By ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/stories/{{storyId}}",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "stories",
+                    "{{storyId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Story Generation Status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/stories/{{storyId}}/status",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "stories",
+                    "{{storyId}}",
+                    "status"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Toggle Story Favorite",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/stories/{{storyId}}/favorite",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "stories",
+                    "{{storyId}}",
+                    "favorite"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Parent Voice Profiles",
+          "item": [
+            {
+              "name": "Get Voice Recording Reading Prompt",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/voices/prompt",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "voices",
+                    "prompt"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Presigned Upload URL for Voice Recording",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fileName\": \"parent_recording.wav\",\n  \"contentType\": \"audio/wav\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/voices/upload-url",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "voices",
+                    "upload-url"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Register Cloned Voice Profile",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Amma Bedtime Voice\",\n  \"sampleAudioUrl\": \"{{sampleAudioUrl}}\",\n  \"provider\": \"sarvam\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/voices",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "voices"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Parent Voice Profiles",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/voices",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "voices"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Child Memories",
+          "item": [
+            {
+              "name": "Get Memory Photo Upload URL",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fileName\": \"beach_day.jpg\",\n  \"contentType\": \"image/jpeg\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/memories/upload-url",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "memories",
+                    "upload-url"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Memory",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"childId\": \"{{childId}}\",\n  \"title\": \"Trip to Marina Beach\",\n  \"description\": \"Nila built a huge sandcastle and chased the gentle waves.\",\n  \"photoUrl\": \"https://nila-media-uploads-prod-354953409985.s3.ap-south-1.amazonaws.com/memories/beach.jpg\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/memories",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "memories"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Memories",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl_core}}/api/v1/memories",
+                  "host": [
+                    "{{baseUrl_core}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "memories"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
