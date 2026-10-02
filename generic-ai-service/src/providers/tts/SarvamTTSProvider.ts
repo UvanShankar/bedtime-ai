@@ -17,7 +17,13 @@ const SARVAM_SUPPORTED_LANGUAGES: Record<string, string> = {
   'en-in': 'en-IN',
 };
 
-const VALID_SARVAM_SPEAKERS = ['meera', 'arvind', 'pavithra', 'maitreyi', 'amartya', 'pooja', 'kavya', 'ratan', 'ananya', 'priya'];
+const VALID_SARVAM_SPEAKERS = [
+  'anushka', 'abhilash', 'manisha', 'vidya', 'arya', 'karun', 'hitesh', 'aditya', 'ritu', 'priya',
+  'neha', 'rahul', 'pooja', 'rohan', 'simran', 'kavya', 'amit', 'dev', 'ishita', 'shreya',
+  'ratan', 'varun', 'manan', 'sumit', 'roopa', 'kabir', 'aayan', 'shubh', 'ashutosh', 'advait',
+  'anand', 'tanya', 'tarun', 'sunny', 'mani', 'gokul', 'vijay', 'shruti', 'suhani', 'mohit',
+  'kavitha', 'rehan', 'soham', 'rupali', 'niharika'
+];
 
 export class SarvamTTSProvider implements ITTSProvider {
   public name = 'sarvam';
@@ -44,8 +50,8 @@ export class SarvamTTSProvider implements ITTSProvider {
     const targetLanguageCode = SARVAM_SUPPORTED_LANGUAGES[langKey] || 'ta-IN';
 
     const isClonedVoice = typeof params.aiVoiceId === 'string' && params.aiVoiceId.startsWith('svc-');
-    const speakerCandidate = (params.aiVoiceId || 'meera').toLowerCase();
-    const speaker = VALID_SARVAM_SPEAKERS.includes(speakerCandidate) ? speakerCandidate : 'meera';
+    const speakerCandidate = (params.aiVoiceId || 'priya').toLowerCase();
+    const speaker = VALID_SARVAM_SPEAKERS.includes(speakerCandidate) ? speakerCandidate : 'priya';
 
     // Respect Sarvam character chunk limits
     const maxChunkLength = isClonedVoice ? 900 : 480;
@@ -101,7 +107,7 @@ export class SarvamTTSProvider implements ITTSProvider {
             inputs: [chunk],
             target_language_code: targetLanguageCode,
             speaker,
-            model: 'bulbul:v1',
+            model: 'bulbul:v2',
             pace: params.speakingRate ?? 0.9,
             speech_sample_rate: 22050,
             enable_preprocessing: true,
