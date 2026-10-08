@@ -1,5 +1,6 @@
 import userDao from '../dao/UserDao';
 import otpDao from '../dao/OtpDao';
+import { sendSms } from '../database/snsOperations';
 import { ISignupDTO, ILoginDTO, IAuthResponse, ISendOtpDTO, IVerifyOtpDTO } from '../types';
 import { IUserSchema } from '../models/User';
 import { generateId, generateTokens, hashPassword, comparePassword } from '../utils';
@@ -24,7 +25,7 @@ export class AuthService {
     success: boolean;
     message: string;
     mobile: string;
-    otp?: string;
+    isNewUser: boolean;
     expiresAt: number;
   }> {
     const rawNumber = dto.mobile || dto.phoneNumber;
@@ -33,19 +34,64 @@ export class AuthService {
     }
     const mobile = normalizePhoneNumber(rawNumber);
 
-    // Generate secure 6-digit numeric OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // 1. Check in DB if user is present
+    let user = await userDao.getUserByMobile(mobile);
+    if (!user && mobile.startsWith('+91')) {
+      user = await userDao.getUserByMobile(mobile.replace('+91', ''));
+    }
+
+    const isNewUser = !user;
+    if (isNewUser) {
+      // User not present: update in DB as unverified user
+      const userId = generateId('usr');
+      const timestamp = new Date().toISOString();
+      const newUser: IUserSchema = {
+        userId,
+        mobile,
+        isVerified: false,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      await userDao.createUser(newUser);
+      user = newUser;
+      console.log(`[AuthService] Provisioned new unverified user for ${mobile}: ${userId}`);
+    }
+
+    // 2. Determine OTP: If an active unexpired OTP is already present in DB, reuse it and extend TTL; otherwise generate a new one
     const ttlMinutes = 10;
-    const expiresAt = Math.floor(Date.now() / 1000) + ttlMinutes * 60;
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    const existingOtpRecord = await otpDao.getOtp(mobile);
 
+    let otp: string;
+    if (existingOtpRecord && existingOtpRecord.otp && existingOtpRecord.expiresAt >= nowEpoch) {
+      otp = existingOtpRecord.otp;
+      console.log(`[AuthService] Existing active OTP found for ${mobile}. Reusing OTP and extending TTL.`);
+    } else {
+      otp = Math.floor(100000 + Math.random() * 900000).toString();
+      console.log(`[AuthService] Generated new OTP for ${mobile}`);
+    }
+
+    const expiresAt = nowEpoch + ttlMinutes * 60;
     await otpDao.saveOtp(mobile, otp, ttlMinutes);
-    console.log(`[AuthService] Generated OTP for ${mobile}: ${otp}`);
+    console.log(`[AuthService] Saved OTP to DynamoDB for ${mobile}`);
 
+    // 3. Trigger transactional SMS via AWS SNS
+    const smsMessage = `Your Nila verification code is ${otp}. Valid for 10 minutes.`;
+    try {
+      const messageId = await sendSms(mobile, smsMessage);
+      console.log(`[AuthService] SNS SMS sent successfully to ${mobile}, MessageId: ${messageId}`);
+    } catch (snsError: any) {
+      console.warn(`[AuthService] SNS SMS delivery notice for ${mobile}:`, snsError?.message || snsError);
+      // Log for developer debugging in local console
+      console.log(`[AuthService] [DEV CONSOLE ONLY] OTP code for ${mobile}: ${otp}`);
+    }
+
+    // 4. Return clean API response without exposing the OTP
     return {
       success: true,
       message: `OTP sent successfully to ${mobile}`,
       mobile,
-      otp, // Provided for instant sandbox testing / app preview
+      isNewUser,
       expiresAt,
     };
   }
@@ -92,11 +138,9 @@ export class AuthService {
       const userId = generateId('usr');
       const newUser: IUserSchema = {
         userId,
-        fullName: dto.fullName?.trim() || 'Parent',
+        ...(dto.fullName?.trim() && { fullName: dto.fullName.trim() }),
         mobile,
-        relationship: (dto.relationship as any) || 'Appa',
-        preferredLanguage: 'ta',
-        preferredDialect: 'Standard',
+        ...(dto.relationship && { relationship: dto.relationship as any }),
         isVerified: true,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -106,10 +150,10 @@ export class AuthService {
     } else {
       // User exists - update verified flag & optional name
       const updates: Partial<IUserSchema> = { isVerified: true };
-      if (dto.fullName && (!user.fullName || user.fullName === 'Parent')) {
+      if (dto.fullName && dto.fullName.trim()) {
         updates.fullName = dto.fullName.trim();
       }
-      if (dto.relationship && !user.relationship) {
+      if (dto.relationship) {
         updates.relationship = dto.relationship as any;
       }
       await userDao.updateUser(user.userId, updates).catch((err) => console.warn('[AuthService] Update user err:', err));
@@ -141,11 +185,13 @@ export class AuthService {
       throw new ValidationError('Mobile number is required for signup');
     }
 
-    if (!dto.fullName || !dto.fullName.trim()) {
-      throw new ValidationError('Full name is required for signup');
-    }
-
+    const fullName = dto.fullName?.trim();
     const mobile = rawNumber ? normalizePhoneNumber(rawNumber) : undefined;
+
+    // If OTP is not provided and no password, trigger sendOtp (Step 1 of unified auth)
+    if (!dto.otp && !dto.password) {
+      return (await this.sendOtp({ mobile: rawNumber, phoneNumber: rawNumber })) as any;
+    }
 
     // If OTP is provided, verify it
     if (mobile && dto.otp) {
@@ -173,7 +219,7 @@ export class AuthService {
     if (existing) {
       // User already exists - update profile and return tokens
       const updates: Partial<IUserSchema> = { isVerified: true };
-      if (dto.fullName && dto.fullName.trim() !== 'Parent') {
+      if (dto.fullName && dto.fullName.trim()) {
         updates.fullName = dto.fullName.trim();
       }
       if (dto.relationship) {
@@ -217,13 +263,11 @@ export class AuthService {
 
     const user: IUserSchema = {
       userId,
-      fullName: dto.fullName.trim(),
+      ...(fullName && { fullName }),
       mobile,
       email: dto.email,
       passwordHash,
-      relationship: (dto.relationship as any) || 'Appa',
-      preferredLanguage: 'ta',
-      preferredDialect: 'Standard',
+      ...(dto.relationship && { relationship: dto.relationship as any }),
       isVerified: true,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -295,11 +339,7 @@ export class AuthService {
         const timestamp = new Date().toISOString();
         const newUser: IUserSchema = {
           userId,
-          fullName: 'Parent',
           mobile: mobile || lookupMobile,
-          relationship: 'Appa',
-          preferredLanguage: 'ta',
-          preferredDialect: 'Standard',
           isVerified: true,
           createdAt: timestamp,
           updatedAt: timestamp,
@@ -364,7 +404,8 @@ export class AuthService {
       };
     }
 
-    throw new ValidationError('OTP is required to log in');
+    // Step 1 of unified auth: If neither OTP nor password provided, trigger sendOtp
+    return (await this.sendOtp({ mobile: rawNumber, phoneNumber: rawNumber })) as any;
   }
 }
 

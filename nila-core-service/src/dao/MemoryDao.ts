@@ -1,4 +1,4 @@
-import { putItem, getItem, queryItems, deleteItem } from '../database/dynamoDBOperations';
+import { putItem, getItem, queryItems, updateItem, deleteItem } from '../database/dynamoDBOperations';
 import { IMemorySchema } from '../models/Memory';
 
 export class MemoryDao {
@@ -43,6 +43,29 @@ export class MemoryDao {
       ScanIndexForward: false,
     });
     return (res.Items as IMemorySchema[]) || [];
+  }
+
+  async updateMemory(memoryId: string, updates: Partial<IMemorySchema>): Promise<void> {
+    const timestamp = new Date().toISOString();
+    const updateKeys = Object.keys(updates).filter(k => k !== 'memoryId' && k !== 'userId');
+    if (updateKeys.length === 0) return;
+
+    let updateExp = 'SET ' + updateKeys.map(k => `#${k} = :${k}`).join(', ') + ', updatedAt = :t';
+    const attrNames: Record<string, string> = {};
+    const attrValues: Record<string, any> = { ':t': timestamp };
+
+    updateKeys.forEach(k => {
+      attrNames[`#${k}`] = k;
+      attrValues[`:${k}`] = (updates as any)[k];
+    });
+
+    await updateItem({
+      TableName: this.tableName,
+      Key: { memoryId },
+      UpdateExpression: updateExp,
+      ExpressionAttributeNames: attrNames,
+      ExpressionAttributeValues: attrValues,
+    });
   }
 
   async deleteMemory(memoryId: string): Promise<void> {

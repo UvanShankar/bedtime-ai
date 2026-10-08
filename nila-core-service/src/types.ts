@@ -8,7 +8,7 @@ export interface IResponse<Data, ErrorType = null> {
 export interface IAuthResponse {
   user: {
     userId: string;
-    fullName: string;
+    fullName?: string;
     mobile?: string;
     email?: string;
     relationship?: string;
@@ -37,7 +37,7 @@ declare global {
 }
 
 export interface ISignupDTO {
-  fullName: string;
+  fullName?: string;
   mobile?: string;
   phoneNumber?: string;
   otp?: string;
@@ -71,6 +71,7 @@ export interface ICreateChildDTO {
   name: string;
   gender?: 'boy' | 'girl' | 'unspecified';
   age: number;
+  avatarUrl?: string;
   bedtimeHour?: number;
   bedtimeMinute?: number;
   interests?: string[];

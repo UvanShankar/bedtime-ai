@@ -6,8 +6,12 @@ import { IResponse } from '../types';
 export class MemoryController {
   async getUploadUrl(req: Request, res: Response, next: NextFunction) {
     try {
-      const { fileName, fileType } = req.body;
-      const result = await memoryService.getPresignedUploadUrl(req.userId!, fileName, fileType);
+      const file = (req.files as Express.Multer.File[])?.[0] || (req as any).file;
+      const fileName = req.body?.fileName || file?.originalname;
+      const fileType = req.body?.fileType || file?.mimetype;
+      const fileBuffer = file?.buffer;
+
+      const result = await memoryService.getPresignedUploadUrl(req.userId!, fileName, fileType, fileBuffer);
       const response: IResponse<any> = {
         data: result,
         success: true,
@@ -39,6 +43,36 @@ export class MemoryController {
     try {
       const childId = req.query.childId as string | undefined;
       const result = await memoryService.getMemories(req.userId!, childId);
+      const response: IResponse<any> = {
+        data: result,
+        success: true,
+        statusCode: StatusCodes.OK,
+        error: null,
+      };
+      return res.status(StatusCodes.OK).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getMemory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await memoryService.getMemory(req.params.memoryId);
+      const response: IResponse<any> = {
+        data: result,
+        success: true,
+        statusCode: StatusCodes.OK,
+        error: null,
+      };
+      return res.status(StatusCodes.OK).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateMemory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await memoryService.updateMemory(req.params.memoryId, req.body);
       const response: IResponse<any> = {
         data: result,
         success: true,

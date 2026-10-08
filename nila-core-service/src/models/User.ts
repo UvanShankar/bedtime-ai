@@ -3,10 +3,10 @@ export interface IUserSchema {
   mobile?: string;
   email?: string;
   passwordHash?: string;
-  fullName: string;
-  relationship: 'Appa' | 'Amma' | 'Paati' | 'Thatha' | 'Other';
-  preferredLanguage: string; // 'ta'
-  preferredDialect: 'Standard' | 'Chennai' | 'Kongu' | 'Madurai';
+  fullName?: string;
+  relationship?: 'Appa' | 'Amma' | 'Paati' | 'Thatha' | 'Other' | string;
+  preferredLanguage?: string;
+  preferredDialect?: 'Standard' | 'Chennai' | 'Kongu' | 'Madurai' | string;
   isVerified: boolean;
   avatarUrl?: string;
   createdAt: string;

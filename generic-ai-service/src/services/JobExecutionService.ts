@@ -28,7 +28,7 @@ export class JobExecutionService {
     setImmediate(() => {
       this.executeJob(jobId, dto).catch(err => {
         console.error(`[JobExecutionService] Error running job ${jobId}:`, err);
-        aiJobDao.failJob(jobId, err.message);
+        aiJobDao.failJob(jobId, err.message).catch(e => console.error(`[JobExecutionService] Error marking job failed:`, e));
       });
     });
 

@@ -39,7 +39,7 @@ export class VoiceService {
       voiceId,
       userId,
       displayName: dto.displayName,
-      relationship: dto.relationship || 'Appa',
+      relationship: dto.relationship,
       sampleAudioS3Key: dto.sampleAudioS3Key,
       sampleDurationSeconds: dto.sampleDurationSeconds,
       consentVerified: true,

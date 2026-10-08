@@ -8,7 +8,7 @@ const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'nila_refresh_secret_45
 
 export function generateTokens(payload: ITokenPayload) {
   const accessToken = jwt.sign(payload, ACCESS_SECRET, {
-    expiresIn: (process.env.JWT_ACCESS_EXPIRY || '15m') as any,
+    expiresIn: (process.env.JWT_ACCESS_EXPIRY || '7d') as any,
   });
   const refreshToken = jwt.sign(payload, REFRESH_SECRET, {
     expiresIn: (process.env.JWT_REFRESH_EXPIRY || '30d') as any,

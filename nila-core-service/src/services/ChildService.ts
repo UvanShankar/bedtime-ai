@@ -19,6 +19,7 @@ export class ChildService {
       name: dto.name,
       gender: dto.gender || 'unspecified',
       age: dto.age || 4,
+      ...(dto.avatarUrl && { avatarUrl: dto.avatarUrl }),
       bedtimeHour: dto.bedtimeHour ?? 21,
       bedtimeMinute: dto.bedtimeMinute ?? 0,
       interests: dto.interests || [],
@@ -50,6 +51,13 @@ export class ChildService {
   }
 
   async updateChild(childId: string, updates: Partial<IChildSchema>): Promise<IChildSchema> {
+    const existing = await this.getChild(childId);
+    if (updates.storySettings && existing.storySettings) {
+      updates.storySettings = {
+        ...existing.storySettings,
+        ...updates.storySettings,
+      };
+    }
     await childDao.updateChild(childId, updates);
     return await this.getChild(childId);
   }

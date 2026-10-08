@@ -2,7 +2,7 @@ export interface IVoiceProfileSchema {
   voiceId: string;
   userId: string;
   displayName: string;
-  relationship: string; // 'Appa', 'Amma', etc.
+  relationship?: string; // 'Appa', 'Amma', etc.
   sampleAudioS3Key: string;
   sampleDurationSeconds: number;
   consentVerified: boolean;

@@ -50,3 +50,18 @@ export async function getPresignedDownloadUrl(params: {
   });
   return await getSignedUrl(s3Client, command, { expiresIn: params.expiresInSeconds || 3600 });
 }
+
+export async function uploadBufferToS3(params: {
+  Bucket: string;
+  Key: string;
+  Body: Buffer;
+  ContentType: string;
+}): Promise<void> {
+  const command = new PutObjectCommand({
+    Bucket: params.Bucket,
+    Key: params.Key,
+    Body: params.Body,
+    ContentType: params.ContentType,
+  });
+  await s3Client.send(command);
+}

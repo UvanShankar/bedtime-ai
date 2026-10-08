@@ -28,7 +28,10 @@ export class AIJobDao {
     await updateItem({
       TableName: this.tableName,
       Key: { jobId },
-      UpdateExpression: 'SET progressPercent = :p, stageMessage = :m, status = :s, updatedAt = :t',
+      UpdateExpression: 'SET progressPercent = :p, stageMessage = :m, #status = :s, updatedAt = :t',
+      ExpressionAttributeNames: {
+        '#status': 'status',
+      },
       ExpressionAttributeValues: {
         ':p': progressPercent,
         ':m': stageMessage || '',
@@ -43,7 +46,10 @@ export class AIJobDao {
     await updateItem({
       TableName: this.tableName,
       Key: { jobId },
-      UpdateExpression: 'SET status = :s, progressPercent = :p, resultPayload = :r, tokensConsumed = :tok, audioSecondsGenerated = :sec, updatedAt = :t, completedAt = :t',
+      UpdateExpression: 'SET #status = :s, progressPercent = :p, resultPayload = :r, tokensConsumed = :tok, audioSecondsGenerated = :sec, updatedAt = :t, completedAt = :t',
+      ExpressionAttributeNames: {
+        '#status': 'status',
+      },
       ExpressionAttributeValues: {
         ':s': 'COMPLETED',
         ':p': 100,
@@ -60,7 +66,10 @@ export class AIJobDao {
     await updateItem({
       TableName: this.tableName,
       Key: { jobId },
-      UpdateExpression: 'SET status = :s, errorMessage = :e, updatedAt = :t',
+      UpdateExpression: 'SET #status = :s, errorMessage = :e, updatedAt = :t',
+      ExpressionAttributeNames: {
+        '#status': 'status',
+      },
       ExpressionAttributeValues: {
         ':s': 'FAILED',
         ':e': errorMessage,
