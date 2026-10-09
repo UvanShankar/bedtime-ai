@@ -90,7 +90,7 @@ export class AuthApi {
     await ApiClient.setAuthToken(null);
   }
 
-  static async ensureAuth(defaultName = "Uvan (Appa)", defaultMobile = "+919876543210"): Promise<string> {
+  static async ensureAuth(defaultName = "Uvan Shankar (Appa)", defaultMobile = "+919042278689"): Promise<string> {
     const existingToken = await ApiClient.loadToken();
     if (existingToken) {
       try {
@@ -104,7 +104,7 @@ export class AuthApi {
     }
 
     try {
-      // Auto-authenticate via verify-otp using demo test code
+      // Auto-authenticate via verify-otp using master code
       const authRes = await AuthApi.verifyOtp({
         phoneNumber: defaultMobile,
         otp: "123456",

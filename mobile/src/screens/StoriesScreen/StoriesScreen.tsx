@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,11 +19,22 @@ interface Props {
 }
 
 export const StoriesScreen: React.FC<Props> = ({ navigation }) => {
-  const { stories, toggleFavoriteStory } = useNila();
+  const { stories, toggleFavoriteStory, refreshStoriesFromBackend } = useNila();
 
   const [activeFilter, setActiveFilter] = useState<"All" | "Favorites" | "This week">("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    refreshStoriesFromBackend().catch(() => {});
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshStoriesFromBackend().catch(() => {});
+    setRefreshing(false);
+  };
 
   const filters = ["All", "Favorites", "This week"] as const;
 
@@ -114,7 +126,18 @@ export const StoriesScreen: React.FC<Props> = ({ navigation }) => {
       </View>
 
       {/* Stories Grouped List */}
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={NilaColors.gold}
+            colors={[NilaColors.gold]}
+          />
+        }
+      >
         {Object.keys(groups).length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyMoon}>☾</Text>

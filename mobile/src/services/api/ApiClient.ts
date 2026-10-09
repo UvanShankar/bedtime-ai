@@ -8,6 +8,7 @@ export interface ApiErrorPayload {
   };
   statusCode?: number;
   message?: string;
+  success?: boolean;
 }
 
 export class ApiError extends Error {
@@ -22,19 +23,13 @@ export class ApiError extends Error {
   }
 }
 
-const AWS_LIVE_ENDPOINT = "https://vchuxxma5j.execute-api.ap-south-1.amazonaws.com/api/v1";
-
 export class ApiClient {
   private static authToken: string | null = null;
   private static tokenFilePath = `${FileSystem.documentDirectory || ""}nila_auth_token.txt`;
   private baseUrl: string;
 
   constructor(baseUrl: string) {
-    if (!baseUrl || baseUrl.includes("onrender.com")) {
-      this.baseUrl = AWS_LIVE_ENDPOINT;
-    } else {
-      this.baseUrl = baseUrl;
-    }
+    this.baseUrl = baseUrl || "http://localhost:8080/api/v1";
     ApiClient.loadToken();
   }
 
@@ -46,7 +41,7 @@ export class ApiClient {
         if (token) ApiClient.authToken = token.trim();
       }
     } catch {
-      // Ignored if file doesn't exist
+      // Ignored if file doesn't exist yet
     }
     return ApiClient.authToken;
   }
@@ -87,8 +82,17 @@ export class ApiClient {
 
     if (isJson) {
       const json = await response.json();
-      if (json && typeof json === "object" && "data" in json && "success" in json) {
-        return json.data as T;
+      if (json && typeof json === "object" && "success" in json) {
+        if (!json.success && json.error) {
+          const msg =
+            typeof json.error === "string"
+              ? json.error
+              : json.error?.message || "Operation failed";
+          throw new ApiError(msg, String(json.statusCode || response.status));
+        }
+        if ("data" in json) {
+          return json.data as T;
+        }
       }
       return json as T;
     }
@@ -96,9 +100,9 @@ export class ApiClient {
   }
 
   private getEffectiveUrl(path: string): string {
-    const base = (!this.baseUrl || this.baseUrl.includes("onrender.com")) ? AWS_LIVE_ENDPOINT : this.baseUrl;
+    const cleanBase = this.baseUrl.replace(/\/+$/, "");
     const cleanPath = path.startsWith("/") ? path : `/${path}`;
-    return `${base}${cleanPath}`;
+    return `${cleanBase}${cleanPath}`;
   }
 
   private getHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {

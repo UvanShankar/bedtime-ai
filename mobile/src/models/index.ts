@@ -25,6 +25,11 @@ export interface ChildProfile {
   avoidTopics: string[];
   bedtimeAvoidances?: string[];
   favoriteCharacters?: string[];
+  storySettings?: {
+    tamilDialect?: string;
+    slangLevel?: string;
+    bedtimePacing?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -40,6 +45,7 @@ export interface VoiceProfile {
   languageCode: string;
   status: "pending" | "processing" | "ready" | "failed";
   consentAccepted: boolean;
+  displayName?: string;
   accentDialect?: string;
   sampleDuration?: string;
   createdAt: string;

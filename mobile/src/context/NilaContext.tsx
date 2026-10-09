@@ -40,6 +40,8 @@ interface NilaContextType {
   isOnboarded: boolean;
   setIsOnboarded: (value: boolean) => void;
   refreshStoriesFromBackend: () => Promise<void>;
+  refreshMemoriesFromBackend: () => Promise<void>;
+  refreshVoicesFromBackend: () => Promise<void>;
   ensureBackendProfile: () => Promise<{ parentId: string; childId: string }>;
 }
 
@@ -86,16 +88,17 @@ const defaultChildren: ChildProfile[] = [
 ];
 
 const defaultVoice: VoiceProfile = {
-  id: "voice-dad-001",
+  id: "voc_default_priya",
   parentId: "parent-uvan-001",
   provider: "sarvam",
-  providerVoiceId: "david-voice-clone",
-  sourceAudioKey: "voices/parent-uvan.m4a",
+  providerVoiceId: "priya",
+  displayName: "Priya (Default Tamil Voice)",
+  sourceAudioKey: "",
   languageCode: "ta",
   status: "ready",
   consentAccepted: true,
-  accentDialect: "Southern Indian (English & Tamil)",
-  sampleDuration: "3 minutes (High Fidelity)",
+  accentDialect: "Tamil · Natural conversational",
+  sampleDuration: "Standard voice",
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
@@ -359,6 +362,28 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const refreshMemoriesFromBackend = async () => {
+    try {
+      const liveMemories = await MemoryApi.getMemories(selectedChild?.id);
+      if (liveMemories && liveMemories.length > 0) {
+        setMemories(liveMemories);
+      }
+    } catch (err) {
+      console.log("Using cached/local memories:", err);
+    }
+  };
+
+  const refreshVoicesFromBackend = async () => {
+    try {
+      const liveVoices = await VoiceApi.getVoices();
+      if (liveVoices && liveVoices.length > 0) {
+        setVoiceProfile(liveVoices[0]);
+      }
+    } catch (err) {
+      console.log("Using cached/local voices:", err);
+    }
+  };
+
   const updateChild = (updated: ChildProfile) => {
     setChildrenList((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
     if (selectedChild.id === updated.id) {
@@ -405,7 +430,12 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteVoiceProfile = () => {
-    setVoiceProfile(null);
+    if (voiceProfile?.id && voiceProfile.id !== defaultVoice.id) {
+      VoiceApi.deleteVoiceProfile(voiceProfile.id, voiceProfile.provider).catch((err) =>
+        console.warn("[NilaContext] Voice delete note:", err)
+      );
+    }
+    setVoiceProfile(defaultVoice);
   };
 
   const addMemory = (memoryData: Omit<LifeMemory, "id" | "timesUsed" | "createdAt" | "updatedAt">) => {
@@ -445,10 +475,17 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const toggleFavoriteStory = (id: string) => {
+    let nextState = true;
     setStories((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, isFavorite: !s.isFavorite } : s))
+      prev.map((s) => {
+        if (s.id === id) {
+          nextState = !s.isFavorite;
+          return { ...s, isFavorite: nextState };
+        }
+        return s;
+      })
     );
-    StoryApi.toggleFavorite(id).catch((err) => console.warn("[NilaContext] Story favorite note:", err));
+    StoryApi.toggleFavorite(id, nextState).catch((err) => console.warn("[NilaContext] Story favorite note:", err));
   };
 
   const deleteStory = (id: string) => {
@@ -491,6 +528,8 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isOnboarded,
         setIsOnboarded,
         refreshStoriesFromBackend,
+        refreshMemoriesFromBackend,
+        refreshVoicesFromBackend,
         ensureBackendProfile,
       }}
     >

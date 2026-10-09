@@ -104,15 +104,18 @@ export const StoryPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const progressPercent = Math.min(100, (playbackSeconds / totalDurationSeconds) * 100);
 
-  const segments = story?.segments && story.segments.length > 0
-    ? story.segments
-    : [
-        { id: "1", text: "கண்ணா... அந்த காட்டுல ஒரு குட்டி யானை இருந்துச்சாம்..." },
-        { id: "2", text: "அது நள்ளிரவில் நட்சத்திரங்களை எண்ண ரொம்ப விரும்புச்சாம்." },
-        { id: "3", text: "மெரினா கடற்கரையில் விளையாடின மணல் ஞாபகம் மெதுவா வந்துச்சாம்." },
-        { id: "4", text: "மெல்லிய தென்றல் காற்று வீச, குட்டி யானை தன் கண்களை மூடிச்சாம்." },
-        { id: "5", text: "நல்லா தூங்கு கண்ணா... இனிமையான தூக்கம் வரட்டும்." },
-      ];
+  const segments =
+    story?.segments && story.segments.length > 0
+      ? story.segments
+      : story?.text
+      ? story.text
+          .split(/\n\s*\n/)
+          .map((t: string, i: number) => ({ id: String(i + 1), order: i + 1, text: t.trim() }))
+          .filter((s: any) => s.text.length > 0)
+      : [
+          { id: "1", order: 1, text: "கண்ணா... ஒரு அழகான கதை கேளு." },
+          { id: "2", order: 2, text: "நல்லா தூங்கு கண்ணா... இனிமையான கனவுகள் வரட்டும்." },
+        ];
 
   return (
     <SafeAreaView style={[styles.container, driftMode && styles.containerDrift]}>

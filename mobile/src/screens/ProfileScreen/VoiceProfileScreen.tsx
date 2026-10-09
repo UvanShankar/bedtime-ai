@@ -59,9 +59,13 @@ export const VoiceProfileScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.micCircle}>
             <Ionicons name="mic" size={32} color={NilaColors.gold} />
           </View>
-          <Text style={styles.voiceName}>Dad's Voice Clone</Text>
+          <Text style={styles.voiceName}>
+            {voiceProfile?.displayName || `${parent?.name || "Dad"}'s Voice Clone`}
+          </Text>
           <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>ACTIVE & MATCHED</Text>
+            <Text style={styles.statusText}>
+              {voiceProfile?.status?.toUpperCase() || "READY"} • {voiceProfile?.provider?.toUpperCase() || "SARVAM"}
+            </Text>
           </View>
         </View>
 

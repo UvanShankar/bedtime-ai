@@ -1,6 +1,8 @@
 import React, { useEffect } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { NilaColors } from "../../theme/colors";
+import { ApiClient } from "../../services/api/ApiClient";
+import { ParentApi } from "../../services/api/ParentApi";
 
 interface Props {
   navigation: any;
@@ -8,10 +10,35 @@ interface Props {
 
 export const SplashScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
+    let isMounted = true;
+
+    const checkSession = async () => {
+      try {
+        const token = await ApiClient.loadToken();
+        if (token) {
+          const profile = await ParentApi.getProfile();
+          if (profile && profile.userId && isMounted) {
+            navigation.replace("MainTabs");
+            return;
+          }
+        }
+      } catch (err) {
+        console.log("[SplashScreen] Saved session expired or no token:", err);
+      }
+
+      if (isMounted) {
+        navigation.replace("Welcome");
+      }
+    };
+
     const timer = setTimeout(() => {
-      navigation.replace("Welcome");
-    }, 2000);
-    return () => clearTimeout(timer);
+      checkSession();
+    }, 1500);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, [navigation]);
 
   return (

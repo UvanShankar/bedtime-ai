@@ -23,7 +23,7 @@ interface Props {
 }
 
 export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { parent, selectedChild, memories } = useNila();
+  const { parent, selectedChild, memories, voiceProfile } = useNila();
   const { suggestedTopic, suggestedType } = route?.params || {};
 
   const [topic, setTopic] = useState(
@@ -90,6 +90,8 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
       includeFamilyMembers,
       includeLifeMemories,
       selectedMemoryIds: includeLifeMemories ? memories.slice(0, 2).map((m) => m.id) : [],
+      voiceProfileId: voiceProfile?.id || undefined,
+      voiceProvider: voiceProfile?.provider || undefined,
     };
 
     navigation.navigate("StoryCreation", { request: requestPayload });

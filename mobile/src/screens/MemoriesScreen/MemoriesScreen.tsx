@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,7 +19,18 @@ interface Props {
 }
 
 export const MemoriesScreen: React.FC<Props> = ({ navigation }) => {
-  const { memories, selectedChild } = useNila();
+  const { memories, selectedChild, refreshMemoriesFromBackend } = useNila();
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    refreshMemoriesFromBackend().catch(() => {});
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshMemoriesFromBackend().catch(() => {});
+    setRefreshing(false);
+  };
 
   const handleCardPress = (memory: LifeMemory) => {
     navigation.navigate("MemoryDetail", { memory });
@@ -38,7 +50,18 @@ export const MemoriesScreen: React.FC<Props> = ({ navigation }) => {
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={NilaColors.gold}
+            colors={[NilaColors.gold]}
+          />
+        }
+      >
         {memories.map((mem) => (
           <TouchableOpacity
             key={mem.id}

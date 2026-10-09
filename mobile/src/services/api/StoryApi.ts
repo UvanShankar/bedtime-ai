@@ -20,28 +20,48 @@ export interface CoreStoryResponse {
   progressPercent: number;
   stageMessage?: string;
   script?: string;
+  storyScript?: string;
   audioS3Key?: string;
   audioCloudFrontUrl?: string;
+  audioUrl?: string;
   audioDurationSeconds?: number;
+  coverImageUrl?: string;
   isFavorite?: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface StoryStatusResponse {
+  storyId: string;
+  status: "QUEUED" | "GENERATING_SCRIPT" | "GENERATING_AUDIO" | "READY" | "FAILED";
+  progressPercent: number;
+  stageMessage?: string;
+}
+
 export class StoryApi {
+  // 1. Trigger story generation in nila-core-service
   static async generateStory(
-    input: StoryRequestInput & { promptIdea?: string; voiceProfileId?: string; moralTheme?: string }
+    input: StoryRequestInput & {
+      promptIdea?: string;
+      voiceProfileId?: string;
+      moralTheme?: string;
+      voiceProvider?: string;
+      dialect?: string;
+    }
   ): Promise<Story> {
     const payload = {
       childId: input.childId,
       voiceId: input.voiceProfileId || undefined,
+      provider: input.voiceProvider || undefined,
       theme: input.storyType || "bedtime_calm",
       promptIdea: input.promptIdea || input.topic || "Bedtime Story",
       moralLesson: input.educationalGoal || input.moralTheme || undefined,
       targetDurationMinutes: input.durationMinutes || 5,
+      dialect: input.dialect || undefined,
       includeMemoryIds: input.selectedMemoryIds || (input.includeLifeMemories ? [] : undefined),
     };
 
+    console.log("[StoryApi] Sending /stories/generate request with payload:", payload);
     const res = await apiClient.post<CoreStoryResponse>("/stories/generate", payload);
     return this.mapToStoryModel(res, input.topic);
   }
@@ -51,20 +71,58 @@ export class StoryApi {
     return { story };
   }
 
-  static async getStoryStatus(storyId: string): Promise<{
-    storyId: string;
-    status: string;
-    progressPercent: number;
-    stageMessage?: string;
-  }> {
-    return apiClient.get(`/stories/${storyId}/status`);
+  // 2. Poll story generation status from nila-core-service
+  static async getStoryStatus(storyId: string): Promise<StoryStatusResponse> {
+    return apiClient.get<StoryStatusResponse>(`/stories/${storyId}/status`);
   }
 
+  // 3. Fetch full completed story details
   static async getStory(storyId: string): Promise<Story> {
     const res = await apiClient.get<CoreStoryResponse>(`/stories/${storyId}`);
     return this.mapToStoryModel(res);
   }
 
+  // 4. Poll helper with progress callback that resolves when story is READY
+  static async pollStoryUntilReady(
+    storyId: string,
+    onProgress?: (status: StoryStatusResponse) => void,
+    maxAttempts = 240, // 240 * 3s = 12 minutes max poll
+    intervalMs = 3000
+  ): Promise<Story> {
+    console.log(`[StoryApi] Starting status polling for storyId=${storyId}...`);
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const statusData = await this.getStoryStatus(storyId);
+        console.log(
+          `[StoryApi] Poll attempt ${attempt}/${maxAttempts}: status=${statusData.status}, progress=${statusData.progressPercent}%`
+        );
+
+        if (onProgress) {
+          onProgress(statusData);
+        }
+
+        if (statusData.status === "READY") {
+          console.log(`[StoryApi] Story ${storyId} is READY! Fetching full story details...`);
+          return await this.getStory(storyId);
+        }
+
+        if (statusData.status === "FAILED") {
+          throw new Error(statusData.stageMessage || "Story generation failed on server");
+        }
+      } catch (err: any) {
+        if (err.message && err.message.includes("failed on server")) {
+          throw err;
+        }
+        console.warn(`[StoryApi] Poll warning at attempt ${attempt}:`, err.message);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+
+    throw new Error("Story generation timed out after polling");
+  }
+
+  // 5. List stories from DynamoDB
   static async getStories(childIdOrParentId?: string): Promise<Story[]> {
     const query =
       childIdOrParentId && !childIdOrParentId.startsWith("parent")
@@ -74,18 +132,40 @@ export class StoryApi {
     return (list || []).map((s) => this.mapToStoryModel(s));
   }
 
-  static async toggleFavorite(storyId: string): Promise<{ isFavorite: boolean }> {
-    return apiClient.put(`/stories/${storyId}/favorite`);
+  // 6. Toggle Favorite status
+  static async toggleFavorite(storyId: string, isFavorite = true): Promise<{ message?: string; isFavorite?: boolean }> {
+    return apiClient.put(`/stories/${storyId}/favorite`, { isFavorite });
   }
 
   static getStreamUrl(storyId: string): string {
     return `${AppConfig.apiBaseUrl}/stories/${storyId}/stream`;
   }
 
-  private static mapToStoryModel(res: CoreStoryResponse, originalTopic?: string): Story {
-    const defaultText =
-      res.script ||
-      `கண்ணா... ஒரு அழகான கதை கேளு. ${originalTopic || res.title}. நல்லா தூங்கு கண்ணா... இனிமையான கனவுகள் வரட்டும்.`;
+  // Helper: converts backend CoreStoryResponse to frontend Story model
+  public static mapToStoryModel(res: CoreStoryResponse, originalTopic?: string): Story {
+    const rawScript = (res.storyScript || res.script || "").trim();
+    const fallbackText = `கண்ணா... ஒரு அழகான கதை கேளு. ${originalTopic || res.title}. நல்லா தூங்கு கண்ணா... இனிமையான கனவுகள் வரட்டும்.`;
+    const fullText = rawScript || fallbackText;
+
+    // Segment paragraphs so subtitles and player scroll cleanly
+    const paragraphs = fullText
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+
+    const segments = paragraphs.length > 0
+      ? paragraphs.map((text, idx) => ({
+          id: String(idx + 1),
+          order: idx + 1,
+          text,
+        }))
+      : [{ id: "1", order: 1, text: fullText }];
+
+    const audioUrl =
+      res.audioUrl ||
+      res.audioCloudFrontUrl ||
+      "";
+
     return {
       id: res.storyId,
       requestId: `req-${res.storyId}`,
@@ -94,14 +174,14 @@ export class StoryApi {
       title: res.title || originalTopic || "BEDTIME STORY",
       languageCode: res.language || "ta",
       summary: `${res.title} - இனிமையான இரவு தூக்கக் கதை.`,
-      text: defaultText,
-      segments: [{ id: "1", order: 1, text: defaultText }],
+      text: fullText,
+      segments,
       narrationVersion: "1.0",
       audioStatus: res.status === "READY" ? "ready" : "processing",
-      audioDurationSeconds: res.audioDurationSeconds || 300,
-      audioUrl: res.audioCloudFrontUrl || "https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg",
+      audioDurationSeconds: res.audioDurationSeconds || (res.targetDurationMinutes ? res.targetDurationMinutes * 60 : 300),
+      audioUrl: audioUrl || "https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg",
       narratorName: "Dad's Voice",
-      narratorStyle: "Tamil · Chennai spoken style",
+      narratorStyle: `${res.dialect || "Chennai"} · Spoken Tamil`,
       isFavorite: res.isFavorite ?? false,
       createdAt: res.createdAt ? new Date(res.createdAt).toLocaleDateString() : "Tonight",
     };

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -23,13 +23,21 @@ interface Props {
 export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
   const { parent, setVoiceProfile } = useNila();
 
-  const scripts = [
+  const [scriptsList, setScriptsList] = useState<string[]>([
     "நிலா வானில் மெல்ல வந்து, படுக்கை அறையை தன் மென்மையான ஒளியால் நிறைத்தது. குட்டி மான் கண்ணை மூடி தூங்கியது.",
     "கண்ணா... ஒரு அழகான காட்டில் ஒரு குட்டி அணில் இருந்துச்சாம். அது தன் அம்மாவோட சேர்ந்து இனிமையான பழங்களை சாப்பிட்டுச்சாம்.",
     "அமைதியான இரவில், நட்சத்திரங்கள் வானத்தில் விளக்குகள் போல மின்னின. எல்லா குட்டி விலங்குகளும் தங்கள் கூட்டில் தூங்கின.",
-  ];
+  ]);
 
   const [scriptIndex, setScriptIndex] = useState(0);
+
+  useEffect(() => {
+    VoiceApi.getPrompt().then((p) => {
+      if (p?.scriptTamil) {
+        setScriptsList((prev) => [p.scriptTamil, ...prev]);
+      }
+    }).catch(() => {});
+  }, []);
 
   const {
     state,
@@ -54,13 +62,15 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleNextScript = () => {
-    setScriptIndex((prev) => (prev + 1) % scripts.length);
+    setScriptIndex((prev) => (prev + 1) % scriptsList.length);
   };
 
   const handleCreateVoice = async () => {
     navigation.navigate("VoiceProcessing", {
       recordingUri,
       parentId: parent.id,
+      displayName: `${parent.name || "Appa"}'s Voice`,
+      relationship: parent.relationship || "Appa",
     });
   };
 
@@ -76,7 +86,7 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
         {/* Script Card */}
         <View style={styles.scriptCard}>
           <Text style={styles.scriptHeader}>Tamil Reading Script</Text>
-          <Text style={styles.scriptText}>{scripts[scriptIndex]}</Text>
+          <Text style={styles.scriptText}>{scriptsList[scriptIndex]}</Text>
           <TouchableOpacity
             style={styles.refreshScriptRow}
             onPress={handleNextScript}

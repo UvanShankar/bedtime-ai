@@ -37,6 +37,9 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
             parentId: parent.id,
             audioUri: recordingUri,
             consent: true,
+            displayName: route.params?.displayName || `${parent.name || "Appa"}'s Voice`,
+            relationship: route.params?.relationship || parent.relationship || "Appa",
+            provider: "sarvam",
           });
           if (res?.voiceProfile) {
             setVoiceProfile(res.voiceProfile);

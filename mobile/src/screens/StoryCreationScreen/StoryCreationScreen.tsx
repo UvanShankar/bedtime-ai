@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
-import { StoryApi } from "../../services/api/StoryApi";
+import { StoryApi, StoryStatusResponse } from "../../services/api/StoryApi";
 import { useNila } from "../../context/NilaContext";
 import { Story } from "../../models";
 
@@ -14,27 +14,22 @@ interface Props {
 
 export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
   const { request } = route.params || {};
-  const { parent, selectedChild, memories, addStory, ensureBackendProfile } = useNila();
+  const { parent, selectedChild, voiceProfile, memories, addStory, ensureBackendProfile } = useNila();
 
   const [activeStep, setActiveStep] = useState(0);
+  const [stageMessage, setStageMessage] = useState("Initiating bedtime story creation...");
+  const [progressPercent, setProgressPercent] = useState(5);
 
   const steps = [
     `Thinking about ${selectedChild?.name || "Aarav"}`,
-    "Finding a little adventure",
-    "Bringing home into the story",
-    "Making it sound like you",
+    "Writing story in natural spoken Tamil",
+    "Bringing home memories into the story",
+    "Synthesizing voice narration",
     "Getting bedtime ready",
   ];
 
   useEffect(() => {
     let isMounted = true;
-
-    // Smooth step interval: advances up to step 3 while generation is in flight
-    const stepInterval = setInterval(() => {
-      if (isMounted) {
-        setActiveStep((prev) => Math.min(prev + 1, steps.length - 2));
-      }
-    }, 2800);
 
     const executeStoryGeneration = async () => {
       let generatedStory: Story | null = null;
@@ -44,7 +39,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
         // 1. Ensure parent and child exist on backend
         const { parentId, childId } = await ensureBackendProfile();
 
-        // 2. Prepare contextual instructions (memories, interests)
+        // 2. Prepare contextual instructions
         let additionalInstruction = "";
         if (request?.includeLifeMemories && memories && memories.length > 0) {
           const mem = memories[0];
@@ -55,35 +50,66 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
         }
 
         console.log(`[StoryCreation] Requesting backend generation for parent=${parentId}, child=${childId}`);
-        const apiStory = await StoryApi.generateStory({
+        const initialStory = await StoryApi.generateStory({
           parentId,
           childId,
           topic,
-          storyType: request?.storyType || "Bedtime Adventure",
+          storyType: request?.storyType || "bedtime_calm",
           mood: request?.mood || "Gentle & Sleepy",
           durationMinutes: request?.durationMinutes || 5,
           bedtimeCalmness: request?.bedtimeCalmness ?? 0.8,
           includeChildName: request?.includeChildName ?? true,
           realWorldFacts: false,
           additionalInstruction: additionalInstruction || undefined,
+          voiceProfileId: voiceProfile?.id || undefined,
+          voiceProvider: voiceProfile?.provider || undefined,
+          dialect: parent?.dialect || selectedChild?.storySettings?.tamilDialect || "Chennai",
         });
 
-        if (apiStory && apiStory.title) {
-          console.log("[StoryCreation] Live story generated successfully:", apiStory.title);
-          generatedStory = {
-            ...apiStory,
-            narratorName: apiStory.narratorName || `${parent?.name || "Dad"}'s Voice`,
-            narratorStyle: apiStory.narratorStyle || "Tamil · Natural conversational",
-            inspiredByMemory: request?.includeLifeMemories && memories?.[0] ? memories[0].location || memories[0].title : undefined,
-            isFavorite: true,
-          };
+        if (initialStory && initialStory.id) {
+          console.log(`[StoryCreation] Initial story enqueued: ${initialStory.id}. Polling until READY...`);
+          
+          // 3. Poll backend status until READY
+          const readyStory = await StoryApi.pollStoryUntilReady(
+            initialStory.id,
+            (status: StoryStatusResponse) => {
+              if (!isMounted) return;
+              if (status.stageMessage) {
+                setStageMessage(status.stageMessage);
+              }
+              if (status.progressPercent) {
+                setProgressPercent(status.progressPercent);
+              }
+
+              if (status.progressPercent >= 80) {
+                setActiveStep(3);
+              } else if (status.progressPercent >= 50) {
+                setActiveStep(2);
+              } else if (status.progressPercent >= 20) {
+                setActiveStep(1);
+              } else {
+                setActiveStep(0);
+              }
+            }
+          );
+
+          if (readyStory) {
+            console.log("[StoryCreation] Live story fully ready:", readyStory.title);
+            generatedStory = {
+              ...readyStory,
+              narratorName: voiceProfile?.displayName || `${parent?.name || "Dad"}'s Voice`,
+              narratorStyle: `${parent?.dialect || "Chennai"} · Spoken Tamil`,
+              inspiredByMemory: request?.includeLifeMemories && memories?.[0] ? memories[0].location || memories[0].title : undefined,
+              isFavorite: true,
+            };
+          }
         }
-      } catch (apiErr) {
-        console.warn("[StoryCreation] Real backend generation encountered an error or timeout, generating offline spoken Tamil fallback:", apiErr);
+      } catch (apiErr: any) {
+        console.warn("[StoryCreation] Backend story generation encountered an issue, creating fallback:", apiErr.message);
       }
 
       if (!generatedStory) {
-        // Fallback realistic spoken Tamil story tailored to the user's prompt
+        // Safe offline fallback in case of connection drop
         const childName = selectedChild?.name || "ஆரவ்";
         const topicTitle = topic.length > 38 ? topic.substring(0, 35) + "..." : topic;
         generatedStory = {
@@ -116,15 +142,15 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
       }
 
       if (isMounted) {
-        clearInterval(stepInterval);
         setActiveStep(steps.length - 1); // Step 4: Getting bedtime ready
+        setProgressPercent(100);
         addStory(generatedStory);
 
         setTimeout(() => {
           if (isMounted) {
             navigation.replace("StoryReady", { story: generatedStory });
           }
-        }, 1000);
+        }, 1200);
       }
     };
 
@@ -132,7 +158,6 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
 
     return () => {
       isMounted = false;
-      clearInterval(stepInterval);
     };
   }, []);
 
@@ -146,7 +171,15 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
         </View>
 
         <Text style={styles.title}>Creating tonight's story...</Text>
-        <Text style={styles.subtitle}>Personalizing the cozy world of dreams.</Text>
+        <Text style={styles.subtitle}>{stageMessage}</Text>
+
+        {/* Progress percent indicator */}
+        <View style={styles.progressRow}>
+          <View style={styles.progressBarBackground}>
+            <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+          </View>
+          <Text style={styles.progressPercentText}>{progressPercent}%</Text>
+        </View>
 
         <View style={styles.stepsContainer}>
           {steps.map((step, idx) => {
@@ -165,7 +198,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
                   {isDone ? (
                     <Ionicons name="checkmark" size={14} color={NilaColors.textDark} />
                   ) : isCurrent ? (
-                    <View style={styles.currentDot} />
+                    <ActivityIndicator size="small" color={NilaColors.gold} />
                   ) : null}
                 </View>
                 <Text
@@ -202,7 +235,7 @@ const styles = StyleSheet.create({
     height: 140,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 24,
+    marginBottom: 20,
     position: "relative",
   },
   glowCircle: {
@@ -231,7 +264,34 @@ const styles = StyleSheet.create({
     color: NilaColors.textSecondary,
     textAlign: "center",
     lineHeight: 20,
-    marginBottom: 36,
+    marginBottom: 20,
+  },
+  progressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    width: "100%",
+    marginBottom: 24,
+  },
+  progressBarBackground: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: NilaColors.surface,
+    borderWidth: 1,
+    borderColor: NilaColors.cardBorder,
+    overflow: "hidden",
+  },
+  progressBarFill: {
+    height: "100%",
+    backgroundColor: NilaColors.gold,
+    borderRadius: 3,
+  },
+  progressPercentText: {
+    color: NilaColors.gold,
+    fontSize: 13,
+    fontWeight: "700",
+    minWidth: 36,
   },
   stepsContainer: {
     width: "100%",
@@ -248,9 +308,9 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   stepIndicator: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 1.5,
     borderColor: NilaColors.cardBorder,
     alignItems: "center",
@@ -262,12 +322,6 @@ const styles = StyleSheet.create({
   },
   stepIndicatorCurrent: {
     borderColor: NilaColors.gold,
-  },
-  currentDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: NilaColors.gold,
   },
   stepText: {
     color: NilaColors.textMuted,
