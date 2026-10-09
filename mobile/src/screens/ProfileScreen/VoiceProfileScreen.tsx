@@ -12,6 +12,8 @@ import { NilaColors } from "../../theme/colors";
 import { NilaHeader } from "../../components/common/NilaHeader";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
+import { useAudioPlayer } from "../../hooks/useAudioPlayer";
+import { logger } from "../../utils/logger";
 
 interface Props {
   navigation: any;
@@ -19,12 +21,27 @@ interface Props {
 
 export const VoiceProfileScreen: React.FC<Props> = ({ navigation }) => {
   const { voiceProfile, deleteVoiceProfile } = useNila();
+  const { state: audioState, controller } = useAudioPlayer();
 
-  const handlePreview = () => {
-    Alert.alert(
-      "🎙️ Voice Preview",
-      "Playing cloned voice sample: 'கண்ணா... நிலா வானில் வந்து தூங்க சொல்லுது. நல்லா தூங்கு செல்லம்.'"
-    );
+  const handlePreview = async () => {
+    const audioUrl =
+      (voiceProfile?.sourceAudioKey && (voiceProfile.sourceAudioKey.startsWith("file") || voiceProfile.sourceAudioKey.startsWith("http"))
+        ? voiceProfile.sourceAudioKey
+        : (voiceProfile as any)?.previewAudioUrl) ||
+      "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3";
+
+    try {
+      if (audioState.isPlaying) {
+        await controller.pause();
+      } else {
+        logger.info("VOICE", `[VoiceProfileScreen] Playing preview audio: ${audioUrl}`);
+        await controller.load(audioUrl);
+        await controller.play();
+      }
+    } catch (err: any) {
+      logger.error("VOICE", `[VoiceProfileScreen] Preview error: ${err.message}`, err);
+      Alert.alert("Playback Error", "Could not play sample audio: " + err.message);
+    }
   };
 
   const handleReRecord = () => {

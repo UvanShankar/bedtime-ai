@@ -47,6 +47,8 @@ export class StoryApi {
       voiceProfileId?: string;
       moralTheme?: string;
       voiceProvider?: string;
+      speaker?: string;
+      voiceName?: string;
       dialect?: string;
     }
   ): Promise<Story> {
@@ -54,6 +56,8 @@ export class StoryApi {
       childId: input.childId,
       voiceId: input.voiceProfileId || undefined,
       provider: input.voiceProvider || undefined,
+      speaker: input.speaker || undefined,
+      voiceName: input.voiceName || undefined,
       theme: input.storyType || "bedtime_calm",
       mood: input.mood || "Gentle & Sleepy",
       promptIdea: input.promptIdea || input.topic || "Bedtime Story",
@@ -75,6 +79,7 @@ export class StoryApi {
       duration: `${input.durationMinutes || 5} min`,
       calmness: input.bedtimeCalmness,
       voiceId: input.voiceProfileId,
+      speaker: input.speaker || input.voiceName,
     });
     const res = await apiClient.post<CoreStoryResponse>("/stories/generate", payload);
     logger.success("STORY", `Story job queued on backend: ${res.storyId} (status: ${res.status})`);

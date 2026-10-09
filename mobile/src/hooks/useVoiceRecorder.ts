@@ -118,10 +118,11 @@ export function useVoiceRecorder(): UseVoiceRecorderResult {
         await recorder.stop();
       }
 
-      const uri = recorder.uri || recorder.getStatus().url;
+      const uri = recorder.uri || (recorder.getStatus() as any)?.url;
 
       await setAudioModeAsync({
         allowsRecording: false,
+        playsInSilentMode: true,
       });
 
       logger.success("VOICE", `Recording completed. Audio URI: ${uri}`);
@@ -135,34 +136,40 @@ export function useVoiceRecorder(): UseVoiceRecorderResult {
   };
 
   const playPreview = async () => {
-    if (!recordingUri) return;
+    if (!recordingUri) {
+      logger.warn("VOICE", "[useVoiceRecorder] playPreview called without recordingUri");
+      return;
+    }
     try {
-      if (!previewPlayerRef.current) {
-        await setAudioModeAsync({
-          playsInSilentMode: true,
-          shouldPlayInBackground: false,
-          interruptionMode: "duckOthers",
-        });
+      logger.info("VOICE", `[useVoiceRecorder] Playing preview audio from: ${recordingUri}`);
+      stopPreviewInternal();
 
-        const player = createAudioPlayer(recordingUri, { updateInterval: 200 });
-        previewPlayerRef.current = player;
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+        shouldPlayInBackground: false,
+        interruptionMode: "doNotMix",
+      });
 
-        const sub = (player as any).addListener(
-          "playbackStatusUpdate",
-          (status: AudioStatus) => {
-            setIsPlayingPreview(status.playing);
-            if (status.didJustFinish) {
-              setIsPlayingPreview(false);
-            }
+      const player = createAudioPlayer(recordingUri, { updateInterval: 200 });
+      player.volume = 1.0;
+      player.muted = false;
+      previewPlayerRef.current = player;
+
+      const sub = (player as any).addListener(
+        "playbackStatusUpdate",
+        (status: AudioStatus) => {
+          setIsPlayingPreview(status.playing);
+          if (status.didJustFinish) {
+            setIsPlayingPreview(false);
           }
-        );
-        previewSubRef.current = sub;
-        player.play();
-      } else {
-        previewPlayerRef.current.play();
-      }
+        }
+      );
+      previewSubRef.current = sub;
+      player.play();
       setIsPlayingPreview(true);
     } catch (err: any) {
+      logger.error("VOICE", `[useVoiceRecorder] Preview playback error: ${err.message}`, err);
       setErrorMessage("Could not play recorded sample: " + err.message);
     }
   };
@@ -171,8 +178,8 @@ export function useVoiceRecorder(): UseVoiceRecorderResult {
     try {
       if (previewPlayerRef.current) {
         previewPlayerRef.current.pause();
-        setIsPlayingPreview(false);
       }
+      setIsPlayingPreview(false);
     } catch (err: any) {
       setErrorMessage(err.message);
     }

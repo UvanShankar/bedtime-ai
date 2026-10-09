@@ -235,5 +235,6 @@ export function useAudioPlayer() {
   return {
     controller,
     playerState: state,
+    state,
   };
 }

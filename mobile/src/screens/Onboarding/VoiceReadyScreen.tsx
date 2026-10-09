@@ -1,34 +1,50 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
 import { useAudioPlayer } from "../../hooks/useAudioPlayer";
+import { logger } from "../../utils/logger";
 
 interface Props {
+  route?: any;
   navigation: any;
 }
 
-export const VoiceReadyScreen: React.FC<Props> = ({ navigation }) => {
+export const VoiceReadyScreen: React.FC<Props> = ({ route, navigation }) => {
   const { voiceProfile } = useNila();
-  const { controller } = useAudioPlayer();
-  const [isPlaying, setIsPlaying] = useState(false);
+  const { state: audioState, controller } = useAudioPlayer();
 
   const sampleAudioUrl =
-    voiceProfile?.sourceAudioKey && voiceProfile.sourceAudioKey.startsWith("http")
+    route?.params?.recordingUri ||
+    (voiceProfile?.sourceAudioKey && (voiceProfile.sourceAudioKey.startsWith("file") || voiceProfile.sourceAudioKey.startsWith("http"))
       ? voiceProfile.sourceAudioKey
-      : "https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg";
+      : (voiceProfile as any)?.previewAudioUrl || "");
+
+  const isPlaying = audioState.isPlaying;
 
   const handleTogglePreview = async () => {
-    if (isPlaying) {
-      await controller.pause();
-      setIsPlaying(false);
-    } else {
-      await controller.load(sampleAudioUrl);
-      await controller.play();
-      setIsPlaying(true);
+    if (!sampleAudioUrl) {
+      logger.warn("VOICE", "[VoiceReadyScreen] No voice recording sample URL found to play");
+      Alert.alert(
+        "Recording Not Found",
+        "Could not locate your recorded voice sample. Please tap below to re-record your voice."
+      );
+      return;
+    }
+    try {
+      if (isPlaying) {
+        await controller.pause();
+      } else {
+        logger.info("VOICE", `[VoiceReadyScreen] Playing recorded voice sample: ${sampleAudioUrl}`);
+        await controller.load(sampleAudioUrl);
+        await controller.play();
+      }
+    } catch (err: any) {
+      logger.error("VOICE", `[VoiceReadyScreen] Playback error: ${err.message}`, err);
+      Alert.alert("Playback Failed", "Could not play voice recording: " + err.message);
     }
   };
 

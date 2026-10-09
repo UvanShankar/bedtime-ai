@@ -69,9 +69,10 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
           includeLifeMemories: request?.includeLifeMemories ?? true,
           selectedMemoryIds: request?.selectedMemoryIds,
           realWorldFacts: false,
-          additionalInstruction: additionalInstruction || undefined,
-          voiceProfileId: voiceProfile?.id || undefined,
-          voiceProvider: voiceProfile?.provider || undefined,
+          voiceProfileId: request?.voiceProfileId || (request?.speaker ? undefined : voiceProfile?.id) || undefined,
+          voiceProvider: request?.voiceProvider || voiceProfile?.provider || undefined,
+          speaker: request?.speaker || undefined,
+          voiceName: request?.voiceName || undefined,
           dialect: parent?.dialect || selectedChild?.storySettings?.tamilDialect || "Chennai",
         });
 
@@ -112,7 +113,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
             logger.success("STORY", `[StoryCreationScreen] Live story fully ready: "${readyStory.title}"`);
             generatedStory = {
               ...readyStory,
-              narratorName: voiceProfile?.displayName || `${parent?.name || "Dad"}'s Voice`,
+              narratorName: request?.voiceName || voiceProfile?.displayName || `${parent?.name || "Dad"}'s Voice`,
               narratorStyle: `${parent?.dialect || "Chennai"} · Spoken Tamil`,
               inspiredByMemory: request?.includeLifeMemories && memories?.[0] ? memories[0].location || memories[0].title : undefined,
               isFavorite: true,

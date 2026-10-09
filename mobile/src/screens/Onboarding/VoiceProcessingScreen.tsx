@@ -53,8 +53,8 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
       } finally {
         setTimeout(() => {
           if (isMounted) {
-            logger.info("VOICE", "[VoiceProcessingScreen] Transitioning to VoiceReady screen");
-            navigation.replace("VoiceReady");
+            logger.info("VOICE", `[VoiceProcessingScreen] Transitioning to VoiceReady screen with recordingUri=${recordingUri}`);
+            navigation.replace("VoiceReady", { recordingUri });
           }
         }, 3600);
       }

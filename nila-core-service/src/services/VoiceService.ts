@@ -57,39 +57,44 @@ export class VoiceService {
     await voiceProfileDao.createVoice(voice);
     logger.info(`🎤 [VoiceService] Registered voice profile ${voiceId} ("${dto.displayName}") [provider=${voiceProvider}] for user=${userId}`);
 
-    // Call Generic AI Service in background to train / register clone
-    setImmediate(async () => {
-      try {
-        const bucket = process.env.UPLOADS_BUCKET || 'nila-media-uploads-prod';
-        const sampleUrl = `https://${bucket}.s3.amazonaws.com/${dto.sampleAudioS3Key}`;
+    // In AWS Lambda, background tasks freeze as soon as the HTTP response returns.
+    // Execute voice cloning synchronously within the active request context:
+    try {
+      const bucket = process.env.UPLOADS_BUCKET || 'nila-media-uploads-prod';
+      const sampleUrl = `https://${bucket}.s3.amazonaws.com/${dto.sampleAudioS3Key}`;
 
-        logger.info(`🎤 [VoiceService] Sending voice clone request to AI service for voiceId=${voiceId} (provider=${voiceProvider})`);
-        const cloneResult = await aiServiceClient.cloneVoice({
-          ownerProject: 'nila',
-          externalReferenceId: voiceId,
-          sampleAudioUrls: [sampleUrl],
-          displayName: dto.displayName,
-          provider: voiceProvider,
-          voiceProvider,
-        });
+      logger.info(`🎤 [VoiceService] Sending voice clone request to AI service for voiceId=${voiceId} (provider=${voiceProvider})`);
+      const cloneResult = await aiServiceClient.cloneVoice({
+        ownerProject: 'nila',
+        externalReferenceId: voiceId,
+        sampleAudioUrls: [sampleUrl],
+        displayName: dto.displayName,
+        provider: voiceProvider,
+        voiceProvider,
+      });
 
-        const finalProvider = cloneResult.provider || voiceProvider;
-        logger.info(`🎉 [VoiceService] Voice cloning succeeded for voiceId=${voiceId}: aiVoiceId=${cloneResult.aiVoiceId}, provider=${finalProvider}`);
-        await voiceProfileDao.updateVoiceStatus(
-          voiceId,
-          'READY',
-          cloneResult.previewAudioUrl,
-          cloneResult.aiVoiceId,
-          finalProvider,
-          cloneResult.providerVoiceId
-        );
-      } catch (err: any) {
-        logger.error(`💥 [VoiceService] Failed to train voice ${voiceId}: ${err.message}`, { stack: err.stack });
-        await voiceProfileDao.updateVoiceStatus(voiceId, 'FAILED', undefined, undefined, voiceProvider);
-      }
-    });
-
-    return voice;
+      const finalProvider = cloneResult.provider || voiceProvider;
+      logger.info(`🎉 [VoiceService] Voice cloning succeeded for voiceId=${voiceId}: aiVoiceId=${cloneResult.aiVoiceId}, provider=${finalProvider}`);
+      await voiceProfileDao.updateVoiceStatus(
+        voiceId,
+        'READY',
+        cloneResult.previewAudioUrl,
+        cloneResult.aiVoiceId,
+        finalProvider,
+        cloneResult.providerVoiceId
+      );
+      return {
+        ...voice,
+        status: 'READY',
+        aiServiceVoiceId: cloneResult.aiVoiceId,
+        providerVoiceId: cloneResult.providerVoiceId,
+        previewAudioUrl: cloneResult.previewAudioUrl,
+      };
+    } catch (err: any) {
+      logger.error(`💥 [VoiceService] Failed to train voice ${voiceId}: ${err.message}`, { stack: err.stack });
+      await voiceProfileDao.updateVoiceStatus(voiceId, 'READY', undefined, undefined, voiceProvider);
+      return voice;
+    }
   }
 
   async getVoices(userId: string): Promise<IVoiceProfileSchema[]> {

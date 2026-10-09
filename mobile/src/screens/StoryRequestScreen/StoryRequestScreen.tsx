@@ -16,6 +16,7 @@ import { NilaSlider } from "../../components/common/NilaSlider";
 import { NilaToggle } from "../../components/common/NilaToggle";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
+import { useAudioPlayer } from "../../hooks/useAudioPlayer";
 import { logger } from "../../utils/logger";
 
 interface Props {
@@ -34,6 +35,91 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
   const [mood, setMood] = useState("Gentle & Sleepy");
   const [duration, setDuration] = useState("5 min");
   const [calmness, setCalmness] = useState(0.75); // Playful <-> Sleepy
+
+  // Voice Selection Options
+  const defaultPresets = [
+    {
+      id: "voc_preset_priya",
+      name: "Amma / Priya (அம்மா)",
+      speaker: "priya",
+      provider: "sarvam",
+      isCloned: false,
+      tag: "Warm & Gentle",
+      description: "Loving motherly Tamil narration",
+      avatar: "👩",
+      previewUrl: "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3",
+    },
+    {
+      id: "voc_preset_karun",
+      name: "Appa / Karun (அப்பா)",
+      speaker: "karun",
+      provider: "sarvam",
+      isCloned: false,
+      tag: "Cozy Bedtime",
+      description: "Deep, gentle fatherly storytelling",
+      avatar: "👨",
+      previewUrl: "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_0031d1d3f756_1791578804598.mp3",
+    },
+    {
+      id: "voc_preset_kavitha",
+      name: "Paati / Kavitha (பாட்டி)",
+      speaker: "kavitha",
+      provider: "sarvam",
+      isCloned: false,
+      tag: "Storyteller",
+      description: "Traditional grandmother story cadence",
+      avatar: "👵",
+      previewUrl: "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3",
+    },
+  ];
+
+  const hasRecordedVoice = !!(voiceProfile && voiceProfile.id && voiceProfile.status !== "failed");
+
+  const recordedVoiceOption = hasRecordedVoice
+    ? {
+        id: voiceProfile!.id,
+        name: voiceProfile!.displayName || `${parent?.name || "Dad"}'s Voice`,
+        speaker: voiceProfile!.providerVoiceId || voiceProfile!.id,
+        provider: voiceProfile!.provider || "sarvam",
+        isCloned: true,
+        tag: "✨ Your Cloned Voice",
+        description: "Your own warm voice narrating to your child",
+        avatar: "🎙️",
+        previewUrl:
+          (voiceProfile!.sourceAudioKey && (voiceProfile!.sourceAudioKey.startsWith("file") || voiceProfile!.sourceAudioKey.startsWith("http"))
+            ? voiceProfile!.sourceAudioKey
+            : (voiceProfile as any)?.previewAudioUrl) || "",
+      }
+    : null;
+
+  const voiceOptions = recordedVoiceOption
+    ? [recordedVoiceOption, ...defaultPresets]
+    : defaultPresets;
+
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>(
+    recordedVoiceOption ? recordedVoiceOption.id : "voc_preset_priya"
+  );
+
+  const { state: previewAudioState, controller: previewController } = useAudioPlayer();
+  const [playingPreviewVoiceId, setPlayingPreviewVoiceId] = useState<string | null>(null);
+
+  const handleToggleVoicePreview = async (voice: (typeof voiceOptions)[0], e: any) => {
+    e?.stopPropagation?.();
+    try {
+      if (playingPreviewVoiceId === voice.id && previewAudioState.isPlaying) {
+        await previewController.pause();
+        setPlayingPreviewVoiceId(null);
+      } else {
+        if (voice.previewUrl) {
+          setPlayingPreviewVoiceId(voice.id);
+          await previewController.load(voice.previewUrl);
+          await previewController.play();
+        }
+      }
+    } catch (err: any) {
+      logger.warn("VOICE", `Preview voice error: ${err.message}`);
+    }
+  };
 
   // Personalization toggles
   const [includeChildName, setIncludeChildName] = useState(true);
@@ -79,6 +165,9 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const handleCreate = () => {
     const durationNum = parseInt(duration) || 5;
+    const chosenVoice = voiceOptions.find((v) => v.id === selectedVoiceId) || voiceOptions[0];
+    previewController.stop().catch(() => {});
+
     const requestPayload = {
       parentId: parent?.id || "parent-001",
       childId: selectedChild?.id || "child-001",
@@ -92,8 +181,10 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
       includeFamilyMembers,
       includeLifeMemories,
       selectedMemoryIds: includeLifeMemories ? memories.slice(0, 2).map((m) => m.id) : [],
-      voiceProfileId: voiceProfile?.id || undefined,
-      voiceProvider: voiceProfile?.provider || undefined,
+      voiceProfileId: chosenVoice.isCloned ? chosenVoice.id : undefined,
+      voiceProvider: chosenVoice.provider,
+      speaker: chosenVoice.speaker,
+      voiceName: chosenVoice.name,
     };
 
     logger.info("STORY", `[StoryRequestScreen] Navigating to StoryCreation with configuration`, {
@@ -102,7 +193,8 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
       storyType,
       duration: `${durationNum} min`,
       calmness,
-      voice: voiceProfile?.displayName,
+      voice: chosenVoice.name,
+      speaker: chosenVoice.speaker,
     });
 
     navigation.navigate("StoryCreation", { request: requestPayload });
@@ -194,6 +286,82 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
           />
         </View>
 
+        {/* Narrator Voice Selection */}
+        <View style={styles.section}>
+          <View style={styles.topicHeaderRow}>
+            <Text style={styles.sectionLabel}>Narrator Voice (குரல் தேர்வு)</Text>
+            <TouchableOpacity
+              style={styles.surpriseButton}
+              onPress={() => {
+                previewController.stop().catch(() => {});
+                navigation.navigate("VoiceRecording");
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.surpriseText}>+ Record Voice</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.voiceCardsList}>
+            {voiceOptions.map((voice) => {
+              const isSelected = voice.id === selectedVoiceId;
+              const isPlayingThis = playingPreviewVoiceId === voice.id && previewAudioState.isPlaying;
+
+              return (
+                <TouchableOpacity
+                  key={voice.id}
+                  style={[
+                    styles.voiceCard,
+                    isSelected && styles.voiceCardSelected,
+                    voice.isCloned && styles.voiceCardCloned,
+                  ]}
+                  onPress={() => setSelectedVoiceId(voice.id)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.voiceCardLeft}>
+                    <View style={[styles.voiceAvatarCircle, isSelected && styles.voiceAvatarCircleSelected]}>
+                      <Text style={styles.voiceAvatarText}>{voice.avatar}</Text>
+                    </View>
+                    <View style={styles.voiceInfo}>
+                      <View style={styles.voiceTitleRow}>
+                        <Text style={[styles.voiceName, isSelected && styles.voiceNameSelected]}>
+                          {voice.name}
+                        </Text>
+                        <View style={[styles.voiceTagBadge, isSelected && styles.voiceTagBadgeSelected]}>
+                          <Text style={[styles.voiceTagText, isSelected && styles.voiceTagTextSelected]}>
+                            {voice.tag}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.voiceDescription}>{voice.description}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.voiceCardRight}>
+                    {voice.previewUrl ? (
+                      <TouchableOpacity
+                        style={[styles.previewMiniButton, isPlayingThis && styles.previewMiniButtonActive]}
+                        onPress={(e) => handleToggleVoicePreview(voice, e)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons
+                          name={isPlayingThis ? "pause" : "volume-medium"}
+                          size={16}
+                          color={isPlayingThis ? NilaColors.midnight : NilaColors.gold}
+                        />
+                      </TouchableOpacity>
+                    ) : null}
+
+                    <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
+                      {isSelected ? <View style={styles.radioInner} /> : null}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         {/* Make It Theirs */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Make it theirs</Text>
@@ -271,6 +439,122 @@ const styles = StyleSheet.create({
   pillsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
+  },
+  voiceCardsList: {
+    gap: 10,
+  },
+  voiceCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: NilaColors.surface,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: NilaColors.cardBorder,
+  },
+  voiceCardSelected: {
+    borderColor: NilaColors.gold,
+    backgroundColor: "rgba(245, 199, 106, 0.08)",
+  },
+  voiceCardCloned: {
+    borderLeftWidth: 4,
+    borderLeftColor: NilaColors.gold,
+  },
+  voiceCardLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: 10,
+  },
+  voiceAvatarCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  voiceAvatarCircleSelected: {
+    backgroundColor: "rgba(245, 199, 106, 0.2)",
+  },
+  voiceAvatarText: {
+    fontSize: 20,
+  },
+  voiceInfo: {
+    flex: 1,
+  },
+  voiceTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 2,
+  },
+  voiceName: {
+    color: NilaColors.textPrimary,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  voiceNameSelected: {
+    color: NilaColors.gold,
+  },
+  voiceTagBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+  },
+  voiceTagBadgeSelected: {
+    backgroundColor: "rgba(245, 199, 106, 0.2)",
+  },
+  voiceTagText: {
+    color: NilaColors.textSecondary,
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  voiceTagTextSelected: {
+    color: NilaColors.gold,
+  },
+  voiceDescription: {
+    color: NilaColors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  voiceCardRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  previewMiniButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(245, 199, 106, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewMiniButtonActive: {
+    backgroundColor: NilaColors.gold,
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: NilaColors.cardBorder,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioCircleSelected: {
+    borderColor: NilaColors.gold,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: NilaColors.gold,
   },
   togglesCard: {
     backgroundColor: NilaColors.surface,
