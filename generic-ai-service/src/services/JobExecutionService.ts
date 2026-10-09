@@ -45,6 +45,8 @@ export class JobExecutionService {
 
       // 1. Text Generation via LLM
       const textResult = await llmService.generateText({
+        provider: payload.llmProvider || payload.provider,
+        model: payload.model || 'gpt-4o-mini',
         systemInstruction: payload.systemInstruction || 'You are an affectionate Tamil parent telling a bedtime story...',
         prompt,
         templateVariables: {
@@ -52,7 +54,8 @@ export class JobExecutionService {
           dialect: payload.dialect || 'Chennai',
           memorySnippet: payload.memorySnippet || '',
         },
-        temperature: 0.7,
+        temperature: payload.temperature ?? 0.7,
+        maxTokens: payload.maxTokens || 1024,
       });
 
       await aiJobDao.updateJobProgress(jobId, 55, 'Synthesizing voice audio...');
@@ -63,9 +66,12 @@ export class JobExecutionService {
         : jobId;
       const speechResult = await ttsService.synthesizeSpeech({
         text: textResult.text,
+        provider: payload.ttsProvider,
+        speaker: payload.speaker || payload.voiceName || payload.aiVoiceId,
         aiVoiceId: payload.aiVoiceId,
-        languageCode: 'ta-IN',
-        emotion: 'bedtime_calm',
+        languageCode: payload.languageCode || 'ta-IN',
+        speakingRate: payload.speakingRate || 0.9,
+        emotion: payload.emotion || 'bedtime_calm',
         targetKey: `stories/${audioFileName}.mp3`,
       });
 
