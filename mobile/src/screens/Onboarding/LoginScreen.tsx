@@ -15,6 +15,7 @@ import { NilaTextInput } from "../../components/common/NilaTextInput";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
 import { AuthApi } from "../../services/api/AuthApi";
+import { logger } from "../../utils/logger";
 
 interface Props {
   navigation: any;
@@ -58,19 +59,21 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
     setLoading(true);
     const fullPhone = formatPhoneNumber(phoneNumber);
+    logger.info("AUTH", `[LoginScreen] User requested OTP for ${fullPhone}`);
 
     try {
       const res = await AuthApi.sendOtp(fullPhone);
       setStep("otp");
       setResendTimer(30);
       if (res?.otp) {
+        logger.info("AUTH", `[LoginScreen] OTP received: ${res.otp}`);
         setInfoMessage(`Verification code sent! (Code: ${res.otp})`);
         setOtp(res.otp);
       } else {
         setInfoMessage(`Verification code sent to ${fullPhone}`);
       }
     } catch (err: any) {
-      console.warn("[LoginScreen] Send OTP note:", err.message);
+      logger.warn("AUTH", `[LoginScreen] Send OTP fallback triggered: ${err.message}`);
       setStep("otp");
       setResendTimer(30);
       setInfoMessage("Verification code ready (Demo: 123456)");
@@ -89,6 +92,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
     setLoading(true);
     const fullPhone = formatPhoneNumber(phoneNumber);
+    logger.info("AUTH", `[LoginScreen] User submitting OTP ${otp.trim()} for ${fullPhone}`);
 
     try {
       const res = await AuthApi.verifyOtp({
@@ -97,6 +101,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
       });
 
       if (res?.user) {
+        logger.success("AUTH", `[LoginScreen] Logged in successfully: ${res.user.fullName} (${res.user.userId})`);
         setParent((prev) => ({
           ...prev,
           id: res.user.userId,
@@ -106,7 +111,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
       }
       navigation.navigate("MainTabs");
     } catch (err: any) {
-      console.warn("[LoginScreen] Verify OTP error:", err.message);
+      logger.error("AUTH", `[LoginScreen] OTP verification failed: ${err.message}`);
       setErrorMessage(err.message || "Invalid verification code. Please try again.");
     } finally {
       setLoading(false);

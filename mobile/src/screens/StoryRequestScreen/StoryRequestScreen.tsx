@@ -16,6 +16,7 @@ import { NilaSlider } from "../../components/common/NilaSlider";
 import { NilaToggle } from "../../components/common/NilaToggle";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
+import { logger } from "../../utils/logger";
 
 interface Props {
   route?: any;
@@ -72,6 +73,7 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const handleSurpriseMe = () => {
     const randomTopic = surpriseTopics[Math.floor(Math.random() * surpriseTopics.length)];
+    logger.info("STORY", `[StoryRequestScreen] Surprise me selected topic: "${randomTopic}"`);
     setTopic(randomTopic);
   };
 
@@ -93,6 +95,15 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
       voiceProfileId: voiceProfile?.id || undefined,
       voiceProvider: voiceProfile?.provider || undefined,
     };
+
+    logger.info("STORY", `[StoryRequestScreen] Navigating to StoryCreation with configuration`, {
+      child: selectedChild?.name,
+      topic,
+      storyType,
+      duration: `${durationNum} min`,
+      calmness,
+      voice: voiceProfile?.displayName,
+    });
 
     navigation.navigate("StoryCreation", { request: requestPayload });
   };

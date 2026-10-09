@@ -8,6 +8,7 @@ import {
   AudioPlayer,
   AudioStatus,
 } from "expo-audio";
+import { logger } from "../utils/logger";
 
 export type RecorderState =
   | "idle"
@@ -79,8 +80,10 @@ export function useVoiceRecorder(): UseVoiceRecorderResult {
       setErrorMessage(null);
       stopPreviewInternal();
 
+      logger.info("VOICE", "Requesting microphone permissions...");
       const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
+        logger.error("VOICE", "Microphone permission was denied by user");
         setState("error");
         setErrorMessage("Microphone permission was denied.");
         return;
@@ -94,6 +97,7 @@ export function useVoiceRecorder(): UseVoiceRecorderResult {
       await recorder.prepareToRecordAsync();
       recorder.record();
 
+      logger.success("VOICE", "Voice recording session active");
       setState("recording");
       setDurationSeconds(0);
 
@@ -101,6 +105,7 @@ export function useVoiceRecorder(): UseVoiceRecorderResult {
         setDurationSeconds((prev) => prev + 1);
       }, 1000);
     } catch (err: any) {
+      logger.error("VOICE", "Failed to start recording", err);
       setState("error");
       setErrorMessage(err.message || "Failed to start recording");
     }
@@ -119,9 +124,11 @@ export function useVoiceRecorder(): UseVoiceRecorderResult {
         allowsRecording: false,
       });
 
+      logger.success("VOICE", `Recording completed. Audio URI: ${uri}`);
       setRecordingUri(uri);
       setState("recorded");
     } catch (err: any) {
+      logger.error("VOICE", "Failed to stop recording", err);
       setState("error");
       setErrorMessage(err.message || "Failed to stop recording");
     }

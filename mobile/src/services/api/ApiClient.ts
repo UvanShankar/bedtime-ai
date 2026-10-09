@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
+import { logger } from "../../utils/logger";
 
 export interface ApiErrorPayload {
   error: string | {
@@ -38,7 +39,10 @@ export class ApiClient {
     try {
       if (FileSystem.documentDirectory) {
         const token = await FileSystem.readAsStringAsync(ApiClient.tokenFilePath);
-        if (token) ApiClient.authToken = token.trim();
+        if (token) {
+          ApiClient.authToken = token.trim();
+          logger.info("AUTH", "Restored persisted session auth token from storage");
+        }
       }
     } catch {
       // Ignored if file doesn't exist yet
@@ -51,11 +55,13 @@ export class ApiClient {
     try {
       if (token && FileSystem.documentDirectory) {
         await FileSystem.writeAsStringAsync(ApiClient.tokenFilePath, token);
+        logger.success("AUTH", "Auth session token securely persisted");
       } else if (!token && FileSystem.documentDirectory) {
         await FileSystem.deleteAsync(ApiClient.tokenFilePath, { idempotent: true });
+        logger.info("AUTH", "Auth session token cleared from storage");
       }
     } catch (e) {
-      console.warn("[ApiClient] Could not persist auth token:", e);
+      logger.warn("AUTH", "Could not persist auth token", e);
     }
   }
 
@@ -63,8 +69,10 @@ export class ApiClient {
     return ApiClient.authToken;
   }
 
-  private async handleResponse<T>(response: Response): Promise<T> {
+  private async handleResponse<T>(response: Response, startTime: number, method: string, url: string): Promise<T> {
+    const duration = Date.now() - startTime;
     const isJson = response.headers.get("content-type")?.includes("application/json");
+
     if (!response.ok) {
       if (isJson) {
         const errorData = (await response.json()) as ApiErrorPayload;
@@ -74,9 +82,11 @@ export class ApiClient {
             : typeof errorData.error === "object"
             ? errorData.error?.message
             : errorData.message || `Request failed with status ${response.status}`;
+        logger.apiRes(method, url, response.status, duration, { error: msg });
         throw new ApiError(msg, String(errorData.statusCode || response.status));
       }
       const rawText = await response.text();
+      logger.apiRes(method, url, response.status, duration, { rawError: rawText });
       throw new ApiError(rawText || `Request failed with status ${response.status}`, "NETWORK_ERROR");
     }
 
@@ -88,15 +98,21 @@ export class ApiClient {
             typeof json.error === "string"
               ? json.error
               : json.error?.message || "Operation failed";
+          logger.apiRes(method, url, response.status, duration, { error: msg });
           throw new ApiError(msg, String(json.statusCode || response.status));
         }
         if ("data" in json) {
+          logger.apiRes(method, url, response.status, duration, json.data);
           return json.data as T;
         }
       }
+      logger.apiRes(method, url, response.status, duration, json);
       return json as T;
     }
-    return (await response.text()) as unknown as T;
+
+    const text = await response.text();
+    logger.apiRes(method, url, response.status, duration, { responseLength: text.length });
+    return text as unknown as T;
   }
 
   private getEffectiveUrl(path: string): string {
@@ -118,43 +134,75 @@ export class ApiClient {
 
   async get<T>(path: string, customHeaders: Record<string, string> = {}): Promise<T> {
     const url = this.getEffectiveUrl(path);
-    console.log(`[ApiClient] GET ${url}`);
-    const response = await fetch(url, {
-      method: "GET",
-      headers: this.getHeaders(customHeaders),
-    });
-    return this.handleResponse<T>(response);
+    logger.apiReq("GET", url);
+    const start = Date.now();
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: this.getHeaders(customHeaders),
+      });
+      return await this.handleResponse<T>(response, start, "GET", url);
+    } catch (err: any) {
+      if (!(err instanceof ApiError)) {
+        logger.error("API", `Network GET failure (${Date.now() - start}ms) on ${url}`, err);
+      }
+      throw err;
+    }
   }
 
   async post<T>(path: string, body?: unknown, customHeaders: Record<string, string> = {}): Promise<T> {
     const url = this.getEffectiveUrl(path);
-    console.log(`[ApiClient] POST ${url}`);
-    const response = await fetch(url, {
-      method: "POST",
-      headers: this.getHeaders({ "Content-Type": "application/json", ...customHeaders }),
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    return this.handleResponse<T>(response);
+    logger.apiReq("POST", url, body);
+    const start = Date.now();
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: this.getHeaders({ "Content-Type": "application/json", ...customHeaders }),
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      return await this.handleResponse<T>(response, start, "POST", url);
+    } catch (err: any) {
+      if (!(err instanceof ApiError)) {
+        logger.error("API", `Network POST failure (${Date.now() - start}ms) on ${url}`, err);
+      }
+      throw err;
+    }
   }
 
   async put<T>(path: string, body?: unknown, customHeaders: Record<string, string> = {}): Promise<T> {
     const url = this.getEffectiveUrl(path);
-    console.log(`[ApiClient] PUT ${url}`);
-    const response = await fetch(url, {
-      method: "PUT",
-      headers: this.getHeaders({ "Content-Type": "application/json", ...customHeaders }),
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    return this.handleResponse<T>(response);
+    logger.apiReq("PUT", url, body);
+    const start = Date.now();
+    try {
+      const response = await fetch(url, {
+        method: "PUT",
+        headers: this.getHeaders({ "Content-Type": "application/json", ...customHeaders }),
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      return await this.handleResponse<T>(response, start, "PUT", url);
+    } catch (err: any) {
+      if (!(err instanceof ApiError)) {
+        logger.error("API", `Network PUT failure (${Date.now() - start}ms) on ${url}`, err);
+      }
+      throw err;
+    }
   }
 
   async delete<T>(path: string, customHeaders: Record<string, string> = {}): Promise<T> {
     const url = this.getEffectiveUrl(path);
-    console.log(`[ApiClient] DELETE ${url}`);
-    const response = await fetch(url, {
-      method: "DELETE",
-      headers: this.getHeaders(customHeaders),
-    });
-    return this.handleResponse<T>(response);
+    logger.apiReq("DELETE", url);
+    const start = Date.now();
+    try {
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers: this.getHeaders(customHeaders),
+      });
+      return await this.handleResponse<T>(response, start, "DELETE", url);
+    } catch (err: any) {
+      if (!(err instanceof ApiError)) {
+        logger.error("API", `Network DELETE failure (${Date.now() - start}ms) on ${url}`, err);
+      }
+      throw err;
+    }
   }
 }

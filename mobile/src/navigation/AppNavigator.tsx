@@ -35,12 +35,32 @@ import { VoiceProfileScreen } from "../screens/ProfileScreen/VoiceProfileScreen"
 import { StoryStyleScreen } from "../screens/ProfileScreen/StoryStyleScreen";
 import { SettingsScreen } from "../screens/ProfileScreen/SettingsScreen";
 import { ChildProfileScreen } from "../screens/ProfileScreen/ChildProfileScreen";
+import { logger } from "../utils/logger";
 
 const Stack = createNativeStackNavigator();
 
 export const AppNavigator = () => {
+  const routeNameRef = React.useRef<string | undefined>(undefined);
+  const navigationRef = React.useRef<any>(null);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        const initialRoute = navigationRef.current?.getCurrentRoute()?.name;
+        routeNameRef.current = initialRoute;
+        logger.info("NAV", `App navigation ready. Active screen: ${initialRoute}`);
+      }}
+      onStateChange={() => {
+        const previousRouteName = routeNameRef.current;
+        const currentRoute = navigationRef.current?.getCurrentRoute();
+        const currentRouteName = currentRoute?.name;
+        if (previousRouteName !== currentRouteName && currentRouteName) {
+          logger.info("NAV", `Screen navigated: ${previousRouteName || "(root)"} ──▶ ${currentRouteName}`, currentRoute?.params);
+          routeNameRef.current = currentRouteName;
+        }
+      }}
+    >
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{

@@ -1,5 +1,6 @@
 import { ApiClient } from "./ApiClient";
 import { AppConfig } from "../../config";
+import { logger } from "../../utils/logger";
 
 const apiClient = new ApiClient(AppConfig.apiBaseUrl);
 
@@ -31,10 +32,12 @@ export interface SendOtpResponse {
 export class AuthApi {
   // 1. Send OTP to Phone Number
   static async sendOtp(phoneNumber: string): Promise<SendOtpResponse> {
+    logger.info("AUTH", `Requesting OTP for phone: ${phoneNumber}`);
     const res = await apiClient.post<SendOtpResponse>("/auth/send-otp", {
       phoneNumber,
       mobile: phoneNumber,
     });
+    logger.success("AUTH", `OTP requested successfully for ${phoneNumber}`, { expiresAt: res?.expiresAt, hasCode: !!res?.otp });
     return res;
   }
 
@@ -45,6 +48,7 @@ export class AuthApi {
     fullName?: string;
     relationship?: string;
   }): Promise<AuthResponseData> {
+    logger.info("AUTH", `Submitting OTP verification for ${input.phoneNumber}`);
     const res = await apiClient.post<AuthResponseData>("/auth/verify-otp", {
       phoneNumber: input.phoneNumber,
       mobile: input.phoneNumber,
@@ -54,6 +58,7 @@ export class AuthApi {
     });
     if (res?.tokens?.accessToken) {
       await ApiClient.setAuthToken(res.tokens.accessToken);
+      logger.success("AUTH", `OTP verification succeeded. Active user: ${res.user.fullName} (${res.user.userId})`);
     }
     return res;
   }
@@ -67,9 +72,11 @@ export class AuthApi {
     relationship?: string;
     preferredLanguage?: string;
   }): Promise<AuthResponseData> {
+    logger.info("AUTH", `Signup request for: ${input.fullName}`);
     const res = await apiClient.post<AuthResponseData>("/auth/signup", input);
     if (res?.tokens?.accessToken) {
       await ApiClient.setAuthToken(res.tokens.accessToken);
+      logger.success("AUTH", `Signup completed. User: ${res.user.fullName}`);
     }
     return res;
   }
@@ -79,14 +86,17 @@ export class AuthApi {
     emailOrMobile: string;
     password?: string;
   }): Promise<AuthResponseData> {
+    logger.info("AUTH", `Login request for: ${input.emailOrMobile}`);
     const res = await apiClient.post<AuthResponseData>("/auth/login", input);
     if (res?.tokens?.accessToken) {
       await ApiClient.setAuthToken(res.tokens.accessToken);
+      logger.success("AUTH", `Login successful for: ${res.user.fullName}`);
     }
     return res;
   }
 
   static async logout(): Promise<void> {
+    logger.info("AUTH", "User logging out - clearing token");
     await ApiClient.setAuthToken(null);
   }
 
@@ -96,15 +106,16 @@ export class AuthApi {
       try {
         const profile = await apiClient.get<any>("/parent/profile");
         if (profile?.userId) {
+          logger.success("AUTH", `Active session verified for userId: ${profile.userId}`);
           return existingToken;
         }
       } catch {
-        console.log("[AuthApi] Saved token expired or invalid, restoring session via OTP...");
+        logger.warn("AUTH", "Saved token expired or invalid, restoring session via OTP...");
       }
     }
 
     try {
-      // Auto-authenticate via verify-otp using master code
+      logger.info("AUTH", `Auto-authenticating session for ${defaultMobile}...`);
       const authRes = await AuthApi.verifyOtp({
         phoneNumber: defaultMobile,
         otp: "123456",
@@ -113,7 +124,6 @@ export class AuthApi {
       });
       return authRes.tokens.accessToken;
     } catch {
-      // Fallback: request OTP and verify
       try {
         const otpRes = await AuthApi.sendOtp(defaultMobile);
         const code = otpRes.otp || "123456";
@@ -124,8 +134,8 @@ export class AuthApi {
           relationship: "Appa",
         });
         return authRes.tokens.accessToken;
-      } catch (e) {
-        console.warn("[AuthApi] ensureAuth fallback warning:", e);
+      } catch (e: any) {
+        logger.warn("AUTH", "ensureAuth fallback warning", e.message);
         return existingToken || "";
       }
     }

@@ -6,6 +6,7 @@ import { NilaColors } from "../../theme/colors";
 import { StoryApi, StoryStatusResponse } from "../../services/api/StoryApi";
 import { useNila } from "../../context/NilaContext";
 import { Story } from "../../models";
+import { logger } from "../../utils/logger";
 
 interface Props {
   route: any;
@@ -34,6 +35,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
     const executeStoryGeneration = async () => {
       let generatedStory: Story | null = null;
       const topic = request?.topic || "A bedtime adventure";
+      logger.info("STORY", `[StoryCreationScreen] Initiating generation workflow for topic: "${topic}"`);
 
       try {
         // 1. Ensure parent and child exist on backend
@@ -49,7 +51,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
           additionalInstruction += ` Child's favorites: ${selectedChild.interests.join(", ")}.`;
         }
 
-        console.log(`[StoryCreation] Requesting backend generation for parent=${parentId}, child=${childId}`);
+        logger.info("STORY", `[StoryCreationScreen] Triggering StoryApi.generateStory (parentId: ${parentId}, childId: ${childId})`);
         const initialStory = await StoryApi.generateStory({
           parentId,
           childId,
@@ -67,7 +69,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
         });
 
         if (initialStory && initialStory.id) {
-          console.log(`[StoryCreation] Initial story enqueued: ${initialStory.id}. Polling until READY...`);
+          logger.info("STORY", `[StoryCreationScreen] Initial story enqueued: ${initialStory.id}. Polling until READY...`);
           
           // 3. Poll backend status until READY
           const readyStory = await StoryApi.pollStoryUntilReady(
@@ -94,7 +96,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
           );
 
           if (readyStory) {
-            console.log("[StoryCreation] Live story fully ready:", readyStory.title);
+            logger.success("STORY", `[StoryCreationScreen] Live story fully ready: "${readyStory.title}"`);
             generatedStory = {
               ...readyStory,
               narratorName: voiceProfile?.displayName || `${parent?.name || "Dad"}'s Voice`,
@@ -105,7 +107,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
           }
         }
       } catch (apiErr: any) {
-        console.warn("[StoryCreation] Backend story generation encountered an issue, creating fallback:", apiErr.message);
+        logger.warn("STORY", `[StoryCreationScreen] Backend story generation encountered an issue, creating fallback: ${apiErr.message}`);
       }
 
       if (!generatedStory) {
@@ -132,7 +134,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
           narrationVersion: "1.0",
           audioStatus: "ready",
           audioDurationSeconds: (request?.durationMinutes || 5) * 60,
-          audioUrl: "https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg",
+          audioUrl: "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3",
           narratorName: `${parent?.name || "Dad"}'s Voice`,
           narratorStyle: "Tamil · Chennai spoken style",
           inspiredByMemory: request?.includeLifeMemories && memories?.[0] ? memories[0].location || memories[0].title : undefined,

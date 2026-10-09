@@ -8,6 +8,7 @@ import {
 } from "expo-audio";
 import { AudioSource } from "../models";
 import { AppConfig } from "../config";
+import { logger } from "../utils/logger";
 
 function normalizeAudioUrl(url: string): string {
   if (!url) return url;
@@ -26,7 +27,7 @@ function normalizeAudioUrl(url: string): string {
 }
 
 export interface AudioPlayerController {
-  load(source: string | AudioSource): Promise<void>;
+  load(source: string | AudioSource, autoPlay?: boolean): Promise<void>;
   play(): Promise<void>;
   pause(): Promise<void>;
   stop(): Promise<void>;
@@ -56,7 +57,7 @@ export function useAudioPlayer() {
   const playerRef = useRef<ExpoAudioPlayer | null>(null);
   const subscriptionRef = useRef<{ remove: () => void } | null>(null);
 
-  const load = useCallback(async (source: string | AudioSource) => {
+  const load = useCallback(async (source: string | AudioSource, autoPlay = true) => {
     try {
       const rawUrl =
         typeof source === "string"
@@ -65,7 +66,7 @@ export function useAudioPlayer() {
           ? source.url
           : source.streamUrl;
       const audioUrl = normalizeAudioUrl(rawUrl);
-      console.log("[useAudioPlayer] Loading audio URL:", audioUrl);
+      logger.info("AUDIO", `Initializing player for stream: ${audioUrl} (autoPlay: ${autoPlay})`);
 
       setState((prev) => ({ ...prev, isBuffering: true, error: null }));
 
@@ -82,22 +83,35 @@ export function useAudioPlayer() {
       await setAudioModeAsync({
         playsInSilentMode: true,
         shouldPlayInBackground: false,
+        interruptionMode: "doNotMix",
+        allowsRecording: false,
       });
 
-      const player = createAudioPlayer(audioUrl, { updateInterval: 300 });
+      const player = createAudioPlayer(audioUrl, { updateInterval: 500 });
+      player.volume = 1.0;
+      player.muted = false;
       playerRef.current = player;
+
+      if (autoPlay) {
+        logger.info("AUDIO", "Triggering playback on audio player");
+        player.play();
+      }
+
+      let lastReportedStatus: string | null = null;
 
       const subscription = (player as any).addListener(
         "playbackStatusUpdate",
         (status: AudioStatus) => {
-          console.log("[useAudioPlayer] status update:", {
-            isLoaded: status.isLoaded,
-            playing: status.playing,
-            isBuffering: status.isBuffering,
-            currentTime: status.currentTime,
-            duration: status.duration,
-            error: status.error,
-          });
+          const currentStatusKey = `${status.isLoaded}-${status.playing}-${status.isBuffering}`;
+          if (currentStatusKey !== lastReportedStatus) {
+            lastReportedStatus = currentStatusKey;
+            logger.info("AUDIO", `Audio state: loaded=${status.isLoaded}, playing=${status.playing}, buffering=${status.isBuffering}, pos=${Math.floor(status.currentTime || 0)}s/${Math.floor(status.duration || 0)}s`);
+          }
+
+          if (status.error) {
+            logger.error("AUDIO", "Audio playback reported error", status.error);
+          }
+
           setState({
             isLoaded: status.isLoaded,
             isPlaying: status.playing,
@@ -110,7 +124,7 @@ export function useAudioPlayer() {
       );
       subscriptionRef.current = subscription;
     } catch (err: any) {
-      console.error("[useAudioPlayer] load error:", err);
+      logger.error("AUDIO", "Failed to load audio stream", err);
       setState((prev) => ({
         ...prev,
         isBuffering: false,
@@ -122,9 +136,11 @@ export function useAudioPlayer() {
   const play = useCallback(async () => {
     try {
       if (playerRef.current) {
+        logger.info("AUDIO", "User started playback");
         playerRef.current.play();
       }
     } catch (err: any) {
+      logger.error("AUDIO", "Error playing audio", err);
       setState((prev) => ({ ...prev, error: err.message }));
     }
   }, []);
@@ -132,9 +148,11 @@ export function useAudioPlayer() {
   const pause = useCallback(async () => {
     try {
       if (playerRef.current) {
+        logger.info("AUDIO", "User paused playback");
         playerRef.current.pause();
       }
     } catch (err: any) {
+      logger.error("AUDIO", "Error pausing audio", err);
       setState((prev) => ({ ...prev, error: err.message }));
     }
   }, []);
@@ -142,10 +160,12 @@ export function useAudioPlayer() {
   const stop = useCallback(async () => {
     try {
       if (playerRef.current) {
+        logger.info("AUDIO", "User stopped playback");
         playerRef.current.pause();
         await playerRef.current.seekTo(0);
       }
     } catch (err: any) {
+      logger.error("AUDIO", "Error stopping audio", err);
       setState((prev) => ({ ...prev, error: err.message }));
     }
   }, []);
@@ -153,9 +173,11 @@ export function useAudioPlayer() {
   const seek = useCallback(async (seconds: number) => {
     try {
       if (playerRef.current) {
+        logger.info("AUDIO", `User seeked playback to ${seconds}s`);
         await playerRef.current.seekTo(seconds);
       }
     } catch (err: any) {
+      logger.error("AUDIO", "Error seeking audio", err);
       setState((prev) => ({ ...prev, error: err.message }));
     }
   }, []);

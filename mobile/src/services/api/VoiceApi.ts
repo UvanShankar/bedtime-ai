@@ -2,6 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { ApiClient } from "./ApiClient";
 import { AppConfig } from "../../config";
 import { VoiceProfile } from "../../models";
+import { logger } from "../../utils/logger";
 
 const apiClient = new ApiClient(AppConfig.apiBaseUrl);
 
@@ -21,9 +22,13 @@ export interface VoiceUploadResponse {
 export class VoiceApi {
   // 1. Get official reading prompt from nila-core-service
   static async getPrompt(): Promise<VoicePromptResponse> {
+    logger.info("VOICE", "Fetching official reading prompt from backend...");
     try {
-      return await apiClient.get<VoicePromptResponse>("/voices/prompt");
+      const res = await apiClient.get<VoicePromptResponse>("/voices/prompt");
+      logger.success("VOICE", "Reading prompt loaded successfully");
+      return res;
     } catch {
+      logger.info("VOICE", "Using fallback reading prompt");
       return {
         scriptTamil: "ஒரு அழகான காட்ல ஒரு சின்ன முயல் இருந்துச்சாம். அந்த முயலுக்கு நிலாவ ரொம்ப பிடிக்குமாம். தினமும் சாயங்காலம் வானத்தைப் பார்த்து நிலா கிட்ட பேசுமாம்...",
         scriptEnglishTransliteration: "Oru azhagana kaatla oru chinna muyal irundhuchaam. Andha muyalukku nilava romba pidikkumaam...",
@@ -56,14 +61,16 @@ export class VoiceApi {
     const fileName = `voice_${Date.now()}.m4a`;
     const selectedProvider = (input.provider || "sarvam").toLowerCase();
 
+    logger.info("VOICE", `Starting voice sample registration process for parentId=${input.parentId}, provider=${selectedProvider}`);
+
     try {
       // Step A: Request AWS S3 pre-signed upload URL
-      console.log("[VoiceApi] Requesting S3 presigned URL for key from /voices/upload-url...");
+      logger.info("VOICE", `[Step 1/3] Requesting S3 presigned URL for ${fileName}...`);
       const { uploadUrl, key } = await this.getUploadUrl(fileName, mimeType);
-      console.log("[VoiceApi] Received S3 Presigned URL for key:", key);
+      logger.success("VOICE", `S3 presigned URL obtained for key: ${key}`);
 
       // Step B: Upload audio directly to Amazon S3
-      console.log("[VoiceApi] Uploading audio directly to AWS S3 bucket...");
+      logger.info("VOICE", `[Step 2/3] Uploading audio binary directly to AWS S3 (${input.audioUri})...`);
       const uploadRes = await FileSystem.uploadAsync(uploadUrl, input.audioUri, {
         httpMethod: "PUT",
         uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
@@ -75,10 +82,10 @@ export class VoiceApi {
       if (uploadRes.status < 200 || uploadRes.status >= 300) {
         throw new Error(`S3 direct upload failed with status ${uploadRes.status}`);
       }
-      console.log("[VoiceApi] Audio successfully uploaded to Amazon S3!");
+      logger.success("VOICE", `Audio sample binary successfully uploaded to Amazon S3 (status ${uploadRes.status})`);
 
       // Step C: Register voice profile in DynamoDB via nila-core-service
-      console.log(`[VoiceApi] Registering voice profile in DynamoDB with provider=${selectedProvider}...`);
+      logger.info("VOICE", `[Step 3/3] Registering voice profile in backend with provider=${selectedProvider}...`);
       const registered = await apiClient.post<any>("/voices", {
         displayName: input.displayName || "Appa's Voice",
         relationship: input.relationship || "Appa",
@@ -106,42 +113,39 @@ export class VoiceApi {
         updatedAt: registered?.updatedAt || now,
       };
 
+      logger.success("VOICE", `Voice profile registered: ${voiceProfile.displayName} (id: ${voiceProfile.id}, provider: ${voiceProfile.provider})`);
+
       return {
         voiceProfile,
+        styleProfile: registered?.styleProfile || {},
+        message: registered?.message || "Voice sample registered successfully",
+      };
+    } catch (err: any) {
+      logger.warn("VOICE", `Voice upload note, using graceful fallback profile: ${err.message}`);
+      const now = new Date().toISOString();
+      return {
+        voiceProfile: {
+          id: `voice-${Date.now()}`,
+          parentId: input.parentId,
+          provider: selectedProvider,
+          providerVoiceId: "priya",
+          sourceAudioKey: input.audioUri || "voices/recorded.m4a",
+          languageCode: "ta",
+          status: "ready",
+          consentAccepted: true,
+          displayName: input.displayName || "Appa's Voice",
+          accentDialect: "Tamil · Natural conversational",
+          sampleDuration: "30s sample",
+          createdAt: now,
+          updatedAt: now,
+        },
         styleProfile: {
           warmth: 0.9,
           pacing: "gentle",
         },
-        message: "Voice successfully uploaded to S3 and registered in DynamoDB",
+        message: "Voice registered with local preview",
       };
-    } catch (err: any) {
-      console.warn("[VoiceApi] S3 Voice upload encountered error, falling back gracefully:", err.message);
     }
-
-    // Graceful fallback profile to ensure offline/mock flow always succeeds
-    const now = new Date().toISOString();
-    return {
-      voiceProfile: {
-        id: `voice-${Date.now()}`,
-        parentId: input.parentId,
-        provider: selectedProvider,
-        providerVoiceId: "priya",
-        sourceAudioKey: input.audioUri || "voices/recorded.m4a",
-        languageCode: "ta",
-        status: "ready",
-        consentAccepted: true,
-        displayName: input.displayName || "Appa's Voice",
-        accentDialect: "Tamil · Natural conversational",
-        sampleDuration: "30s sample",
-        createdAt: now,
-        updatedAt: now,
-      },
-      styleProfile: {
-        warmth: 0.9,
-        pacing: "gentle",
-      },
-      message: "Voice registered with local preview",
-    };
   }
 
   // 4. List user's registered voice profiles

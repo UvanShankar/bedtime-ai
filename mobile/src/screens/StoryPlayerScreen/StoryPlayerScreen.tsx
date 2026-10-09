@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
 import { NilaToggle } from "../../components/common/NilaToggle";
 import { useAudioPlayer } from "../../hooks/useAudioPlayer";
+import { logger } from "../../utils/logger";
 
 interface Props {
   route: any;
@@ -30,19 +31,27 @@ export const StoryPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   const [playbackSeconds, setPlaybackSeconds] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
 
-  // Load real audio if story has audioUrl
+  const DEFAULT_S3_AUDIO = "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3";
+
+  // Load real audio if story has audioUrl, or fallback to live working S3 audio
   useEffect(() => {
-    if (story?.audioUrl) {
-      controller.load(story.audioUrl);
-    }
+    const streamUrl = story?.audioUrl || DEFAULT_S3_AUDIO;
+    logger.info("AUDIO", `[StoryPlayerScreen] Opening story: "${story?.title}"`, {
+      audioUrl: streamUrl,
+      duration: `${totalDurationSeconds}s`,
+    });
+    controller.load(streamUrl, true);
   }, [story?.audioUrl, controller]);
 
   // Sync position from real audio player when available
   useEffect(() => {
-    if (playerState.isLoaded && playerState.positionSeconds > 0) {
-      setPlaybackSeconds(Math.floor(playerState.positionSeconds));
+    if (playerState.isLoaded) {
+      if (playerState.positionSeconds > 0) {
+        setPlaybackSeconds(Math.floor(playerState.positionSeconds));
+      }
+      setIsPlaying(playerState.isPlaying);
     }
-  }, [playerState.positionSeconds, playerState.isLoaded]);
+  }, [playerState.positionSeconds, playerState.isPlaying, playerState.isLoaded]);
 
   // Audio timer simulation / sync
   useEffect(() => {
@@ -53,6 +62,7 @@ export const StoryPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
           if (prev >= totalDurationSeconds) {
             clearInterval(interval);
             setIsPlaying(false);
+            logger.success("AUDIO", `[StoryPlayerScreen] Playback finished for "${story?.title}". Transitioning to StoryComplete screen.`);
             navigation.navigate("StoryComplete", { story });
             return totalDurationSeconds;
           }
@@ -82,9 +92,11 @@ export const StoryPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const handlePlayPause = () => {
     if (isPlaying) {
+      logger.info("AUDIO", `[StoryPlayerScreen] User paused playback at ${playbackSeconds}s`);
       controller.pause();
       setIsPlaying(false);
     } else {
+      logger.info("AUDIO", `[StoryPlayerScreen] User resumed playback from ${playbackSeconds}s`);
       controller.play();
       setIsPlaying(true);
     }
@@ -92,12 +104,14 @@ export const StoryPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const handleSeekBackward = () => {
     const newPos = Math.max(0, playbackSeconds - 15);
+    logger.info("AUDIO", `[StoryPlayerScreen] Seek backward 15s to ${newPos}s`);
     setPlaybackSeconds(newPos);
     controller.seek(newPos);
   };
 
   const handleSeekForward = () => {
     const newPos = Math.min(totalDurationSeconds, playbackSeconds + 15);
+    logger.info("AUDIO", `[StoryPlayerScreen] Seek forward 15s to ${newPos}s`);
     setPlaybackSeconds(newPos);
     controller.seek(newPos);
   };

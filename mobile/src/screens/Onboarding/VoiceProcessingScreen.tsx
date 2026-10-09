@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
 import { VoiceApi } from "../../services/api/VoiceApi";
 import { useNila } from "../../context/NilaContext";
+import { logger } from "../../utils/logger";
 
 interface Props {
   route: any;
@@ -31,6 +32,7 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
     const timer2 = setTimeout(() => isMounted && setActiveStep(2), 2400);
 
     const processUpload = async () => {
+      logger.info("VOICE", `[VoiceProcessingScreen] Processing voice sample upload (${recordingUri})...`);
       try {
         if (recordingUri && parent?.id) {
           const res = await VoiceApi.uploadVoiceSample({
@@ -42,14 +44,16 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
             provider: "sarvam",
           });
           if (res?.voiceProfile) {
+            logger.success("VOICE", `[VoiceProcessingScreen] Voice ready: ${res.voiceProfile.displayName} (id: ${res.voiceProfile.id})`);
             setVoiceProfile(res.voiceProfile);
           }
         }
-      } catch (err) {
-        console.log("Voice upload completed with fallback profile:", err);
+      } catch (err: any) {
+        logger.warn("VOICE", `[VoiceProcessingScreen] Voice upload fallback note: ${err.message}`);
       } finally {
         setTimeout(() => {
           if (isMounted) {
+            logger.info("VOICE", "[VoiceProcessingScreen] Transitioning to VoiceReady screen");
             navigation.replace("VoiceReady");
           }
         }, 3600);

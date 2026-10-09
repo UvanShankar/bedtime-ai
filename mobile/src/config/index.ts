@@ -20,9 +20,16 @@ const getApiBaseUrl = (): string => {
   return "http://localhost:8080/api/v1";
 };
 
+const apiBaseUrl = getApiBaseUrl();
+const environment = (process.env.EXPO_PUBLIC_ENV || "development") as "development" | "staging" | "production";
+
+console.log(
+  `🚀 [NILA:APP] Initialized | Platform: ${Platform.OS} | Env: ${environment} | Backend: ${apiBaseUrl}`
+);
+
 export const AppConfig = {
-  apiBaseUrl: getApiBaseUrl(),
-  environment: (process.env.EXPO_PUBLIC_ENV || "development") as "development" | "staging" | "production",
+  apiBaseUrl,
+  environment,
   maxVoiceDurationSeconds: 90,
   minVoiceDurationSeconds: 15,
 };

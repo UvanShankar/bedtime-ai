@@ -46,12 +46,17 @@ export class StorageStack extends cdk.Stack {
       ],
     });
 
-    // 2. Story Audio Output Bucket (Generated voice stories)
+    // 2. Story Audio Output Bucket (Generated voice stories) - direct S3 audio streaming
     this.storyAudioBucket = new s3.Bucket(this, 'StoryAudioBucket', {
       bucketName: `nila-story-audio-${env}-${cdk.Aws.ACCOUNT_ID}`,
       encryption: s3.BucketEncryption.S3_MANAGED,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      enforceSSL: true,
+      blockPublicAccess: new s3.BlockPublicAccess({
+        blockPublicAcls: true,
+        ignorePublicAcls: true,
+        blockPublicPolicy: false,
+        restrictPublicBuckets: false,
+      }),
+      enforceSSL: false,
       removalPolicy,
       autoDeleteObjects: !isProd,
       cors: [
@@ -63,6 +68,16 @@ export class StorageStack extends cdk.Stack {
         },
       ],
     });
+
+    this.storyAudioBucket.addToResourcePolicy(
+      new cdk.aws_iam.PolicyStatement({
+        sid: 'PublicReadStoryAudio',
+        effect: cdk.aws_iam.Effect.ALLOW,
+        principals: [new cdk.aws_iam.AnyPrincipal()],
+        actions: ['s3:GetObject'],
+        resources: [this.storyAudioBucket.arnForObjects('*')],
+      })
+    );
 
     // 3. Generic AI Speech Bucket (Multi-project TTS & audio assets)
     this.aiSpeechBucket = new s3.Bucket(this, 'NilaAISpeechBucket', {

@@ -1,6 +1,7 @@
 import { ApiClient } from "./ApiClient";
 import { AppConfig } from "../../config";
 import { Story, StoryRequestInput } from "../../models";
+import { logger } from "../../utils/logger";
 
 const apiClient = new ApiClient(AppConfig.apiBaseUrl);
 
@@ -61,8 +62,14 @@ export class StoryApi {
       includeMemoryIds: input.selectedMemoryIds || (input.includeLifeMemories ? [] : undefined),
     };
 
-    console.log("[StoryApi] Sending /stories/generate request with payload:", payload);
+    logger.info("STORY", `Initiating story generation: "${input.promptIdea || input.topic}"`, {
+      childId: input.childId,
+      theme: input.storyType,
+      duration: `${input.durationMinutes || 5} min`,
+      voiceId: input.voiceProfileId,
+    });
     const res = await apiClient.post<CoreStoryResponse>("/stories/generate", payload);
+    logger.success("STORY", `Story job queued on backend: ${res.storyId} (status: ${res.status})`);
     return this.mapToStoryModel(res, input.topic);
   }
 
@@ -89,12 +96,15 @@ export class StoryApi {
     maxAttempts = 240, // 240 * 3s = 12 minutes max poll
     intervalMs = 3000
   ): Promise<Story> {
-    console.log(`[StoryApi] Starting status polling for storyId=${storyId}...`);
+    logger.info("STORY", `Starting status polling for storyId=${storyId} (interval: ${intervalMs}ms)...`);
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const statusData = await this.getStoryStatus(storyId);
-        console.log(
-          `[StoryApi] Poll attempt ${attempt}/${maxAttempts}: status=${statusData.status}, progress=${statusData.progressPercent}%`
+        logger.info(
+          "STORY",
+          `[Poll ${attempt}/${maxAttempts}] status=${statusData.status}, progress=${statusData.progressPercent}%${
+            statusData.stageMessage ? ` ("${statusData.stageMessage}")` : ""
+          }`
         );
 
         if (onProgress) {
@@ -102,23 +112,25 @@ export class StoryApi {
         }
 
         if (statusData.status === "READY") {
-          console.log(`[StoryApi] Story ${storyId} is READY! Fetching full story details...`);
+          logger.success("STORY", `Story ${storyId} is READY! Fetching full story details...`);
           return await this.getStory(storyId);
         }
 
         if (statusData.status === "FAILED") {
+          logger.error("STORY", `Story ${storyId} generation failed on server`, statusData.stageMessage);
           throw new Error(statusData.stageMessage || "Story generation failed on server");
         }
       } catch (err: any) {
         if (err.message && err.message.includes("failed on server")) {
           throw err;
         }
-        console.warn(`[StoryApi] Poll warning at attempt ${attempt}:`, err.message);
+        logger.warn("STORY", `Poll attempt ${attempt} warning`, err.message);
       }
 
       await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
 
+    logger.error("STORY", `Story generation timed out after ${maxAttempts} poll attempts`);
     throw new Error("Story generation timed out after polling");
   }
 
@@ -179,7 +191,7 @@ export class StoryApi {
       narrationVersion: "1.0",
       audioStatus: res.status === "READY" ? "ready" : "processing",
       audioDurationSeconds: res.audioDurationSeconds || (res.targetDurationMinutes ? res.targetDurationMinutes * 60 : 300),
-      audioUrl: audioUrl || "https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg",
+      audioUrl: audioUrl || "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3",
       narratorName: "Dad's Voice",
       narratorStyle: `${res.dialect || "Chennai"} · Spoken Tamil`,
       isFavorite: res.isFavorite ?? false,
