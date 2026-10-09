@@ -49,6 +49,14 @@ jobs:
         working-directory: ./infra-cdk
         run: npx cdk bootstrap
 
+      - name: Ensure CDK ECR Repository Tag Mutability
+        run: |
+          REPOS=$(aws ecr describe-repositories --region ${{ secrets.AWS_REGION || 'ap-south-1' }} --query "repositories[?contains(repositoryName, 'container-assets')].repositoryName" --output text || true)
+          for repo in $REPOS; do
+            echo "Setting MUTABLE for $repo"
+            aws ecr put-image-tag-mutability --region ${{ secrets.AWS_REGION || 'ap-south-1' }} --repository-name "$repo" --image-tag-mutability MUTABLE || true
+          done
+
       - name: CDK Deploy All Stacks
         working-directory: ./infra-cdk
         env:
