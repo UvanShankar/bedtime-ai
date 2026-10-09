@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { ApiError, ValidationError } from './ApiError';
 import { IResponse } from '../types';
+import logger from '../logger';
 
 export function errorHandler(
   err: any,
@@ -9,11 +10,13 @@ export function errorHandler(
   res: Response,
   next: NextFunction
 ) {
-  console.error('[Nila Core Service Error]', {
+  logger.error(`❌ [ERROR] ${req.method} ${req.originalUrl || req.path}: ${err.message}`, {
+    name: err.name,
     message: err.message,
-    stack: err.stack,
-    path: req.path,
+    statusCode: err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
+    path: req.originalUrl || req.path,
     method: req.method,
+    stack: err.stack,
   });
 
   const statusCode = err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR;

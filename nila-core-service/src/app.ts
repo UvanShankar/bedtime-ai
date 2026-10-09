@@ -9,6 +9,7 @@ import { memoryRoutes } from './routes/MemoryRoutes';
 import { voiceRoutes } from './routes/VoiceRoutes';
 import { storyRoutes } from './routes/StoryRoutes';
 import { errorHandler } from './exceptions';
+import { requestLogger } from './middleware/requestLogger';
 
 const app = express();
 
@@ -16,6 +17,7 @@ const app = express();
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(requestLogger);
 app.use(cors({ origin: '*' }));
 app.use(cookieParser());
 

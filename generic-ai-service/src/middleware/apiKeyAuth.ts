@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { ApiError } from '../exceptions/ApiError';
+import logger from '../logger';
 
 export function apiKeyAuth(req: Request, res: Response, next: NextFunction) {
   // Allow healthcheck without auth
@@ -22,6 +23,7 @@ export function apiKeyAuth(req: Request, res: Response, next: NextFunction) {
     !providedApiKey ||
     (providedApiKey !== configuredApiKey && providedApiKey !== 'test-ai-key-secret-12345')
   ) {
+    logger.warn(`🔒 [apiKeyAuth] Unauthorized access attempt to ${req.method} ${req.path}`);
     return next(new ApiError('Unauthorized: Invalid or missing API key', StatusCodes.UNAUTHORIZED));
   }
 

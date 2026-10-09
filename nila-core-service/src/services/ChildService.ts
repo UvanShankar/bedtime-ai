@@ -3,6 +3,7 @@ import { IChildSchema } from '../models/Child';
 import { ICreateChildDTO } from '../types';
 import { generateId } from '../utils';
 import { NotFoundError, ValidationError } from '../exceptions/ApiError';
+import logger from '../logger';
 
 export class ChildService {
   async createChild(userId: string, dto: ICreateChildDTO): Promise<IChildSchema> {
@@ -35,11 +36,14 @@ export class ChildService {
     };
 
     await childDao.createChild(child);
+    logger.info(`👶 [ChildService] Created child profile ${childId} ("${child.name}") for user=${userId}`);
     return child;
   }
 
   async getChildren(userId: string): Promise<IChildSchema[]> {
-    return await childDao.getChildrenByUserId(userId);
+    const list = await childDao.getChildrenByUserId(userId);
+    logger.debug(`👶 [ChildService] Retrieved ${list.length} children for user=${userId}`);
+    return list;
   }
 
   async getChild(childId: string): Promise<IChildSchema> {
@@ -59,11 +63,13 @@ export class ChildService {
       };
     }
     await childDao.updateChild(childId, updates);
+    logger.info(`👶 [ChildService] Updated child profile ${childId}`);
     return await this.getChild(childId);
   }
 
   async deleteChild(childId: string): Promise<void> {
     await childDao.deleteChild(childId);
+    logger.info(`👶 [ChildService] Deleted child profile ${childId}`);
   }
 }
 

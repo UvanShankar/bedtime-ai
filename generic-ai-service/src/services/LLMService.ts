@@ -8,6 +8,7 @@ import {
   IChatGPTRequestDTO,
   IChatGPTResponseDTO,
 } from '../types';
+import logger from '../logger';
 
 export class LLMService {
   private providers: Map<string, ILLMProvider> = new Map();
@@ -36,21 +37,24 @@ export class LLMService {
       selected = this.providers.get('mock')!;
     }
 
-    console.log(`[LLMService] Selected provider: "${selected.name}" (requested preferred: ${preferred ? `"${preferred}"` : 'none'})`);
+    logger.debug(`[LLMService] Selected provider: "${selected.name}" (requested preferred: ${preferred ? `"${preferred}"` : 'none'})`);
     return selected;
   }
 
   async generateText(params: ITextGenerateDTO): Promise<ITextGenerateResult> {
     const provider = this.getProvider(params.provider);
+    logger.info(`🤖 [LLMService] Generating text via provider=${provider.name}, model=${params.model || 'default'}`);
     return await provider.generateText(params);
   }
 
   async generateStructuredJson<T = any>(params: ITextGenerateDTO, schema: Record<string, any>): Promise<T> {
     const provider = this.getProvider(params.provider);
+    logger.info(`🤖 [LLMService] Generating structured JSON via provider=${provider.name}`);
     return await provider.generateStructuredJson<T>(params, schema);
   }
 
   async chat(params: IChatGPTRequestDTO): Promise<IChatGPTResponseDTO> {
+    logger.info(`💬 [LLMService] ChatGPT chat completion requested (model=${params.model || 'gpt-4o'})`);
     return await this.openAIProvider.chat(params);
   }
 }

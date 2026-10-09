@@ -4,6 +4,7 @@ import { ICreateMemoryDTO } from '../types';
 import { generateId } from '../utils';
 import { getPresignedUploadUrl, uploadBufferToS3 } from '../database/s3Operations';
 import { ValidationError, NotFoundError } from '../exceptions/ApiError';
+import logger from '../logger';
 
 export class MemoryService {
   async createMemory(userId: string, dto: ICreateMemoryDTO): Promise<IMemorySchema> {
@@ -29,14 +30,16 @@ export class MemoryService {
     };
 
     await memoryDao.createMemory(memory);
+    logger.info(`📸 [MemoryService] Created memory ${memoryId} ("${memory.title}") for user=${userId}, childId=${dto.childId || 'none'}`);
     return memory;
   }
 
   async getMemories(userId: string, childId?: string): Promise<IMemorySchema[]> {
-    if (childId) {
-      return await memoryDao.getMemoriesByChildId(childId);
-    }
-    return await memoryDao.getMemoriesByUserId(userId);
+    const list = childId
+      ? await memoryDao.getMemoriesByChildId(childId)
+      : await memoryDao.getMemoriesByUserId(userId);
+    logger.debug(`📸 [MemoryService] Retrieved ${list.length} memories for user=${userId}, childId=${childId || 'all'}`);
+    return list;
   }
 
   async getPresignedUploadUrl(
@@ -56,6 +59,7 @@ export class MemoryService {
     const resolvedFileType = fileType || 'image/jpeg';
 
     if (fileBuffer && fileBuffer.length > 0) {
+      logger.info(`📸 [MemoryService] Directly uploading file buffer to S3 key=${key} (${fileBuffer.length} bytes)`);
       // Direct binary upload to S3
       await uploadBufferToS3({
         Bucket: bucket,
@@ -72,6 +76,7 @@ export class MemoryService {
       };
     }
 
+    logger.debug(`📸 [MemoryService] Generating presigned upload URL for key=${key}`);
     // Presigned upload URL flow
     const uploadUrl = await getPresignedUploadUrl({
       Bucket: bucket,
@@ -97,11 +102,13 @@ export class MemoryService {
 
   async updateMemory(memoryId: string, updates: Partial<IMemorySchema>): Promise<IMemorySchema> {
     await memoryDao.updateMemory(memoryId, updates);
+    logger.info(`📸 [MemoryService] Updated memory ${memoryId}`);
     return await this.getMemory(memoryId);
   }
 
   async deleteMemory(memoryId: string): Promise<void> {
     await memoryDao.deleteMemory(memoryId);
+    logger.info(`📸 [MemoryService] Deleted memory ${memoryId}`);
   }
 }
 

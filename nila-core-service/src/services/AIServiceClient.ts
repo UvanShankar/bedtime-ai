@@ -1,4 +1,5 @@
 import { ApiError } from '../exceptions/ApiError';
+import logger from '../logger';
 
 export class AIServiceClient {
   private baseUrl: string;
@@ -11,20 +12,33 @@ export class AIServiceClient {
 
   private async fetchAI(path: string, options: RequestInit = {}): Promise<any> {
     const url = `${this.baseUrl}${path}`;
+    const method = options.method || 'GET';
     const headers = {
       'Content-Type': 'application/json',
       'x-api-key': this.apiKey,
       ...(options.headers || {}),
     };
 
-    const response = await fetch(url, { ...options, headers });
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new ApiError(`AI Service error (${response.status}): ${errText}`);
-    }
+    logger.debug(`🤖 [AIServiceClient] Dispatching ${method} ${url}`);
+    const startTime = Date.now();
+    try {
+      const response = await fetch(url, { ...options, headers });
+      const duration = Date.now() - startTime;
+      if (!response.ok) {
+        const errText = await response.text();
+        logger.error(`❌ [AIServiceClient] Request failed ${method} ${path} (${response.status}) in ${duration}ms: ${errText}`);
+        throw new ApiError(`AI Service error (${response.status}): ${errText}`);
+      }
 
-    const json = (await response.json()) as any;
-    return json.data;
+      logger.debug(`✅ [AIServiceClient] Success ${method} ${path} (${response.status}) in ${duration}ms`);
+      const json = (await response.json()) as any;
+      return json.data;
+    } catch (err: any) {
+      if (!(err instanceof ApiError)) {
+        logger.error(`❌ [AIServiceClient] Network/connection error contacting ${url}: ${err.message}`);
+      }
+      throw err;
+    }
   }
 
   async cloneVoice(params: {

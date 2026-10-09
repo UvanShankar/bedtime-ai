@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { ApiError, ValidationError } from './ApiError';
 import { IResponse } from '../types';
+import logger from '../logger';
 
 export function errorHandler(
   err: any,
@@ -9,10 +10,10 @@ export function errorHandler(
   res: Response,
   next: NextFunction
 ) {
-  console.error('[AI Service Error]', {
+  logger.error(`💥 [AI Service Error] ${req.method} ${req.originalUrl || req.path}: ${err.message}`, {
     message: err.message,
     stack: err.stack,
-    path: req.path,
+    path: req.originalUrl || req.path,
     method: req.method,
   });
 

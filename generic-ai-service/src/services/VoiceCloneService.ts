@@ -7,6 +7,7 @@ import aiVoiceRegistryDao from '../dao/AIVoiceRegistryDao';
 import { uploadBufferToS3, getPresignedUploadUrl } from '../database/s3Operations';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
+import logger from '../logger';
 
 export class VoiceCloneService {
   private getProvider(preferred?: string): ITTSProvider {
@@ -26,12 +27,13 @@ export class VoiceCloneService {
       selected = new MockTTSProvider();
     }
 
-    console.log(`[VoiceCloneService] Selected provider: "${selected.name}" (requested preferred: ${preferred ? `"${preferred}"` : 'none'})`);
+    logger.debug(`[VoiceCloneService] Selected provider: "${selected.name}" (requested preferred: ${preferred ? `"${preferred}"` : 'none'})`);
     return selected;
   }
 
   async cloneVoice(params: IVoiceCloneDTO): Promise<IVoiceCloneResult> {
     const provider = this.getProvider(params.provider);
+    logger.info(`🎤 [VoiceCloneService] Initiating voice clone via provider=${provider.name}, name="${params.displayName || 'unnamed'}", samples=${params.sampleAudioUrls?.length || 0}`);
     const cloneResult = await provider.cloneVoice(params);
     const aiVoiceId = uuidv4();
     const timestamp = new Date().toISOString();

@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import cors from 'cors';
 import morgan from 'morgan';
+import { requestLogger } from './middleware/requestLogger';
 import { apiKeyAuth } from './middleware/apiKeyAuth';
 import { textRoutes } from './routes/TextRoutes';
 import { chatRoutes } from './routes/ChatRoutes';
@@ -13,9 +14,9 @@ import { errorHandler } from './exceptions';
 const app = express();
 
 // Global Middlewares
-app.use(morgan('dev'));
-app.use(express.json({ limit: '10mb' }));
 app.use(cors({ origin: '*' }));
+app.use(express.json({ limit: '10mb' }));
+app.use(requestLogger);
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Health Check

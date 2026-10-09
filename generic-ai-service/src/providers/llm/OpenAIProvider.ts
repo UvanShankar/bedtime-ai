@@ -8,6 +8,7 @@ import {
   IChatMessage,
 } from '../../types';
 import { ApiError } from '../../exceptions/ApiError';
+import logger from '../../logger';
 
 export class OpenAIProvider implements ILLMProvider {
   public name = 'openai';
@@ -40,6 +41,7 @@ export class OpenAIProvider implements ILLMProvider {
 
     if (!this.client) {
       if (process.env.NODE_ENV !== 'production') {
+        logger.warn(`[OpenAIProvider] OpenAI client not configured; returning simulated response in non-prod`);
         return {
           text: `[Offline Simulation] Response to: "${fullPrompt.slice(0, 80)}..."`,
           provider: this.name,
@@ -52,12 +54,16 @@ export class OpenAIProvider implements ILLMProvider {
       throw new ApiError('OpenAI API key is not configured');
     }
 
+    const startTime = Date.now();
+    logger.debug(`[OpenAIProvider] Calling chat.completions.create with model=${model}`);
     const response = await this.client.chat.completions.create({
       model,
       messages,
       temperature: params.temperature ?? 0.7,
       max_tokens: params.maxTokens ?? 2048,
     });
+    const duration = Date.now() - startTime;
+    logger.debug(`[OpenAIProvider] Received completion from OpenAI in ${duration}ms (totalTokens=${response.usage?.total_tokens || 0})`);
 
     const text = response.choices[0]?.message?.content || '';
     return {

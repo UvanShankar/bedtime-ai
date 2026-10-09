@@ -5,6 +5,7 @@ import { ISignupDTO, ILoginDTO, IAuthResponse, ISendOtpDTO, IVerifyOtpDTO } from
 import { IUserSchema } from '../models/User';
 import { generateId, generateTokens, hashPassword, comparePassword } from '../utils';
 import { ValidationError, UnauthorizedError } from '../exceptions/ApiError';
+import logger from '../logger';
 
 export function normalizePhoneNumber(raw: string): string {
   if (!raw) return '';
@@ -54,7 +55,9 @@ export class AuthService {
       };
       await userDao.createUser(newUser);
       user = newUser;
-      console.log(`[AuthService] Provisioned new unverified user for ${mobile}: ${userId}`);
+      logger.info(`[AuthService] Provisioned new unverified user record`, { mobile, userId });
+    } else {
+      logger.debug(`[AuthService] Existing user found in DB`, { mobile, userId: user?.userId, isVerified: user?.isVerified });
     }
 
     // 2. Determine OTP: If an active unexpired OTP is already present in DB, reuse it and extend TTL; otherwise generate a new one
@@ -65,25 +68,27 @@ export class AuthService {
     let otp: string;
     if (existingOtpRecord && existingOtpRecord.otp && existingOtpRecord.expiresAt >= nowEpoch) {
       otp = existingOtpRecord.otp;
-      console.log(`[AuthService] Existing active OTP found for ${mobile}. Reusing OTP and extending TTL.`);
+      logger.info(`[AuthService] Active OTP found for ${mobile}. Reusing OTP and extending TTL`, {
+        mobile,
+        extendedTtlMinutes: ttlMinutes,
+      });
     } else {
       otp = Math.floor(100000 + Math.random() * 900000).toString();
-      console.log(`[AuthService] Generated new OTP for ${mobile}`);
+      logger.info(`[AuthService] Generated new 6-digit numeric OTP for ${mobile}`);
     }
 
     const expiresAt = nowEpoch + ttlMinutes * 60;
     await otpDao.saveOtp(mobile, otp, ttlMinutes);
-    console.log(`[AuthService] Saved OTP to DynamoDB for ${mobile}`);
+    logger.debug(`[AuthService] Saved OTP to DynamoDB (Nila_Otp_prod)`, { mobile, expiresAt });
 
     // 3. Trigger transactional SMS via AWS SNS
     const smsMessage = `Your Nila verification code is ${otp}. Valid for 10 minutes.`;
     try {
       const messageId = await sendSms(mobile, smsMessage);
-      console.log(`[AuthService] SNS SMS sent successfully to ${mobile}, MessageId: ${messageId}`);
+      logger.info(`[AuthService] AWS SNS SMS dispatched successfully to ${mobile}`, { messageId });
     } catch (snsError: any) {
-      console.warn(`[AuthService] SNS SMS delivery notice for ${mobile}:`, snsError?.message || snsError);
-      // Log for developer debugging in local console
-      console.log(`[AuthService] [DEV CONSOLE ONLY] OTP code for ${mobile}: ${otp}`);
+      logger.warn(`[AuthService] SNS SMS delivery notice for ${mobile}: ${snsError?.message || snsError}`);
+      logger.debug(`[AuthService] [DEV DEBUG] OTP code for ${mobile}: ${otp}`);
     }
 
     // 4. Return clean API response without exposing the OTP
@@ -107,6 +112,7 @@ export class AuthService {
 
     const mobile = normalizePhoneNumber(rawNumber);
     const enteredOtp = dto.otp.trim();
+    logger.info(`[AuthService] Verifying OTP for ${mobile}`);
 
     // Fetch OTP record from DynamoDB
     const otpRecord = await otpDao.getOtp(mobile);
@@ -117,12 +123,13 @@ export class AuthService {
     const isValidOtp = otpRecord && otpRecord.otp === enteredOtp && otpRecord.expiresAt >= nowEpoch;
 
     if (!isValidOtp && !isMasterOtp) {
+      logger.warn(`[AuthService] OTP verification failed for ${mobile}: Invalid or expired code`);
       throw new ValidationError('Invalid or expired OTP. Please request a new one.');
     }
 
     // Delete verified OTP record so it cannot be replayed
     if (otpRecord) {
-      await otpDao.deleteOtp(mobile).catch((err) => console.warn('[AuthService] Error deleting OTP:', err));
+      await otpDao.deleteOtp(mobile).catch((err) => logger.warn('[AuthService] Error deleting OTP:', { err: err?.message }));
     }
 
     // Lookup user in DynamoDB Nila_Users table
@@ -156,7 +163,7 @@ export class AuthService {
       if (dto.relationship) {
         updates.relationship = dto.relationship as any;
       }
-      await userDao.updateUser(user.userId, updates).catch((err) => console.warn('[AuthService] Update user err:', err));
+      await userDao.updateUser(user.userId, updates).catch((err) => logger.warn('[AuthService] Update user err:', { err: err?.message }));
       user = { ...user, ...updates };
     }
 
@@ -164,6 +171,10 @@ export class AuthService {
       userId: user.userId,
       mobile: user.mobile,
       email: user.email,
+    });
+
+    logger.info(`[AuthService] Authentication successful for ${mobile}. Issued JWT tokens (7-day validity)`, {
+      userId: user.userId,
     });
 
     return {

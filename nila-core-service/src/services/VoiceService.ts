@@ -5,6 +5,7 @@ import { IRegisterVoiceDTO } from '../types';
 import { generateId } from '../utils';
 import { getPresignedUploadUrl } from '../database/s3Operations';
 import { ValidationError, NotFoundError } from '../exceptions/ApiError';
+import logger from '../logger';
 
 export class VoiceService {
   getPrompt() {
@@ -19,6 +20,7 @@ export class VoiceService {
   async getPresignedUploadUrl(userId: string, fileName: string, fileType: string) {
     const bucket = process.env.UPLOADS_BUCKET || 'nila-media-uploads-prod';
     const key = `uploads/voices/${userId}/${Date.now()}_${fileName}`;
+    logger.debug(`🎤 [VoiceService] Generating presigned upload URL for voice sample key=${key}`);
     const uploadUrl = await getPresignedUploadUrl({
       Bucket: bucket,
       Key: key,
@@ -50,6 +52,7 @@ export class VoiceService {
     };
 
     await voiceProfileDao.createVoice(voice);
+    logger.info(`🎤 [VoiceService] Registered voice profile ${voiceId} ("${dto.displayName}") for user=${userId}`);
 
     // Call Generic AI Service in background to train / register clone
     setImmediate(async () => {
@@ -57,6 +60,7 @@ export class VoiceService {
         const bucket = process.env.UPLOADS_BUCKET || 'nila-media-uploads-prod';
         const sampleUrl = `https://${bucket}.s3.amazonaws.com/${dto.sampleAudioS3Key}`;
 
+        logger.info(`🎤 [VoiceService] Sending voice clone request to AI service for voiceId=${voiceId}`);
         const cloneResult = await aiServiceClient.cloneVoice({
           ownerProject: 'nila',
           externalReferenceId: voiceId,
@@ -64,6 +68,7 @@ export class VoiceService {
           displayName: dto.displayName,
         });
 
+        logger.info(`🎉 [VoiceService] Voice cloning succeeded for voiceId=${voiceId}: aiVoiceId=${cloneResult.aiVoiceId}`);
         await voiceProfileDao.updateVoiceStatus(
           voiceId,
           'READY',
@@ -71,7 +76,7 @@ export class VoiceService {
           cloneResult.aiVoiceId
         );
       } catch (err: any) {
-        console.error(`[VoiceService] Failed to train voice ${voiceId}:`, err);
+        logger.error(`💥 [VoiceService] Failed to train voice ${voiceId}: ${err.message}`, { stack: err.stack });
         await voiceProfileDao.updateVoiceStatus(voiceId, 'FAILED');
       }
     });

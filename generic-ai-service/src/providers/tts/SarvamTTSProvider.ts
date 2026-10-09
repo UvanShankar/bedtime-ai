@@ -2,6 +2,7 @@ import { ITTSProvider } from './ITTSProvider';
 import { ISpeechSynthesizeDTO, IVoiceCloneDTO, IVoiceCloneResult } from '../../types';
 import { ApiError } from '../../exceptions/ApiError';
 import { getBufferFromUrlOrS3 } from '../../database/s3Operations';
+import logger from '../../logger';
 
 const SARVAM_SUPPORTED_LANGUAGES: Record<string, string> = {
   'ta': 'ta-IN',
@@ -92,7 +93,11 @@ export class SarvamTTSProvider implements ITTSProvider {
     const audioBuffers: Buffer[] = [];
     let totalDuration = 0;
 
+    logger.debug(`[SarvamTTSProvider] Synthesizing ${textChunks.length} text chunks (speaker=${speaker}, cloned=${isClonedVoice})`);
+    let chunkIndex = 0;
     for (const chunk of textChunks) {
+      chunkIndex++;
+      logger.debug(`[SarvamTTSProvider] Requesting audio chunk ${chunkIndex}/${textChunks.length} (${chunk.length} chars)`);
       let response: Response;
 
       if (isClonedVoice) {

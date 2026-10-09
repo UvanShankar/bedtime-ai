@@ -7,9 +7,19 @@ import { IStorySchema } from '../models/Story';
 import { IRequestStoryDTO } from '../types';
 import { generateId } from '../utils';
 import { NotFoundError, ValidationError } from '../exceptions/ApiError';
+import logger from '../logger';
 
 export class StoryService {
   async requestStory(userId: string, dto: IRequestStoryDTO): Promise<IStorySchema> {
+    logger.info(`📖 [StoryService] Requesting story generation for user=${userId}, childId=${dto.childId}`, {
+      childId: dto.childId,
+      voiceId: dto.voiceId,
+      theme: dto.theme,
+      dialect: dto.dialect,
+      model: dto.model,
+      speaker: dto.speaker || dto.voiceName,
+    });
+
     const child = await childDao.getChild(dto.childId);
     if (!child) {
       throw new NotFoundError(`Child profile ${dto.childId} not found`);
@@ -62,6 +72,7 @@ export class StoryService {
     };
 
     await storyDao.createStory(story);
+    logger.info(`✅ [StoryService] Created initial story record storyId=${storyId}`);
 
     // Prompt engineering for natural spoken Tamil bedtime story
     const systemInstruction = `You are an affectionate Tamil parent telling an intimate bedtime story to your child named ${child.name}.
@@ -78,6 +89,7 @@ RULES:
       try {
         await storyDao.updateStoryStatus(storyId, 'GENERATING_SCRIPT', 25, 'Writing story in natural spoken Tamil...');
 
+        logger.info(`🚀 [StoryService] Submitting story pipeline to AI service for storyId=${storyId}`);
         const job = await aiServiceClient.submitStoryPipeline({
           storyId,
           childName: child.name,
@@ -93,6 +105,8 @@ RULES:
           speakingRate: dto.speakingRate,
         });
 
+        logger.info(`⏳ [StoryService] AI job dispatched: jobId=${job.jobId} for storyId=${storyId}`);
+
         // Poll job until ready
         let attempts = 0;
         const maxAttempts = 30;
@@ -100,8 +114,11 @@ RULES:
           attempts++;
           try {
             const statusRes = await aiServiceClient.getJobStatus(job.jobId);
+            logger.debug(`🔄 [StoryService] Polling jobId=${job.jobId} attempt=${attempts}/${maxAttempts}: status=${statusRes.status}, progress=${statusRes.progressPercent}%`);
+
             if (statusRes.status === 'COMPLETED' && statusRes.result) {
               clearInterval(interval);
+              logger.info(`🎉 [StoryService] AI job completed for storyId=${storyId}! Audio: ${statusRes.result.audioUrl}`);
               await storyDao.completeStory(storyId, {
                 storyScript: statusRes.result.storyScript,
                 audioUrl: statusRes.result.audioUrl,
@@ -111,6 +128,7 @@ RULES:
               });
             } else if (statusRes.status === 'FAILED') {
               clearInterval(interval);
+              logger.error(`❌ [StoryService] AI job failed for storyId=${storyId}: ${statusRes.errorMessage}`);
               await storyDao.updateStoryStatus(storyId, 'FAILED', 0, statusRes.errorMessage || 'Generation failed');
             } else {
               await storyDao.updateStoryStatus(
@@ -119,17 +137,18 @@ RULES:
                 statusRes.progressPercent
               );
             }
-          } catch (pollErr) {
-            console.error('[StoryService] Poll error:', pollErr);
+          } catch (pollErr: any) {
+            logger.error(`⚠️ [StoryService] Poll error for jobId=${job.jobId}: ${pollErr.message}`);
           }
 
           if (attempts >= maxAttempts) {
             clearInterval(interval);
+            logger.error(`⏰ [StoryService] Story generation timed out for storyId=${storyId}`);
             await storyDao.updateStoryStatus(storyId, 'FAILED', 0, 'Story generation timed out');
           }
         }, 3000);
       } catch (err: any) {
-        console.error(`[StoryService] Failed to generate story ${storyId}:`, err);
+        logger.error(`💥 [StoryService] Failed to generate story ${storyId}: ${err.message}`, { stack: err.stack });
         await storyDao.updateStoryStatus(storyId, 'FAILED', 0, err.message);
       }
     });

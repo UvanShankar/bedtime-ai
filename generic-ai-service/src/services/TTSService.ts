@@ -6,6 +6,7 @@ import { ISpeechSynthesizeDTO, ISpeechSynthesizeResult } from '../types';
 import { uploadBufferToS3 } from '../database/s3Operations';
 import aiVoiceRegistryDao from '../dao/AIVoiceRegistryDao';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../logger';
 
 export class TTSService {
   private providers: Map<string, ITTSProvider> = new Map();
@@ -33,7 +34,7 @@ export class TTSService {
       selected = this.providers.get('mock')!;
     }
 
-    console.log(`[TTSService] Selected provider: "${selected.name}" (requested preferred: ${preferred ? `"${preferred}"` : 'none'})`);
+    logger.debug(`[TTSService] Selected provider: "${selected.name}" (requested preferred: ${preferred ? `"${preferred}"` : 'none'})`);
     return selected;
   }
 
@@ -45,6 +46,7 @@ export class TTSService {
       try {
         const registered = await aiVoiceRegistryDao.getVoice(voiceCandidate);
         if (registered && registered.providerVoiceId) {
+          logger.debug(`[TTSService] Resolved voiceCandidate "${voiceCandidate}" to provider voice "${registered.providerVoiceId}" (${registered.provider})`);
           resolvedParams.speaker = registered.providerVoiceId;
           resolvedParams.aiVoiceId = registered.providerVoiceId;
           if (!resolvedParams.provider && registered.provider) {
@@ -52,16 +54,18 @@ export class TTSService {
           }
         }
       } catch (err: any) {
-        console.warn(`[TTSService] Voice registry lookup note for "${voiceCandidate}":`, err.message);
+        logger.warn(`[TTSService] Voice registry lookup note for "${voiceCandidate}": ${err.message}`);
       }
     }
 
     const provider = this.getProvider(resolvedParams.provider);
+    logger.info(`🎙️ [TTSService] Synthesizing speech via provider=${provider.name}, speaker=${resolvedParams.speaker || 'default'}, textLen=${resolvedParams.text?.length || 0}`);
     const { audioBuffer, durationSeconds } = await provider.synthesizeSpeech(resolvedParams);
 
     const bucket = params.targetBucket || process.env.STORY_AUDIO_BUCKET || process.env.AI_SPEECH_BUCKET || 'generic-ai-speech-output-prod';
     const key = params.targetKey || `speech/${uuidv4()}.${params.outputFormat || 'mp3'}`;
 
+    logger.debug(`☁️ [TTSService] Uploading synthesized audio (${audioBuffer.length} bytes) to S3 bucket=${bucket}, key=${key}`);
     const audioUrl = await uploadBufferToS3({
       Bucket: bucket,
       Key: key,
