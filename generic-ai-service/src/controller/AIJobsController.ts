@@ -8,13 +8,15 @@ export class AIJobsController {
   async createPipelineJob(req: Request, res: Response, next: NextFunction) {
     try {
       const result = await jobExecutionService.submitPipelineJob(req.body);
-      const response: IResponse<any> = {
+      const isCompleted = result.status === 'COMPLETED';
+      const statusCode = isCompleted ? StatusCodes.OK : StatusCodes.ACCEPTED;
+      const response: IResponse<any, any> = {
         data: result,
-        success: true,
-        statusCode: StatusCodes.ACCEPTED,
-        error: null,
+        success: isCompleted,
+        statusCode,
+        error: isCompleted ? null : { code: 'JOB_FAILED', message: result.errorMessage || 'Job execution failed' },
       };
-      return res.status(StatusCodes.ACCEPTED).json(response);
+      return res.status(statusCode).json(response);
     } catch (error) {
       next(error);
     }

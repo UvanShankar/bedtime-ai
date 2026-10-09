@@ -76,31 +76,37 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
         });
 
         if (initialStory && initialStory.id) {
-          logger.info("STORY", `[StoryCreationScreen] Initial story enqueued: ${initialStory.id}. Polling until READY...`);
+          logger.info("STORY", `[StoryCreationScreen] Initial story response: ${initialStory.id} (status: ${initialStory.audioStatus})`);
           
-          // 3. Poll backend status until READY
-          const readyStory = await StoryApi.pollStoryUntilReady(
-            initialStory.id,
-            (status: StoryStatusResponse) => {
-              if (!isMounted) return;
-              if (status.stageMessage) {
-                setStageMessage(status.stageMessage);
-              }
-              if (status.progressPercent) {
-                setProgressPercent(status.progressPercent);
-              }
+          let readyStory: Story | null = null;
+          if (initialStory.audioUrl && initialStory.audioStatus === "ready") {
+            logger.info("STORY", `[StoryCreationScreen] Story already returned READY with audioUrl! Bypassing poll.`);
+            readyStory = initialStory;
+          } else {
+            logger.info("STORY", `[StoryCreationScreen] Story queued. Polling until READY...`);
+            readyStory = await StoryApi.pollStoryUntilReady(
+              initialStory.id,
+              (status: StoryStatusResponse) => {
+                if (!isMounted) return;
+                if (status.stageMessage) {
+                  setStageMessage(status.stageMessage);
+                }
+                if (status.progressPercent) {
+                  setProgressPercent(status.progressPercent);
+                }
 
-              if (status.progressPercent >= 80) {
-                setActiveStep(3);
-              } else if (status.progressPercent >= 50) {
-                setActiveStep(2);
-              } else if (status.progressPercent >= 20) {
-                setActiveStep(1);
-              } else {
-                setActiveStep(0);
+                if (status.progressPercent >= 80) {
+                  setActiveStep(3);
+                } else if (status.progressPercent >= 50) {
+                  setActiveStep(2);
+                } else if (status.progressPercent >= 20) {
+                  setActiveStep(1);
+                } else {
+                  setActiveStep(0);
+                }
               }
-            }
-          );
+            );
+          }
 
           if (readyStory) {
             logger.success("STORY", `[StoryCreationScreen] Live story fully ready: "${readyStory.title}"`);

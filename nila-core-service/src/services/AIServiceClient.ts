@@ -77,7 +77,19 @@ export class AIServiceClient {
     emotion?: string;
     mood?: string;
     bedtimeCalmness?: number;
-  }): Promise<{ jobId: string }> {
+  }): Promise<{
+    jobId: string;
+    status: string;
+    progressPercent?: number;
+    result?: {
+      storyScript: string;
+      audioUrl: string;
+      audioS3Key: string;
+      durationSeconds: number;
+      backgroundMusic?: string;
+    };
+    errorMessage?: string;
+  }> {
     return await this.fetchAI('/api/v1/ai/jobs/pipeline', {
       method: 'POST',
       body: JSON.stringify({

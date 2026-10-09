@@ -6,7 +6,7 @@ import { IAIPipelineJobDTO, IAIJobResult } from '../types';
 import logger from '../logger';
 
 export class JobExecutionService {
-  async submitPipelineJob(dto: IAIPipelineJobDTO): Promise<{ jobId: string }> {
+  async submitPipelineJob(dto: IAIPipelineJobDTO): Promise<IAIJobResult> {
     const jobId = uuidv4();
     const timestamp = new Date().toISOString();
 
@@ -26,16 +26,20 @@ export class JobExecutionService {
       expiresAt: Math.floor(Date.now() / 1000) + 86400 * 7, // 7 days retention
     });
 
-    // In a microservice cluster, this message is sent to SQS.
-    // For standalone/direct execution, trigger execution asynchronously:
-    setImmediate(() => {
-      this.executeJob(jobId, dto).catch(err => {
-        logger.error(`💥 [JobExecutionService] Error executing job ${jobId}: ${err.message}`, { stack: err.stack });
-        aiJobDao.failJob(jobId, err.message).catch(e => logger.error(`[JobExecutionService] Error marking job failed:`, e));
-      });
-    });
+    // In AWS Lambda, background tasks (setImmediate/setInterval) freeze when the HTTP response returns.
+    // Execute synchronously within the active request context:
+    await this.executeJob(jobId, dto);
 
-    return { jobId };
+    const completedJob = await aiJobDao.getJob(jobId);
+    return {
+      jobId,
+      status: (completedJob?.status as any) || 'COMPLETED',
+      progressPercent: completedJob?.progressPercent || 100,
+      result: completedJob?.resultPayload,
+      errorMessage: completedJob?.errorMessage,
+      createdAt: completedJob?.createdAt || timestamp,
+      completedAt: (completedJob as any)?.completedAt || new Date().toISOString(),
+    };
   }
 
   async executeJob(jobId: string, dto: IAIPipelineJobDTO): Promise<void> {

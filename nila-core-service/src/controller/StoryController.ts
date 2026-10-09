@@ -7,13 +7,15 @@ export class StoryController {
   async requestStory(req: Request, res: Response, next: NextFunction) {
     try {
       const result = await storyService.requestStory(req.userId!, req.body);
+      const isReady = result.status === 'READY';
+      const statusCode = isReady ? StatusCodes.OK : StatusCodes.ACCEPTED;
       const response: IResponse<any> = {
         data: result,
         success: true,
-        statusCode: StatusCodes.ACCEPTED,
+        statusCode,
         error: null,
       };
-      return res.status(StatusCodes.ACCEPTED).json(response);
+      return res.status(statusCode).json(response);
     } catch (error) {
       next(error);
     }

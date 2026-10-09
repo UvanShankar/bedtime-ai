@@ -59,7 +59,7 @@ export class ComputeStack extends cdk.Stack {
       code: lambda.DockerImageCode.fromImageAsset('../nila-core-service'),
       architecture: lambda.Architecture.X86_64,
       memorySize: 1024,
-      timeout: cdk.Duration.seconds(30),
+      timeout: cdk.Duration.seconds(120),
       role: props.securityStack.nilaServiceRole,
       environment: {
         NODE_ENV: env,

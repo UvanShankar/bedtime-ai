@@ -7,7 +7,7 @@ import aiServiceClient from './AIServiceClient';
 import { IStorySchema } from '../models/Story';
 import { IRequestStoryDTO } from '../types';
 import { generateId } from '../utils';
-import { NotFoundError, ValidationError } from '../exceptions/ApiError';
+import { ApiError, NotFoundError, ValidationError } from '../exceptions/ApiError';
 import logger from '../logger';
 
 export class StoryService {
@@ -241,86 +241,68 @@ Begin the story directly with a warm parental opening like "கண்ணா...",
     const dynamicSpeakingRate = dto.speakingRate || (calmness >= 0.7 ? 0.85 : calmness >= 0.4 ? 0.90 : 0.95);
     const dynamicMaxTokens = dto.maxTokens || Math.max(1600, targetDurationMinutes * 380);
 
-    // Asynchronously trigger AI Service pipeline
-    setImmediate(async () => {
-      try {
-        await storyDao.updateStoryStatus(storyId, 'GENERATING_SCRIPT', 25, 'Writing story in natural spoken Tamil...');
+    // In AWS Lambda, background tasks (setImmediate/setInterval) freeze as soon as the HTTP response returns.
+    // Execute the AI pipeline synchronously within the active request context:
+    try {
+      await storyDao.updateStoryStatus(storyId, 'GENERATING_SCRIPT', 25, 'Writing story in natural spoken Tamil...');
 
-        logger.info(`🚀 [StoryService] Submitting story pipeline to AI service for storyId=${storyId}`);
-        const job = await aiServiceClient.submitStoryPipeline({
-          storyId,
-          childName: child.name,
-          promptIdea: fullPrompt,
-          systemInstruction,
-          dialect,
-          memorySnippet,
-          aiVoiceId,
-          voiceId: dto.voiceId,
-          model: dto.model,
-          llmProvider: dto.llmProvider,
-          ttsProvider: resolvedTtsProvider,
-          provider: resolvedTtsProvider,
-          voiceProvider: resolvedTtsProvider,
-          speaker: resolvedSpeaker,
-          speakingRate: dynamicSpeakingRate,
-          maxTokens: dynamicMaxTokens,
-          targetDurationMinutes,
-          emotion: storyMood,
-          mood: storyMood,
-          bedtimeCalmness: calmness,
+      logger.info(`🚀 [StoryService] Submitting story pipeline to AI service for storyId=${storyId}`);
+      const job = await aiServiceClient.submitStoryPipeline({
+        storyId,
+        childName: child.name,
+        promptIdea: fullPrompt,
+        systemInstruction,
+        dialect,
+        memorySnippet,
+        aiVoiceId,
+        voiceId: dto.voiceId,
+        model: dto.model,
+        llmProvider: dto.llmProvider,
+        ttsProvider: resolvedTtsProvider,
+        provider: resolvedTtsProvider,
+        voiceProvider: resolvedTtsProvider,
+        speaker: resolvedSpeaker,
+        speakingRate: dynamicSpeakingRate,
+        maxTokens: dynamicMaxTokens,
+        targetDurationMinutes,
+        emotion: storyMood,
+        mood: storyMood,
+        bedtimeCalmness: calmness,
+      });
+
+      logger.info(`🎉 [StoryService] AI job returned: jobId=${job.jobId}, status=${job.status}`);
+
+      if (job.status === 'COMPLETED' && job.result) {
+        logger.info(`🎉 [StoryService] AI job completed for storyId=${storyId}! Audio: ${job.result.audioUrl}`);
+        await storyDao.completeStory(storyId, {
+          storyScript: job.result.storyScript,
+          audioUrl: job.result.audioUrl,
+          audioS3Key: job.result.audioS3Key,
+          audioDurationSeconds: job.result.durationSeconds || targetDurationMinutes * 60,
+          coverImageUrl: 'https://cdn.nila.app/covers/default_moon.png',
         });
-
-        logger.info(`⏳ [StoryService] AI job dispatched: jobId=${job.jobId} for storyId=${storyId}`);
-
-        // Poll job until ready (20 minutes = 1200s -> 400 attempts at 3-second intervals)
-        const pollIntervalMs = Number(process.env.STORY_POLL_INTERVAL_MS) || 3000;
-        const maxAttempts = Number(process.env.STORY_MAX_POLL_ATTEMPTS) || 400; // 400 * 3s = 1200s (20 mins)
-        let attempts = 0;
-        const interval = setInterval(async () => {
-          attempts++;
-          try {
-            const statusRes = await aiServiceClient.getJobStatus(job.jobId);
-            logger.debug(`🔄 [StoryService] Polling jobId=${job.jobId} attempt=${attempts}/${maxAttempts}: status=${statusRes.status}, progress=${statusRes.progressPercent}%`);
-
-            if (statusRes.status === 'COMPLETED' && statusRes.result) {
-              clearInterval(interval);
-              logger.info(`🎉 [StoryService] AI job completed for storyId=${storyId}! Audio: ${statusRes.result.audioUrl}`);
-              await storyDao.completeStory(storyId, {
-                storyScript: statusRes.result.storyScript,
-                audioUrl: statusRes.result.audioUrl,
-                audioS3Key: statusRes.result.audioS3Key,
-                audioDurationSeconds: statusRes.result.durationSeconds || targetDurationMinutes * 60,
-                coverImageUrl: 'https://cdn.nila.app/covers/default_moon.png',
-              });
-            } else if (statusRes.status === 'FAILED') {
-              clearInterval(interval);
-              logger.error(`❌ [StoryService] AI job failed for storyId=${storyId}: ${statusRes.errorMessage}`);
-              await storyDao.updateStoryStatus(storyId, 'FAILED', 0, statusRes.errorMessage || 'Generation failed');
-            } else {
-              await storyDao.updateStoryStatus(
-                storyId,
-                statusRes.progressPercent > 50 ? 'SYNTHESIZING_VOICE' : 'GENERATING_SCRIPT',
-                statusRes.progressPercent
-              );
-            }
-          } catch (pollErr: any) {
-            logger.error(`⚠️ [StoryService] Poll error for jobId=${job.jobId}: ${pollErr.message}`);
-          }
-
-          if (attempts >= maxAttempts) {
-            clearInterval(interval);
-            const timeoutMinutes = Math.round((maxAttempts * pollIntervalMs) / 60000);
-            logger.error(`⏰ [StoryService] Story generation timed out after ${timeoutMinutes} minutes for storyId=${storyId}`);
-            await storyDao.updateStoryStatus(storyId, 'FAILED', 0, `Story generation timed out after ${timeoutMinutes} minutes`);
-          }
-        }, pollIntervalMs);
-      } catch (err: any) {
-        logger.error(`💥 [StoryService] Failed to generate story ${storyId}: ${err.message}`, { stack: err.stack });
-        await storyDao.updateStoryStatus(storyId, 'FAILED', 0, err.message);
+        const completedStory = await storyDao.getStory(storyId);
+        return completedStory || {
+          ...story,
+          status: 'READY',
+          progressPercent: 100,
+          storyScript: job.result.storyScript,
+          audioUrl: job.result.audioUrl,
+          audioS3Key: job.result.audioS3Key,
+          audioDurationSeconds: job.result.durationSeconds || targetDurationMinutes * 60,
+        };
+      } else if (job.status === 'FAILED') {
+        logger.error(`❌ [StoryService] AI job failed for storyId=${storyId}: ${job.errorMessage}`);
+        await storyDao.updateStoryStatus(storyId, 'FAILED', 0, job.errorMessage || 'Generation failed');
+        throw new ApiError(`AI generation failed: ${job.errorMessage}`);
+      } else {
+        return story;
       }
-    });
-
-    return story;
+    } catch (err: any) {
+      logger.error(`💥 [StoryService] Failed to generate story ${storyId}: ${err.message}`, { stack: err.stack });
+      await storyDao.updateStoryStatus(storyId, 'FAILED', 0, err.message);
+      throw err;
+    }
   }
 
   async getStoryStatus(storyId: string) {
