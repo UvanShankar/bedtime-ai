@@ -107,9 +107,10 @@ RULES:
 
         logger.info(`⏳ [StoryService] AI job dispatched: jobId=${job.jobId} for storyId=${storyId}`);
 
-        // Poll job until ready
+        // Poll job until ready (20 minutes = 1200s -> 400 attempts at 3-second intervals)
+        const pollIntervalMs = Number(process.env.STORY_POLL_INTERVAL_MS) || 3000;
+        const maxAttempts = Number(process.env.STORY_MAX_POLL_ATTEMPTS) || 400; // 400 * 3s = 1200s (20 mins)
         let attempts = 0;
-        const maxAttempts = 30;
         const interval = setInterval(async () => {
           attempts++;
           try {
@@ -143,10 +144,11 @@ RULES:
 
           if (attempts >= maxAttempts) {
             clearInterval(interval);
-            logger.error(`⏰ [StoryService] Story generation timed out for storyId=${storyId}`);
-            await storyDao.updateStoryStatus(storyId, 'FAILED', 0, 'Story generation timed out');
+            const timeoutMinutes = Math.round((maxAttempts * pollIntervalMs) / 60000);
+            logger.error(`⏰ [StoryService] Story generation timed out after ${timeoutMinutes} minutes for storyId=${storyId}`);
+            await storyDao.updateStoryStatus(storyId, 'FAILED', 0, `Story generation timed out after ${timeoutMinutes} minutes`);
           }
-        }, 3000);
+        }, pollIntervalMs);
       } catch (err: any) {
         logger.error(`💥 [StoryService] Failed to generate story ${storyId}: ${err.message}`, { stack: err.stack });
         await storyDao.updateStoryStatus(storyId, 'FAILED', 0, err.message);
