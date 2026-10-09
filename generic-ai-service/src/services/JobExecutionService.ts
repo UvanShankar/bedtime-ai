@@ -58,12 +58,15 @@ export class JobExecutionService {
       await aiJobDao.updateJobProgress(jobId, 55, 'Synthesizing voice audio...');
 
       // 2. Speech Synthesis via TTS
+      const audioFileName = dto.externalReferenceId
+        ? `${dto.externalReferenceId}_${Date.now()}`
+        : jobId;
       const speechResult = await ttsService.synthesizeSpeech({
         text: textResult.text,
         aiVoiceId: payload.aiVoiceId,
         languageCode: 'ta-IN',
         emotion: 'bedtime_calm',
-        targetKey: `stories/${dto.externalReferenceId || jobId}.mp3`,
+        targetKey: `stories/${audioFileName}.mp3`,
       });
 
       await aiJobDao.updateJobProgress(jobId, 90, 'Finalizing audio mastering & metadata...');
