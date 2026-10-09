@@ -186,6 +186,13 @@ export class StoryApi {
       res.audioCloudFrontUrl ||
       "";
 
+    if (!audioUrl) {
+      logger.error("AUDIO", `[StoryApi] Story ${res.storyId} has NO audioUrl in response!`);
+    } else {
+      logger.info("AUDIO", `[StoryApi] Story ${res.storyId} S3 audioUrl: ${audioUrl}`);
+      console.log(`[S3 AUDIO STREAM URL]: ${audioUrl}`);
+    }
+
     return {
       id: res.storyId,
       requestId: `req-${res.storyId}`,
@@ -199,7 +206,7 @@ export class StoryApi {
       narrationVersion: "1.0",
       audioStatus: res.status === "READY" ? "ready" : "processing",
       audioDurationSeconds: res.audioDurationSeconds || (res.targetDurationMinutes ? res.targetDurationMinutes * 60 : 300),
-      audioUrl: audioUrl || "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3",
+      audioUrl: audioUrl || undefined, // NO FALLBACK!
       narratorName: "Dad's Voice",
       narratorStyle: `${res.dialect || "Chennai"} · Spoken Tamil`,
       isFavorite: res.isFavorite ?? false,

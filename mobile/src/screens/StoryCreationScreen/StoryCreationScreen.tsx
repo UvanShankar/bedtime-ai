@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
@@ -114,41 +114,43 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
           }
         }
       } catch (apiErr: any) {
-        logger.warn("STORY", `[StoryCreationScreen] Backend story generation encountered an issue, creating fallback: ${apiErr.message}`);
+        logger.error("STORY", `[StoryCreationScreen] Backend story generation failed: ${apiErr.message}`, apiErr);
+        if (isMounted) {
+          Alert.alert(
+            "Story Generation Failed",
+            apiErr.message || "Failed to generate bedtime story from server. Please try again.",
+            [{ text: "OK", onPress: () => navigation.goBack() }]
+          );
+        }
+        return;
       }
 
       if (!generatedStory) {
-        // Safe offline fallback in case of connection drop
-        const childName = selectedChild?.name || "ஆரவ்";
-        const topicTitle = topic.length > 38 ? topic.substring(0, 35) + "..." : topic;
-        generatedStory = {
-          id: `story-${Date.now()}`,
-          requestId: `req-${Date.now()}`,
-          parentId: parent?.id || "parent-001",
-          childId: selectedChild?.id || "child-001",
-          title: topicTitle.toUpperCase(),
-          languageCode: "ta",
-          summary: `${childName}-க்கு ஒரு இனிமையான இரவு தூக்கக் கதை.`,
-          text: `கண்ணா ${childName}... இன்னைக்கு ஒரு அழகான கதை சொல்லட்டுமா? ${topic} பத்தி ஒரு குட்டி கதை கேளு. வானத்துல மெல்ல நிலா வந்துச்சாம். குளிர்ந்த தென்றல் காற்று இதமா வீசிச்சாம். நட்சத்திரங்கள் உன்ன பாத்து கண் சிமிட்டி தாலாட்டு பாடுச்சாம். நல்லா தூங்கு கண்ணா... இனிமையான கனவுகள் வரட்டும்.`,
-          segments: [
-            { id: "1", order: 1, text: `கண்ணா ${childName}... இன்னைக்கு ஒரு அழகான கதை சொல்லட்டுமா?` },
-            { id: "2", order: 2, text: `${topic} பத்தி ஒரு குட்டி கதை கேளு.` },
-            { id: "3", order: 3, text: "வானத்துல மெல்ல நிலா வந்து அமைதியா வெளிச்சம் கொடுத்துச்சாம்." },
-            { id: "4", order: 4, text: "குளிர்ந்த தென்றல் காற்று இதமா வீசிச்சாம்." },
-            { id: "5", order: 5, text: "நட்சத்திரங்கள் உன்ன பாத்து கண் சிமிட்டி தாலாட்டு பாடுச்சாம்." },
-            { id: "6", order: 6, text: "நல்லா தூங்கு கண்ணா... இனிமையான கனவுகள் வரட்டும்." },
-          ],
-          narrationVersion: "1.0",
-          audioStatus: "ready",
-          audioDurationSeconds: (request?.durationMinutes || 5) * 60,
-          audioUrl: "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3",
-          narratorName: `${parent?.name || "Dad"}'s Voice`,
-          narratorStyle: "Tamil · Chennai spoken style",
-          inspiredByMemory: request?.includeLifeMemories && memories?.[0] ? memories[0].location || memories[0].title : undefined,
-          isFavorite: true,
-          createdAt: "Tonight",
-        };
+        logger.error("STORY", "[StoryCreationScreen] Backend returned no story. Aborting without fallback.");
+        if (isMounted) {
+          Alert.alert(
+            "Story Generation Incomplete",
+            "The story could not be generated on the server. Please try again.",
+            [{ text: "OK", onPress: () => navigation.goBack() }]
+          );
+        }
+        return;
       }
+
+      if (!generatedStory.audioUrl || generatedStory.audioUrl.trim() === "") {
+        logger.error("AUDIO", `[StoryCreationScreen] Generated story has NO audio URL! Story ID: ${generatedStory.id}`, generatedStory);
+        if (isMounted) {
+          Alert.alert(
+            "Audio Stream Not Ready",
+            "The story text was created, but the S3 audio stream was not produced by the voice synthesizer. Please try again.",
+            [{ text: "OK", onPress: () => navigation.goBack() }]
+          );
+        }
+        return;
+      }
+
+      logger.info("AUDIO", `[S3 AUDIO STREAM URL]: ${generatedStory.audioUrl}`);
+      console.log(`[S3 AUDIO STREAM URL]: ${generatedStory.audioUrl}`);
 
       if (isMounted) {
         setActiveStep(steps.length - 1); // Step 4: Getting bedtime ready

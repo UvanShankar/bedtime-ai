@@ -65,8 +65,21 @@ export function useAudioPlayer() {
           : source.type === "file"
           ? source.url
           : source.streamUrl;
+
+      if (!rawUrl || rawUrl.trim() === "") {
+        const errMsg = "Audio stream URL is missing or empty";
+        logger.error("AUDIO", `[useAudioPlayer] ${errMsg}`);
+        setState((prev) => ({
+          ...prev,
+          isBuffering: false,
+          error: errMsg,
+        }));
+        return;
+      }
+
       const audioUrl = normalizeAudioUrl(rawUrl);
-      logger.info("AUDIO", `Initializing player for stream: ${audioUrl} (autoPlay: ${autoPlay})`);
+      logger.info("AUDIO", `[S3 AUDIO STREAM URL]: ${audioUrl} (autoPlay: ${autoPlay})`);
+      console.log(`[S3 AUDIO STREAM URL]: ${audioUrl}`);
 
       setState((prev) => ({ ...prev, isBuffering: true, error: null }));
 
@@ -93,7 +106,7 @@ export function useAudioPlayer() {
       playerRef.current = player;
 
       if (autoPlay) {
-        logger.info("AUDIO", "Triggering playback on audio player");
+        logger.info("AUDIO", `[useAudioPlayer] Triggering playback for S3 stream: ${audioUrl}`);
         player.play();
       }
 
@@ -109,7 +122,7 @@ export function useAudioPlayer() {
           }
 
           if (status.error) {
-            logger.error("AUDIO", "Audio playback reported error", status.error);
+            logger.error("AUDIO", `[useAudioPlayer] Playback error reported for S3 stream: ${audioUrl}`, status.error);
           }
 
           setState({
@@ -124,11 +137,11 @@ export function useAudioPlayer() {
       );
       subscriptionRef.current = subscription;
     } catch (err: any) {
-      logger.error("AUDIO", "Failed to load audio stream", err);
+      logger.error("AUDIO", `[useAudioPlayer] Failed to load/download S3 audio stream: ${source}`, err);
       setState((prev) => ({
         ...prev,
         isBuffering: false,
-        error: err.message || "Failed to load audio",
+        error: err.message || "Failed to load audio stream from S3",
       }));
     }
   }, []);

@@ -1,10 +1,11 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
+import { logger } from "../../utils/logger";
 
 interface Props {
   route: any;
@@ -16,6 +17,18 @@ export const StoryReadyScreen: React.FC<Props> = ({ route, navigation }) => {
   const { story } = route.params || {};
 
   const handleListen = () => {
+    if (!story?.audioUrl || story.audioUrl.trim() === "") {
+      logger.error("AUDIO", `[StoryReadyScreen] Story has NO S3 audio URL: "${story?.title}"`);
+      Alert.alert(
+        "Audio Not Available",
+        "The audio stream is not available for this story. Please try again.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    logger.info("AUDIO", `[S3 AUDIO STREAM URL]: ${story.audioUrl}`);
+    console.log(`[S3 AUDIO STREAM URL]: ${story.audioUrl}`);
     navigation.replace("StoryPlayer", { story });
   };
 

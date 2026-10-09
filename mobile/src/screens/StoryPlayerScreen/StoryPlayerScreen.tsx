@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -27,21 +28,45 @@ export const StoryPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
   // Audio player hook
   const { controller, playerState } = useAudioPlayer();
 
-  const totalDurationSeconds = story?.audioDurationSeconds || 304; // default 5:04
+  const totalDurationSeconds = story?.audioDurationSeconds || 300; // 5 min
   const [playbackSeconds, setPlaybackSeconds] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
 
-  const DEFAULT_S3_AUDIO = "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3";
-
-  // Load real audio if story has audioUrl, or fallback to live working S3 audio
+  // Load real S3 audio directly - NO FALLBACK!
   useEffect(() => {
-    const streamUrl = story?.audioUrl || DEFAULT_S3_AUDIO;
-    logger.info("AUDIO", `[StoryPlayerScreen] Opening story: "${story?.title}"`, {
-      audioUrl: streamUrl,
+    const streamUrl = story?.audioUrl;
+
+    if (!streamUrl || streamUrl.trim() === "") {
+      logger.error("AUDIO", `[StoryPlayerScreen] Missing S3 audio URL for story: "${story?.title}" (id: ${story?.id})`);
+      Alert.alert(
+        "Audio Stream Missing",
+        `No S3 audio stream URL was found for this story (${story?.title || "Untitled"}). The audio cannot be played.`,
+        [{ text: "Go Back", onPress: () => navigation.goBack() }]
+      );
+      return;
+    }
+
+    logger.info("AUDIO", `[S3 AUDIO STREAM URL]: ${streamUrl}`, {
+      storyId: story.id,
+      title: story.title,
       duration: `${totalDurationSeconds}s`,
     });
+    console.log(`[S3 AUDIO STREAM URL]: ${streamUrl}`);
+
     controller.load(streamUrl, true);
-  }, [story?.audioUrl, controller]);
+  }, [story?.audioUrl, controller, navigation]);
+
+  // Monitor download/playback errors from audio player - NO SILENT FALLBACK!
+  useEffect(() => {
+    if (playerState.error) {
+      logger.error("AUDIO", `[StoryPlayerScreen] Failed to download or play S3 audio: ${story?.audioUrl}`, playerState.error);
+      Alert.alert(
+        "Audio Playback Error",
+        `Could not download or play audio from S3:\n\nURL: ${story?.audioUrl || "Unknown"}\n\nError: ${playerState.error}`,
+        [{ text: "Go Back", onPress: () => navigation.goBack() }]
+      );
+    }
+  }, [playerState.error, story?.audioUrl, navigation]);
 
   // Sync position from real audio player when available
   useEffect(() => {
