@@ -64,7 +64,7 @@ export class VoiceProfileDao {
           const match = queryRes.Items.find((it: any) =>
             it.provider?.toLowerCase() === cleanProvider || it.voiceProvider?.toLowerCase() === cleanProvider
           );
-          if (match) return match as IVoiceProfileSchema;
+          return (match as IVoiceProfileSchema) || null;
         }
         return queryRes.Items[0] as IVoiceProfileSchema;
       }
