@@ -139,6 +139,12 @@ The entire environment must feel 100% safe, loving, cozy, and reassuring.`;
     if (dto.additionalInstruction) {
       personalizationRules.push(`Parent's special note: "${dto.additionalInstruction}".`);
     }
+    if (child.bedtimeHour !== undefined && child.bedtimeHour !== null) {
+      const displayHour = child.bedtimeHour % 12 === 0 ? 12 : child.bedtimeHour % 12;
+      const displayMinute = String(child.bedtimeMinute || 0).padStart(2, '0');
+      const ampm = child.bedtimeHour >= 12 ? 'PM' : 'AM';
+      personalizationRules.push(`Child's habitual bedtime: ${displayHour}:${displayMinute} ${ampm}. Gently reassure the child that it's peaceful night time and time to close eyes.`);
+    }
 
     // Calmness & Wind-Down Pacing
     let pacingInstruction = '';
