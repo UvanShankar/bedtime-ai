@@ -73,13 +73,17 @@ export class JobExecutionService {
       const audioFileName = dto.externalReferenceId
         ? `${dto.externalReferenceId}_${Date.now()}`
         : jobId;
-      logger.info(`🎙️ [JobExecutionService] Step 2: Synthesizing TTS audio (speaker=${payload.speaker || payload.voiceName || payload.aiVoiceId || 'default'}, provider=${payload.ttsProvider || 'default'}) for job ${jobId}`);
+      const resolvedVoiceId = payload.aiVoiceId || payload.voiceId;
+      const resolvedProvider = payload.ttsProvider || payload.voiceProvider || payload.provider;
+      const resolvedSpeaker = payload.speaker || payload.voiceName || resolvedVoiceId;
+
+      logger.info(`🎙️ [JobExecutionService] Step 2: Synthesizing TTS audio (speaker=${resolvedSpeaker || 'default'}, provider=${resolvedProvider || 'default'}) for job ${jobId}`);
       const ttsStartTime = Date.now();
       const speechResult = await ttsService.synthesizeSpeech({
         text: textResult.text,
-        provider: payload.ttsProvider,
-        speaker: payload.speaker || payload.voiceName || payload.aiVoiceId,
-        aiVoiceId: payload.aiVoiceId,
+        provider: resolvedProvider,
+        speaker: resolvedSpeaker,
+        aiVoiceId: resolvedVoiceId,
         languageCode: payload.languageCode || 'ta-IN',
         speakingRate: payload.speakingRate || 0.9,
         emotion: payload.emotion || 'bedtime_calm',

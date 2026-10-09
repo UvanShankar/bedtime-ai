@@ -46,7 +46,9 @@ export class AIServiceClient {
     externalReferenceId: string;
     sampleAudioUrls: string[];
     displayName?: string;
-  }): Promise<{ aiVoiceId: string; status: string; previewAudioUrl?: string }> {
+    provider?: string;
+    voiceProvider?: string;
+  }): Promise<{ aiVoiceId: string; voiceId?: string; provider: string; voiceProvider?: string; providerVoiceId?: string; status: string; previewAudioUrl?: string }> {
     return await this.fetchAI('/api/v1/ai/voice/clone', {
       method: 'POST',
       body: JSON.stringify(params),
@@ -61,9 +63,12 @@ export class AIServiceClient {
     dialect: string;
     memorySnippet?: string;
     aiVoiceId?: string;
+    voiceId?: string;
     model?: string;
     llmProvider?: string;
     ttsProvider?: string;
+    provider?: string;
+    voiceProvider?: string;
     speaker?: string;
     voiceName?: string;
     speakingRate?: number;

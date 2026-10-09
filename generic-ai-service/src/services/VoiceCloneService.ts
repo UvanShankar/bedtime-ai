@@ -32,18 +32,21 @@ export class VoiceCloneService {
   }
 
   async cloneVoice(params: IVoiceCloneDTO): Promise<IVoiceCloneResult> {
-    const provider = this.getProvider(params.provider);
+    const requestedProvider = params.provider || (params as any).voiceProvider;
+    const provider = this.getProvider(requestedProvider);
     logger.info(`🎤 [VoiceCloneService] Initiating voice clone via provider=${provider.name}, name="${params.displayName || 'unnamed'}", samples=${params.sampleAudioUrls?.length || 0}`);
-    const cloneResult = await provider.cloneVoice(params);
+    const cloneResult = await provider.cloneVoice({ ...params, provider: provider.name });
     const aiVoiceId = uuidv4();
     const timestamp = new Date().toISOString();
 
     await aiVoiceRegistryDao.createVoice({
       aiVoiceId,
+      voiceId: aiVoiceId,
       ownerProject: params.ownerProject,
       externalReferenceId: params.externalReferenceId,
       displayName: params.displayName || 'Cloned Voice',
       provider: cloneResult.provider as any,
+      voiceProvider: cloneResult.provider,
       providerVoiceId: cloneResult.providerVoiceId,
       sampleAudioUrls: params.sampleAudioUrls,
       status: cloneResult.status,
@@ -54,11 +57,13 @@ export class VoiceCloneService {
 
     return {
       aiVoiceId,
+      voiceId: aiVoiceId,
       provider: cloneResult.provider,
+      voiceProvider: cloneResult.provider,
       providerVoiceId: cloneResult.providerVoiceId,
       status: cloneResult.status,
       previewAudioUrl: cloneResult.previewAudioUrl,
-    };
+    } as any;
   }
 
   async uploadSampleAudio(params: {

@@ -67,7 +67,8 @@ export class VoiceController {
 
   async getVoice(req: Request, res: Response, next: NextFunction) {
     try {
-      const result = await voiceService.getVoice(req.params.voiceId);
+      const provider = (req.query.provider as string) || (req.query.voiceProvider as string) || (req.params as any).provider;
+      const result = await voiceService.getVoice(req.params.voiceId, provider);
       const response: IResponse<any> = {
         data: result,
         success: true,

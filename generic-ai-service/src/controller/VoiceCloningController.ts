@@ -96,9 +96,10 @@ export class VoiceCloningController {
   async getVoice(req: Request, res: Response, next: NextFunction) {
     try {
       const { voiceId } = req.params;
-      const voice = await aiVoiceRegistryDao.getVoice(voiceId);
+      const provider = (req.query.provider as string) || (req.query.voiceProvider as string) || (req.params as any).provider;
+      const voice = await aiVoiceRegistryDao.getVoice(voiceId, provider);
       if (!voice) {
-        throw new NotFoundError(`AI Voice ${voiceId} not found`);
+        throw new NotFoundError(`AI Voice "${voiceId}"${provider ? ` with provider "${provider}"` : ''} not found`);
       }
       const response: IResponse<any> = {
         data: voice,

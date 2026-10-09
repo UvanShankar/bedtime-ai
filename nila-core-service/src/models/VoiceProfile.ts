@@ -1,5 +1,7 @@
 export interface IVoiceProfileSchema {
   voiceId: string;
+  provider: string; // 'sarvam' | 'elevenlabs' | 'mock'
+  voiceProvider?: string; // alias for provider
   userId: string;
   displayName: string;
   relationship?: string; // 'Appa', 'Amma', etc.
@@ -7,6 +9,7 @@ export interface IVoiceProfileSchema {
   sampleDurationSeconds: number;
   consentVerified: boolean;
   aiServiceVoiceId?: string;
+  providerVoiceId?: string;
   status: 'RECORDED' | 'PROCESSING' | 'READY' | 'FAILED';
   statusReason?: string;
   previewAudioUrl?: string;

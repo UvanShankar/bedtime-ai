@@ -26,10 +26,25 @@ export class StoryService {
     }
 
     let aiVoiceId: string | undefined;
+    let resolvedTtsProvider = dto.ttsProvider || dto.voiceProvider || dto.provider;
+    let resolvedSpeaker = dto.speaker || dto.voiceName;
+
     if (dto.voiceId) {
-      const voice = await voiceProfileDao.getVoice(dto.voiceId);
-      if (voice && voice.aiServiceVoiceId) {
-        aiVoiceId = voice.aiServiceVoiceId;
+      const voice = await voiceProfileDao.getVoice(dto.voiceId, resolvedTtsProvider);
+      if (voice) {
+        if (voice.aiServiceVoiceId) {
+          aiVoiceId = voice.aiServiceVoiceId;
+        }
+        // Couple voiceId with its registered provider
+        if (voice.provider || voice.voiceProvider) {
+          resolvedTtsProvider = voice.provider || voice.voiceProvider;
+        }
+        if (!resolvedSpeaker && (voice.providerVoiceId || voice.aiServiceVoiceId)) {
+          resolvedSpeaker = voice.providerVoiceId || voice.aiServiceVoiceId;
+        }
+        logger.debug(`🎤 [StoryService] Coupled voiceId="${dto.voiceId}" with provider="${resolvedTtsProvider}", aiVoiceId="${aiVoiceId || 'none'}"`);
+      } else {
+        logger.warn(`⚠️ [StoryService] Voice profile "${dto.voiceId}" not found in DAO; proceeding with default voice`);
       }
     }
 
@@ -98,10 +113,13 @@ RULES:
           dialect,
           memorySnippet,
           aiVoiceId,
+          voiceId: dto.voiceId,
           model: dto.model,
           llmProvider: dto.llmProvider,
-          ttsProvider: dto.ttsProvider,
-          speaker: dto.speaker || dto.voiceName,
+          ttsProvider: resolvedTtsProvider,
+          provider: resolvedTtsProvider,
+          voiceProvider: resolvedTtsProvider,
+          speaker: resolvedSpeaker,
           speakingRate: dto.speakingRate,
         });
 

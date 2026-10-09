@@ -99,6 +99,8 @@ export interface IRegisterVoiceDTO {
   sampleAudioS3Key: string;
   sampleDurationSeconds: number;
   consentAffirmed: boolean;
+  provider?: string; // 'sarvam' | 'elevenlabs' | 'mock'
+  voiceProvider?: string; // alias for provider
 }
 
 export interface IRequestStoryDTO {
@@ -116,6 +118,8 @@ export interface IRequestStoryDTO {
   model?: string;
   llmProvider?: string;
   ttsProvider?: string;
+  provider?: string;
+  voiceProvider?: string;
   speaker?: string;
   voiceName?: string;
   speakingRate?: number;

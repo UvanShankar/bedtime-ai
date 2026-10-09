@@ -38,8 +38,9 @@ router.post('/samples', handleAudioUpload, (req, res, next) => voiceCloningContr
 // Presigned S3 upload URL for direct-to-S3 uploads
 router.post('/presigned-sample-url', (req, res, next) => voiceCloningController.getPresignedSampleUrl(req, res, next));
 
-// Voice cloning and registry routes
+// Voice cloning and registry routes (supports coupled voiceId and provider)
 router.post('/clone', (req, res, next) => voiceCloningController.cloneVoice(req, res, next));
+router.get('/:voiceId/:provider', (req, res, next) => voiceCloningController.getVoice(req, res, next));
 router.get('/:voiceId', (req, res, next) => voiceCloningController.getVoice(req, res, next));
 
 export const voiceRoutes = router;

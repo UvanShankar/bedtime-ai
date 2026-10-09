@@ -36,9 +36,12 @@ export class VoiceService {
 
     const voiceId = generateId('voc');
     const timestamp = new Date().toISOString();
+    const voiceProvider = (dto.provider || dto.voiceProvider || 'sarvam').toLowerCase();
 
     const voice: IVoiceProfileSchema = {
       voiceId,
+      provider: voiceProvider,
+      voiceProvider,
       userId,
       displayName: dto.displayName,
       relationship: dto.relationship,
@@ -52,7 +55,7 @@ export class VoiceService {
     };
 
     await voiceProfileDao.createVoice(voice);
-    logger.info(`🎤 [VoiceService] Registered voice profile ${voiceId} ("${dto.displayName}") for user=${userId}`);
+    logger.info(`🎤 [VoiceService] Registered voice profile ${voiceId} ("${dto.displayName}") [provider=${voiceProvider}] for user=${userId}`);
 
     // Call Generic AI Service in background to train / register clone
     setImmediate(async () => {
@@ -60,24 +63,29 @@ export class VoiceService {
         const bucket = process.env.UPLOADS_BUCKET || 'nila-media-uploads-prod';
         const sampleUrl = `https://${bucket}.s3.amazonaws.com/${dto.sampleAudioS3Key}`;
 
-        logger.info(`🎤 [VoiceService] Sending voice clone request to AI service for voiceId=${voiceId}`);
+        logger.info(`🎤 [VoiceService] Sending voice clone request to AI service for voiceId=${voiceId} (provider=${voiceProvider})`);
         const cloneResult = await aiServiceClient.cloneVoice({
           ownerProject: 'nila',
           externalReferenceId: voiceId,
           sampleAudioUrls: [sampleUrl],
           displayName: dto.displayName,
+          provider: voiceProvider,
+          voiceProvider,
         });
 
-        logger.info(`🎉 [VoiceService] Voice cloning succeeded for voiceId=${voiceId}: aiVoiceId=${cloneResult.aiVoiceId}`);
+        const finalProvider = cloneResult.provider || voiceProvider;
+        logger.info(`🎉 [VoiceService] Voice cloning succeeded for voiceId=${voiceId}: aiVoiceId=${cloneResult.aiVoiceId}, provider=${finalProvider}`);
         await voiceProfileDao.updateVoiceStatus(
           voiceId,
           'READY',
           cloneResult.previewAudioUrl,
-          cloneResult.aiVoiceId
+          cloneResult.aiVoiceId,
+          finalProvider,
+          cloneResult.providerVoiceId
         );
       } catch (err: any) {
         logger.error(`💥 [VoiceService] Failed to train voice ${voiceId}: ${err.message}`, { stack: err.stack });
-        await voiceProfileDao.updateVoiceStatus(voiceId, 'FAILED');
+        await voiceProfileDao.updateVoiceStatus(voiceId, 'FAILED', undefined, undefined, voiceProvider);
       }
     });
 
@@ -88,12 +96,17 @@ export class VoiceService {
     return await voiceProfileDao.getVoicesByUserId(userId);
   }
 
-  async getVoice(voiceId: string): Promise<IVoiceProfileSchema> {
-    const voice = await voiceProfileDao.getVoice(voiceId);
+  async getVoice(voiceId: string, provider?: string): Promise<IVoiceProfileSchema> {
+    const voice = await voiceProfileDao.getVoice(voiceId, provider);
     if (!voice) {
-      throw new NotFoundError(`Voice profile ${voiceId} not found`);
+      throw new NotFoundError(`Voice profile ${voiceId}${provider ? ` (${provider})` : ''} not found`);
     }
     return voice;
+  }
+
+  async deleteVoice(voiceId: string, provider?: string): Promise<void> {
+    await voiceProfileDao.deleteVoice(voiceId, provider);
+    logger.info(`🎤 [VoiceService] Deleted voice profile ${voiceId}${provider ? ` (${provider})` : ''}`);
   }
 }
 

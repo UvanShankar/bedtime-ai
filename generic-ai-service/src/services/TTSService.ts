@@ -41,21 +41,24 @@ export class TTSService {
   async synthesizeSpeech(params: ISpeechSynthesizeDTO): Promise<ISpeechSynthesizeResult> {
     const resolvedParams = { ...params };
     const voiceCandidate = resolvedParams.speaker || resolvedParams.aiVoiceId;
+    const providerCandidate = resolvedParams.provider || (resolvedParams as any).voiceProvider;
 
     if (voiceCandidate && !voiceCandidate.startsWith('svc-')) {
       try {
-        const registered = await aiVoiceRegistryDao.getVoice(voiceCandidate);
+        const registered = await aiVoiceRegistryDao.getVoice(voiceCandidate, providerCandidate);
         if (registered && registered.providerVoiceId) {
           logger.debug(`[TTSService] Resolved voiceCandidate "${voiceCandidate}" to provider voice "${registered.providerVoiceId}" (${registered.provider})`);
           resolvedParams.speaker = registered.providerVoiceId;
           resolvedParams.aiVoiceId = registered.providerVoiceId;
-          if (!resolvedParams.provider && registered.provider) {
+          if (registered.provider) {
             resolvedParams.provider = registered.provider;
           }
         }
       } catch (err: any) {
         logger.warn(`[TTSService] Voice registry lookup note for "${voiceCandidate}": ${err.message}`);
       }
+    } else if (voiceCandidate && voiceCandidate.startsWith('svc-') && !resolvedParams.provider) {
+      resolvedParams.provider = 'sarvam';
     }
 
     const provider = this.getProvider(resolvedParams.provider);
