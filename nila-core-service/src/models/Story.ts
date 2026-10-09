@@ -5,6 +5,9 @@ export interface IStorySchema {
   voiceId?: string;
   title: string;
   theme: string;
+  mood?: string;
+  bedtimeCalmness?: number;
+  promptIdea?: string;
   targetDurationMinutes: number;
   moralLesson?: string;
   includedMemoryIds: string[];

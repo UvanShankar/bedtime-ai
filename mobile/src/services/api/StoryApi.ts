@@ -55,17 +55,25 @@ export class StoryApi {
       voiceId: input.voiceProfileId || undefined,
       provider: input.voiceProvider || undefined,
       theme: input.storyType || "bedtime_calm",
+      mood: input.mood || "Gentle & Sleepy",
       promptIdea: input.promptIdea || input.topic || "Bedtime Story",
       moralLesson: input.educationalGoal || input.moralTheme || undefined,
       targetDurationMinutes: input.durationMinutes || 5,
+      bedtimeCalmness: input.bedtimeCalmness ?? 0.8,
+      includeChildName: input.includeChildName ?? true,
+      includeFavoriteThings: input.includeFavoriteThings ?? true,
+      includeFamilyMembers: input.includeFamilyMembers ?? false,
       dialect: input.dialect || undefined,
       includeMemoryIds: input.selectedMemoryIds || (input.includeLifeMemories ? [] : undefined),
+      additionalInstruction: input.additionalInstruction || undefined,
     };
 
     logger.info("STORY", `Initiating story generation: "${input.promptIdea || input.topic}"`, {
       childId: input.childId,
       theme: input.storyType,
+      mood: input.mood,
       duration: `${input.durationMinutes || 5} min`,
+      calmness: input.bedtimeCalmness,
       voiceId: input.voiceProfileId,
     });
     const res = await apiClient.post<CoreStoryResponse>("/stories/generate", payload);

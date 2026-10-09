@@ -50,6 +50,9 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
         if (request?.includeFavoriteThings && selectedChild?.interests?.length) {
           additionalInstruction += ` Child's favorites: ${selectedChild.interests.join(", ")}.`;
         }
+        if (request?.includeFamilyMembers) {
+          additionalInstruction += ` Include loving moments with family members.`;
+        }
 
         logger.info("STORY", `[StoryCreationScreen] Triggering StoryApi.generateStory (parentId: ${parentId}, childId: ${childId})`);
         const initialStory = await StoryApi.generateStory({
@@ -61,6 +64,10 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
           durationMinutes: request?.durationMinutes || 5,
           bedtimeCalmness: request?.bedtimeCalmness ?? 0.8,
           includeChildName: request?.includeChildName ?? true,
+          includeFavoriteThings: request?.includeFavoriteThings ?? true,
+          includeFamilyMembers: request?.includeFamilyMembers ?? false,
+          includeLifeMemories: request?.includeLifeMemories ?? true,
+          selectedMemoryIds: request?.selectedMemoryIds,
           realWorldFacts: false,
           additionalInstruction: additionalInstruction || undefined,
           voiceProfileId: voiceProfile?.id || undefined,

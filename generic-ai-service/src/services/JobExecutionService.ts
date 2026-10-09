@@ -62,7 +62,7 @@ export class JobExecutionService {
           memorySnippet: payload.memorySnippet || '',
         },
         temperature: payload.temperature ?? 0.7,
-        maxTokens: payload.maxTokens || 1024,
+        maxTokens: payload.maxTokens || Math.max(1600, (payload.targetDurationMinutes || 5) * 380),
       });
       const llmDuration = Date.now() - llmStartTime;
       logger.info(`✅ [JobExecutionService] Step 1 finished in ${llmDuration}ms (tokens=${textResult.totalTokens}, textLen=${textResult.text?.length || 0})`);

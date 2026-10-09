@@ -107,10 +107,17 @@ export interface IRequestStoryDTO {
   childId: string;
   voiceId?: string;
   theme?: string; // 'space', 'animals', 'adventure', 'moral', 'bedtime_calm'
+  mood?: string; // 'Warm & Funny', 'Gentle & Sleepy', 'Cozy', 'Magical', 'Peaceful', 'Playful'
   targetDurationMinutes?: number;
+  bedtimeCalmness?: number; // 0.0 (Playful) to 1.0 (Very Sleepy)
+  includeChildName?: boolean;
+  includeFavoriteThings?: boolean;
+  includeFamilyMembers?: boolean;
+  includeLifeMemories?: boolean;
   promptIdea?: string;
   moralLesson?: string;
   includeMemoryIds?: string[];
+  additionalInstruction?: string;
   language?: string;
   dialect?: string;
   slangLevel?: string;
@@ -123,4 +130,5 @@ export interface IRequestStoryDTO {
   speaker?: string;
   voiceName?: string;
   speakingRate?: number;
+  maxTokens?: number;
 }
