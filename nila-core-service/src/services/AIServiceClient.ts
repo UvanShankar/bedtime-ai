@@ -47,6 +47,12 @@ export class AIServiceClient {
     dialect: string;
     memorySnippet?: string;
     aiVoiceId?: string;
+    model?: string;
+    llmProvider?: string;
+    ttsProvider?: string;
+    speaker?: string;
+    voiceName?: string;
+    speakingRate?: number;
   }): Promise<{ jobId: string }> {
     return await this.fetchAI('/api/v1/ai/jobs/pipeline', {
       method: 'POST',

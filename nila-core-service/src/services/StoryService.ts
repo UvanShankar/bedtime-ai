@@ -86,6 +86,11 @@ RULES:
           dialect,
           memorySnippet,
           aiVoiceId,
+          model: dto.model,
+          llmProvider: dto.llmProvider,
+          ttsProvider: dto.ttsProvider,
+          speaker: dto.speaker || dto.voiceName,
+          speakingRate: dto.speakingRate,
         });
 
         // Poll job until ready

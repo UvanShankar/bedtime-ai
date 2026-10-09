@@ -113,4 +113,10 @@ export interface IRequestStoryDTO {
   dialect?: string;
   slangLevel?: string;
   bedtimePacing?: string;
+  model?: string;
+  llmProvider?: string;
+  ttsProvider?: string;
+  speaker?: string;
+  voiceName?: string;
+  speakingRate?: number;
 }
