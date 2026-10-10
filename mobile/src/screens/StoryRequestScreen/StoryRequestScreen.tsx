@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -40,7 +41,7 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
   const defaultPresets = [
     {
       id: "voc_preset_priya",
-      name: "Amma / Priya (à®…à®®à¯à®®à®¾)",
+      name: "Amma / Priya (அம்மா)",
       speaker: "priya",
       provider: "sarvam",
       isCloned: false,
@@ -51,7 +52,7 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
     },
     {
       id: "voc_preset_karun",
-      name: "Appa / Karun (à®…à®ªà¯à®ªà®¾)",
+      name: "Appa / Karun (அப்பா)",
       speaker: "karun",
       provider: "sarvam",
       isCloned: false,
@@ -62,7 +63,7 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
     },
     {
       id: "voc_preset_kavitha",
-      name: "Paati / Kavitha (à®ªà®¾à®Ÿà¯à®Ÿà®¿)",
+      name: "Paati / Kavitha (பாட்டி)",
       speaker: "kavitha",
       provider: "sarvam",
       isCloned: false,
@@ -94,9 +95,10 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
         description: "Your own warm voice narrating to your child",
         avatar: "ðŸŽ™ï¸",
         previewUrl:
+          (voiceProfile as any)?.previewAudioUrl ||
           (voiceProfile!.sourceAudioKey && (voiceProfile!.sourceAudioKey.startsWith("file") || voiceProfile!.sourceAudioKey.startsWith("http"))
             ? voiceProfile!.sourceAudioKey
-            : (voiceProfile as any)?.previewAudioUrl) || "",
+            : ""),
       }
     : null;
 
@@ -107,6 +109,12 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>(
     recordedVoiceOption ? recordedVoiceOption.id : "voc_preset_priya"
   );
+
+  useEffect(() => {
+    if (recordedVoiceOption && (selectedVoiceId === "voc_preset_priya" || !selectedVoiceId)) {
+      setSelectedVoiceId(recordedVoiceOption.id);
+    }
+  }, [recordedVoiceOption?.id]);
 
   const { state: previewAudioState, controller: previewController } = useAudioPlayer();
   const [playingPreviewVoiceId, setPlayingPreviewVoiceId] = useState<string | null>(null);
@@ -122,6 +130,8 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
           setPlayingPreviewVoiceId(voice.id);
           await previewController.load(voice.previewUrl);
           await previewController.play();
+        } else {
+          Alert.alert("Preview Unavailable", "No audio preview is available for this voice sample.");
         }
       }
     } catch (err: any) {
@@ -297,7 +307,7 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
         {/* Narrator Voice Selection */}
         <View style={styles.section}>
           <View style={styles.topicHeaderRow}>
-            <Text style={styles.sectionLabel}>Narrator Voice (à®•à¯à®°à®²à¯ à®¤à¯‡à®°à¯à®µà¯)</Text>
+            <Text style={styles.sectionLabel}>Narrator Voice (குரல் தேர்வு)</Text>
             <TouchableOpacity
               style={styles.surpriseButton}
               onPress={() => {

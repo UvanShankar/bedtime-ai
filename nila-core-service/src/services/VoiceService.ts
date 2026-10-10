@@ -3,14 +3,14 @@ import aiServiceClient from './AIServiceClient';
 import { IVoiceProfileSchema } from '../models/VoiceProfile';
 import { IRegisterVoiceDTO } from '../types';
 import { generateId } from '../utils';
-import { getPresignedUploadUrl } from '../database/s3Operations';
+import { getPresignedUploadUrl, getPresignedDownloadUrl } from '../database/s3Operations';
 import { ValidationError, NotFoundError, ApiError } from '../exceptions/ApiError';
 import logger from '../logger';
 
 export class VoiceService {
   getPrompt() {
     return {
-      scriptTamil: 'à®’à®°à¯ à®…à®´à®•à®¾à®© à®•à®¾à®Ÿà¯à®² à®’à®°à¯ à®šà®¿à®©à¯à®© à®®à¯à®¯à®²à¯ à®‡à®°à¯à®¨à¯à®¤à¯à®šà¯à®šà®¾à®®à¯. à®…à®¨à¯à®¤ à®®à¯à®¯à®²à¯à®•à¯à®•à¯ à®¨à®¿à®²à®¾à®µ à®°à¯Šà®®à¯à®ª à®ªà®¿à®Ÿà®¿à®•à¯à®•à¯à®®à®¾à®®à¯. à®¤à®¿à®©à®®à¯à®®à¯ à®šà®¾à®¯à®™à¯à®•à®¾à®²à®®à¯ à®µà®¾à®©à®¤à¯à®¤à¯ˆà®ªà¯ à®ªà®¾à®°à¯à®¤à¯à®¤à¯ à®¨à®¿à®²à®¾ à®•à®¿à®Ÿà¯à®Ÿ à®ªà¯‡à®šà¯à®®à®¾à®®à¯. à®¨à®¿à®²à®¾à®µà¯à®®à¯ à®®à¯‡à®•à®™à¯à®•à®³à¯à®•à¯à®•à¯ à®¨à®Ÿà¯à®µà¯à®² à®‡à®°à¯à®¨à¯à®¤à¯ à®šà®¿à®°à®¿à®šà¯à®šà¯à®•à¯à®•à®¿à®Ÿà¯à®Ÿà¯‡ à®ªà®¾à®•à¯à®•à¯à®®à®¾à®®à¯. "à®®à¯à®¯à®²à¯ à®•à¯à®Ÿà¯à®Ÿà®¿, à®¨à¯€ à®¨à®²à¯à®²à®¾ à®¤à¯‚à®™à¯à®•à®£à¯à®®à¯, à®…à®ªà¯à®ªà¯‹à®¤à®¾à®©à¯ à®¨à®¾à®³à¯ˆà®•à¯à®•à¯ à®¤à¯à®³à¯à®³à®¿ à®µà®¿à®³à¯ˆà®¯à®¾à®Ÿ à®®à¯à®Ÿà®¿à®¯à¯à®®à¯"à®©à¯ à®¨à®¿à®²à®¾ à®šà¯Šà®²à¯à®²à¯à®šà¯à®šà®¾à®®à¯...',
+      scriptTamil: 'ஒரு அழகான காட்ல ஒரு சின்ன முயல் இருந்துச்சாம். அந்த முயலுக்கு நிலாவ ரொம்ப பிடிக்குமாம். தினமும் சாயங்காலம் வானத்தைப் பார்த்து நிலா கிட்ட பேசுமாம். நிலாவும் மேகங்களுக்கு நடுவுல இருந்து சிரிச்சுக்கிட்டே பாக்குமாம். "முயல் குட்டி, நீ நல்லா தூங்கணும், அப்போதான் நாளைக்கு துள்ளி விளையாட முடியும்"னு நிலா சொல்லுச்சாம்...',
       scriptEnglishTransliteration: 'Oru azhagana kaatla oru chinna muyal irundhuchaam. Andha muyalukku nilava romba pidikkumaam...',
       targetDurationSeconds: 45,
       consentStatement: 'I explicitly consent to Nila using my recorded voice sample solely for synthesizing personalized bedtime stories for my family.',
@@ -20,7 +20,7 @@ export class VoiceService {
   async getPresignedUploadUrl(userId: string, fileName: string, fileType: string) {
     const bucket = process.env.UPLOADS_BUCKET || 'nila-media-uploads-prod';
     const key = `uploads/voices/${userId}/${Date.now()}_${fileName}`;
-    logger.debug(`ðŸŽ¤ [VoiceService] Generating presigned upload URL for voice sample key=${key}`);
+    logger.debug(`🎤 [VoiceService] Generating presigned upload URL for voice sample key=${key}`);
     const uploadUrl = await getPresignedUploadUrl({
       Bucket: bucket,
       Key: key,
@@ -55,7 +55,7 @@ export class VoiceService {
     };
 
     await voiceProfileDao.createVoice(voice);
-    logger.info(`ðŸŽ¤ [VoiceService] Registered voice profile ${voiceId} ("${dto.displayName}") [provider=${voiceProvider}] for user=${userId}`);
+    logger.info(`🎤 [VoiceService] Registered voice profile ${voiceId} ("${dto.displayName}") [provider=${voiceProvider}] for user=${userId}`);
 
     // In AWS Lambda, background tasks freeze as soon as the HTTP response returns.
     // Execute voice cloning synchronously within the active request context:
@@ -63,7 +63,7 @@ export class VoiceService {
       const bucket = process.env.UPLOADS_BUCKET || 'nila-media-uploads-prod';
       const sampleUrl = `https://${bucket}.s3.amazonaws.com/${dto.sampleAudioS3Key}`;
 
-      logger.info(`ðŸŽ¤ [VoiceService] Sending voice clone request to AI service for voiceId=${voiceId} (provider=${voiceProvider})`, {
+      logger.info(`🎤 [VoiceService] Sending voice clone request to AI service for voiceId=${voiceId} (provider=${voiceProvider})`, {
         sampleAudioS3Key: dto.sampleAudioS3Key,
         sampleUrl,
         displayName: dto.displayName,
@@ -80,7 +80,7 @@ export class VoiceService {
 
       const finalProvider = cloneResult.provider || voiceProvider;
       const finalProviderVoiceId = cloneResult.providerVoiceId || cloneResult.aiVoiceId;
-      logger.info(`ðŸŽ‰ [VoiceService] Voice cloning succeeded for voiceId=${voiceId}: aiVoiceId=${cloneResult.aiVoiceId}, providerVoiceId=${finalProviderVoiceId}, provider=${finalProvider}`);
+      logger.info(`🎉 [VoiceService] Voice cloning succeeded for voiceId=${voiceId}: aiVoiceId=${cloneResult.aiVoiceId}, providerVoiceId=${finalProviderVoiceId}, provider=${finalProvider}`);
       await voiceProfileDao.updateVoiceStatus(
         voiceId,
         'READY',
@@ -89,22 +89,44 @@ export class VoiceService {
         finalProvider,
         finalProviderVoiceId
       );
-      return {
+      const readyVoice: IVoiceProfileSchema = {
         ...voice,
         status: 'READY',
         aiServiceVoiceId: cloneResult.aiVoiceId,
         providerVoiceId: finalProviderVoiceId,
         previewAudioUrl: cloneResult.previewAudioUrl,
       };
+      return await this.attachPresignedUrl(readyVoice);
     } catch (err: any) {
-      logger.error(`ðŸ’¥ [VoiceService] Failed to train voice ${voiceId}: ${err.message}`, { stack: err.stack });
+      logger.error(`💥 [VoiceService] Failed to train voice ${voiceId}: ${err.message}`, { stack: err.stack });
       await voiceProfileDao.updateVoiceStatus(voiceId, 'FAILED', undefined, undefined, voiceProvider);
       throw new ApiError(`Voice cloning training failed: ${err.message}`, 500);
     }
   }
 
+  private async attachPresignedUrl(voice: IVoiceProfileSchema): Promise<IVoiceProfileSchema> {
+    if (voice.sampleAudioS3Key && !voice.previewAudioUrl) {
+      try {
+        const bucket = process.env.UPLOADS_BUCKET || 'nila-media-uploads-prod';
+        const downloadUrl = await getPresignedDownloadUrl({
+          Bucket: bucket,
+          Key: voice.sampleAudioS3Key,
+          expiresInSeconds: 86400, // 24 hours
+        });
+        return {
+          ...voice,
+          previewAudioUrl: downloadUrl,
+        };
+      } catch (err: any) {
+        logger.warn(`⚠️ [VoiceService] Failed to generate presigned download URL for key=${voice.sampleAudioS3Key}: ${err.message}`);
+      }
+    }
+    return voice;
+  }
+
   async getVoices(userId: string): Promise<IVoiceProfileSchema[]> {
-    return await voiceProfileDao.getVoicesByUserId(userId);
+    const list = await voiceProfileDao.getVoicesByUserId(userId);
+    return await Promise.all(list.map((v) => this.attachPresignedUrl(v)));
   }
 
   async getVoice(voiceId: string, provider?: string): Promise<IVoiceProfileSchema> {
@@ -112,12 +134,12 @@ export class VoiceService {
     if (!voice) {
       throw new NotFoundError(`Voice profile ${voiceId}${provider ? ` (${provider})` : ''} not found`);
     }
-    return voice;
+    return await this.attachPresignedUrl(voice);
   }
 
   async deleteVoice(voiceId: string, provider?: string): Promise<void> {
     await voiceProfileDao.deleteVoice(voiceId, provider);
-    logger.info(`ðŸŽ¤ [VoiceService] Deleted voice profile ${voiceId}${provider ? ` (${provider})` : ''}`);
+    logger.info(`🎤 [VoiceService] Deleted voice profile ${voiceId}${provider ? ` (${provider})` : ''}`);
   }
 }
 

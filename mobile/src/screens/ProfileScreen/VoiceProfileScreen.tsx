@@ -25,10 +25,16 @@ export const VoiceProfileScreen: React.FC<Props> = ({ navigation }) => {
 
   const handlePreview = async () => {
     const audioUrl =
+      (voiceProfile as any)?.previewAudioUrl ||
       (voiceProfile?.sourceAudioKey && (voiceProfile.sourceAudioKey.startsWith("file") || voiceProfile.sourceAudioKey.startsWith("http"))
         ? voiceProfile.sourceAudioKey
-        : (voiceProfile as any)?.previewAudioUrl) ||
-      "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3";
+        : null);
+
+    if (!audioUrl) {
+      logger.warn("VOICE", "[VoiceProfileScreen] No preview audio URL available");
+      Alert.alert("Playback Error", "No audio recording found for this voice profile.");
+      return;
+    }
 
     try {
       if (audioState.isPlaying) {

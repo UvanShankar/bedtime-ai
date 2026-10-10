@@ -18,6 +18,9 @@ ENV PORT=8082
 ENV AWS_LWA_PORT=8082
 ENV AWS_LWA_READINESS_CHECK_PATH=/healthy
 
+# Install ffmpeg for native audio transcoding (m4a/aac/mp3 -> 24kHz mono WAV)
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+
 # Include official AWS Lambda Web Adapter (enables zero-cost serverless execution on Lambda)
 RUN mkdir -p /opt/extensions
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 /lambda-adapter /opt/extensions/lambda-adapter

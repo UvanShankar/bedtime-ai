@@ -3,6 +3,39 @@ import { ISpeechSynthesizeDTO, IVoiceCloneDTO, IVoiceCloneResult } from '../../t
 import { ApiError } from '../../exceptions/ApiError';
 import { getBufferFromUrlOrS3 } from '../../database/s3Operations';
 import logger from '../../logger';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+
+const execFileAsync = promisify(execFile);
+
+async function transcodeToWav(inputBuffer: Buffer, extHint: string = 'm4a'): Promise<Buffer> {
+  const tmpId = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  const tmpIn = path.join(os.tmpdir(), `sarvam_in_${tmpId}.${extHint}`);
+  const tmpOut = path.join(os.tmpdir(), `sarvam_out_${tmpId}.wav`);
+
+  try {
+    await fs.promises.writeFile(tmpIn, inputBuffer);
+    await execFileAsync('ffmpeg', [
+      '-y',
+      '-i', tmpIn,
+      '-ar', '24000',
+      '-ac', '1',
+      '-c:a', 'pcm_s16le',
+      tmpOut,
+    ]);
+    const wavBuffer = await fs.promises.readFile(tmpOut);
+    logger.info(`🎤 [SarvamTTSProvider] Transcoded audio sample to 24kHz mono WAV: ${inputBuffer.length} bytes -> ${wavBuffer.length} bytes`);
+    return wavBuffer;
+  } finally {
+    await Promise.all([
+      fs.promises.unlink(tmpIn).catch(() => {}),
+      fs.promises.unlink(tmpOut).catch(() => {}),
+    ]);
+  }
+}
 
 const SARVAM_SUPPORTED_LANGUAGES: Record<string, string> = {
   'ta': 'ta-IN',
@@ -66,11 +99,18 @@ export class SarvamTTSProvider implements ITTSProvider {
       params.speaker ||
       (Array.isArray(params.speakers) ? params.speakers[0] : params.speakers) ||
       params.aiVoiceId;
-    const isClonedVoice = typeof rawSpeaker === 'string' && (rawSpeaker.startsWith('svc-') || rawSpeaker.startsWith('svc_'));
-    const speakerCandidate = (rawSpeaker || 'priya').toLowerCase();
-    const speaker = isClonedVoice ? rawSpeaker : (VALID_SARVAM_SPEAKERS.includes(speakerCandidate) ? speakerCandidate : 'priya');
 
-    logger.info(`ðŸŽ™ï¸ [SarvamTTSProvider] Speech synthesis config: rawSpeaker="${rawSpeaker}", effectiveSpeaker="${speaker}", isCloned=${isClonedVoice}, targetLanguage="${targetLanguageCode}"`);
+    const candidateLower = (typeof rawSpeaker === 'string' ? rawSpeaker.trim().toLowerCase() : '');
+    const isBuiltInSpeaker = VALID_SARVAM_SPEAKERS.includes(candidateLower);
+    const isClonedVoice = Boolean(
+      params.aiVoiceId ||
+      (!isBuiltInSpeaker && rawSpeaker && rawSpeaker.trim().length > 0)
+    );
+    const effectiveSpeaker = isClonedVoice
+      ? (params.aiVoiceId || rawSpeaker)
+      : (isBuiltInSpeaker ? candidateLower : 'priya');
+
+    logger.info(`🎙️ [SarvamTTSProvider] Speech synthesis config: rawSpeaker="${rawSpeaker}", effectiveSpeaker="${effectiveSpeaker}", isCloned=${isClonedVoice}, targetLanguage="${targetLanguageCode}"`);
 
     // Respect Sarvam character chunk limits (bulbul:v3 supports up to 2500 characters)
     const maxChunkLength = isClonedVoice ? 900 : 2000;
@@ -95,7 +135,7 @@ export class SarvamTTSProvider implements ITTSProvider {
     const audioBuffers: Buffer[] = [];
     let totalDuration = 0;
 
-    logger.info(`[SarvamTTSProvider] Synthesizing ${textChunks.length} text chunks (speaker=${speaker}, cloned=${isClonedVoice})`);
+    logger.info(`[SarvamTTSProvider] Synthesizing ${textChunks.length} text chunks (speaker=${effectiveSpeaker}, cloned=${isClonedVoice})`);
     let chunkIndex = 0;
     for (const chunk of textChunks) {
       chunkIndex++;
@@ -105,7 +145,7 @@ export class SarvamTTSProvider implements ITTSProvider {
       if (isClonedVoice) {
         // Cloned Voice inference endpoint
         const formData = new FormData();
-        formData.append('voice_id', rawSpeaker!);
+        formData.append('voice_id', effectiveSpeaker!);
         formData.append('text', chunk);
         formData.append('language_code', targetLanguageCode);
         formData.append('pace', String(params.speakingRate ?? 0.9));
@@ -129,7 +169,7 @@ export class SarvamTTSProvider implements ITTSProvider {
           body: JSON.stringify({
             text: chunk,
             language_code: targetLanguageCode,
-            speaker,
+            speaker: effectiveSpeaker,
             model: 'bulbul:v3',
             pace: params.speakingRate ?? 0.9,
             speech_sample_rate: 22050,
@@ -198,27 +238,54 @@ export class SarvamTTSProvider implements ITTSProvider {
 
     // Detect format accurately from URL or binary magic numbers
     const sampleUrl = (params.sampleAudioUrls[0] || '').toLowerCase();
-    const isMp3 = sampleUrl.includes('.mp3') ||
+    const isWav =
+      (audioBuffer.length >= 12 && audioBuffer.toString('ascii', 0, 4) === 'RIFF' && audioBuffer.toString('ascii', 8, 12) === 'WAVE') ||
+      sampleUrl.includes('.wav');
+    const isMp3 =
+      sampleUrl.includes('.mp3') ||
       (audioBuffer.length >= 3 && audioBuffer[0] === 0x49 && audioBuffer[1] === 0x44 && audioBuffer[2] === 0x33);
-    const isM4a = sampleUrl.includes('.m4a') || sampleUrl.includes('.aac') || sampleUrl.includes('.mp4') ||
+    const isAac =
+      sampleUrl.includes('.aac') ||
+      (audioBuffer.length >= 2 && audioBuffer[0] === 0xff && (audioBuffer[1] & 0xf0) === 0xf0);
+    const isM4a =
+      sampleUrl.includes('.m4a') ||
+      sampleUrl.includes('.mp4') ||
       (audioBuffer.length >= 8 && audioBuffer[4] === 0x66 && audioBuffer[5] === 0x74 && audioBuffer[6] === 0x79 && audioBuffer[7] === 0x70);
 
+    let finalAudioBuffer = audioBuffer;
     let mimeType = 'audio/wav';
     let sampleFileName = 'sample_voice.wav';
-    if (isM4a) {
-      mimeType = 'audio/m4a';
-      sampleFileName = 'sample_voice.m4a';
+
+    if (isWav) {
+      mimeType = 'audio/wav';
+      sampleFileName = 'sample_voice.wav';
+    } else if (isAac) {
+      // Direct AAC natively accepted by Sarvam!
+      mimeType = 'audio/aac';
+      sampleFileName = 'sample_voice.aac';
     } else if (isMp3) {
+      // MP3 natively accepted by Sarvam!
       mimeType = 'audio/mpeg';
       sampleFileName = 'sample_voice.mp3';
+    } else {
+      // Non-standard container (e.g. M4A/MP4) - transcode to 24kHz mono WAV
+      try {
+        finalAudioBuffer = await transcodeToWav(audioBuffer, isM4a ? 'm4a' : 'bin');
+        mimeType = 'audio/wav';
+        sampleFileName = 'sample_voice.wav';
+      } catch (err: any) {
+        logger.warn(`⚠️ [SarvamTTSProvider] ffmpeg transcoding failed (${err.message}). Falling back to audio/aac.`);
+        mimeType = 'audio/aac';
+        sampleFileName = 'sample_voice.aac';
+      }
     }
 
     const voiceName = (params.displayName || `Parent_${Date.now()}`).trim().slice(0, 100);
 
-    logger.info(`ðŸŽ¤ [SarvamTTSProvider] Calling Sarvam /voices/create: name="${voiceName}", lang="${targetLanguageCode}", mimeType="${mimeType}", fileName="${sampleFileName}", bytes=${audioBuffer.length}`);
+    logger.info(`🎤 [SarvamTTSProvider] Calling Sarvam /voices/create: name="${voiceName}", lang="${targetLanguageCode}", mimeType="${mimeType}", fileName="${sampleFileName}", bytes=${finalAudioBuffer.length}`);
 
     const formData = new FormData();
-    const blob = new Blob([audioBuffer], { type: mimeType });
+    const blob = new Blob([finalAudioBuffer], { type: mimeType });
     formData.append('file', blob, sampleFileName);
     formData.append('name', voiceName);
     formData.append('voice_name', voiceName);

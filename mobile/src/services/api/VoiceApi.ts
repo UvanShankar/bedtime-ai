@@ -31,7 +31,7 @@ export class VoiceApi {
     } catch {
       logger.info("VOICE", "Using fallback reading prompt");
       return {
-        scriptTamil: "à®’à®°à¯ à®…à®´à®•à®¾à®© à®•à®¾à®Ÿà¯à®² à®’à®°à¯ à®šà®¿à®©à¯à®© à®®à¯à®¯à®²à¯ à®‡à®°à¯à®¨à¯à®¤à¯à®šà¯à®šà®¾à®®à¯. à®…à®¨à¯à®¤ à®®à¯à®¯à®²à¯à®•à¯à®•à¯ à®¨à®¿à®²à®¾à®µ à®°à¯Šà®®à¯à®ª à®ªà®¿à®Ÿà®¿à®•à¯à®•à¯à®®à®¾à®®à¯. à®¤à®¿à®©à®®à¯à®®à¯ à®šà®¾à®¯à®™à¯à®•à®¾à®²à®®à¯ à®µà®¾à®©à®¤à¯à®¤à¯ˆà®ªà¯ à®ªà®¾à®°à¯à®¤à¯à®¤à¯ à®¨à®¿à®²à®¾ à®•à®¿à®Ÿà¯à®Ÿ à®ªà¯‡à®šà¯à®®à®¾à®®à¯...",
+        scriptTamil: "ஒரு அழகான காட்ல ஒரு சின்ன முயல் இருந்துச்சாம். அந்த முயலுக்கு நிலாவ ரொம்ப பிடிக்குமாம். தினமும் சாயங்காலம் வானத்தைப் பார்த்து நிலா கிட்ட பேசுமாம்...",
         scriptEnglishTransliteration: "Oru azhagana kaatla oru chinna muyal irundhuchaam. Andha muyalukku nilava romba pidikkumaam...",
         targetDurationSeconds: 45,
         consentStatement: "I explicitly consent to Nila using my recorded voice sample solely for synthesizing personalized bedtime stories for my family.",
@@ -40,7 +40,7 @@ export class VoiceApi {
   }
 
   // 2. Get AWS S3 Pre-signed URL for direct media upload
-  static async getUploadUrl(fileName: string, fileType = "audio/m4a"): Promise<{ uploadUrl: string; key: string }> {
+  static async getUploadUrl(fileName: string, fileType = "audio/aac"): Promise<{ uploadUrl: string; key: string }> {
     return apiClient.post<{ uploadUrl: string; key: string }>("/voices/upload-url", {
       fileName,
       fileType,
@@ -58,8 +58,10 @@ export class VoiceApi {
     relationship?: string;
     provider?: string;
   }): Promise<VoiceUploadResponse> {
-    const mimeType = input.mimeType || "audio/m4a";
-    const fileName = `voice_${Date.now()}.m4a`;
+    const rawExt = (input.audioUri.split(".").pop() || "aac").toLowerCase();
+    const ext = rawExt === "wav" ? "wav" : rawExt === "mp3" ? "mp3" : "aac";
+    const mimeType = input.mimeType || (ext === "wav" ? "audio/wav" : ext === "mp3" ? "audio/mpeg" : "audio/aac");
+    const fileName = `voice_${Date.now()}.${ext}`;
     const selectedProvider = (input.provider || "sarvam").toLowerCase();
 
     logger.info("VOICE", `Starting voice sample registration process for parentId=${input.parentId}, provider=${selectedProvider}`);
