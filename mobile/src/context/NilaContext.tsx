@@ -48,8 +48,8 @@ interface NilaContextType {
 
 const defaultParent: ParentProfile = {
   id: "parent-uvan-001",
-  name: "Uvan",
-  relationship: "Appa",
+  name: "Parent",
+  relationship: "Amma",
   language: "Tamil",
   languageCode: "ta",
   dialect: "Chennai",
@@ -130,7 +130,7 @@ const defaultStories: Story[] = [
     audioStatus: "ready",
     audioDurationSeconds: 131,
     audioUrl: S3_STORY_AUDIO_1,
-    narratorName: "David (Dad)",
+    narratorName: "Amma / Priya",
     narratorStyle: "Tamil · Chennai style",
     inspiredByMemory: "Marina Beach",
     isFavorite: true,
@@ -150,7 +150,7 @@ const defaultStories: Story[] = [
     audioStatus: "ready",
     audioDurationSeconds: 108,
     audioUrl: S3_STORY_AUDIO_2,
-    narratorName: "Dad's Voice",
+    narratorName: "Amma's Voice",
     narratorStyle: "Tamil · Soft & sleepy",
     isFavorite: true,
     createdAt: "Yesterday",
@@ -169,7 +169,7 @@ const defaultStories: Story[] = [
     audioStatus: "ready",
     audioDurationSeconds: 131,
     audioUrl: S3_STORY_AUDIO_1,
-    narratorName: "Dad's Voice",
+    narratorName: "Amma's Voice",
     narratorStyle: "Tamil · Chennai style",
     isFavorite: false,
     createdAt: "Yesterday",
@@ -186,7 +186,7 @@ const defaultStyleProfile: ParentStyleProfile = {
   vocabularyLevel: 0.3,
   favoriteWords: ["Sweet dreams", "Little sprout", "Magic star", "Grandma's kitchen"],
   summaryText:
-    "Stories tonight will be soft, slow-paced, set in highly imaginative magical realms, weaving in Dad's favorite phrases to guide Aarav gently to sleep.",
+    "Stories tonight will be soft, slow-paced, set in highly imaginative magical realms, weaving in loving parental phrases to guide your child gently to sleep.",
   updatedAt: new Date().toISOString(),
 };
 

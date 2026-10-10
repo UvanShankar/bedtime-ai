@@ -58,6 +58,8 @@ export class StoryApi {
       relationship: input.relationship || undefined,
       voiceId: input.voiceProfileId || undefined,
       provider: input.voiceProvider || undefined,
+      voiceProvider: input.voiceProvider || undefined,
+      ttsProvider: input.voiceProvider || undefined,
       speaker: input.speaker || undefined,
       voiceName: input.voiceName || undefined,
       theme: input.storyType || "bedtime_calm",
@@ -81,6 +83,7 @@ export class StoryApi {
       duration: `${input.durationMinutes || 5} min`,
       calmness: input.bedtimeCalmness,
       voiceId: input.voiceProfileId,
+      provider: input.voiceProvider,
       speaker: input.speaker || input.voiceName,
     });
     const res = await apiClient.post<CoreStoryResponse>("/stories/generate", payload);

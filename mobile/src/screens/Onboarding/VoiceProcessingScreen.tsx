@@ -50,6 +50,9 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
 
         const chosenRel = route.params?.relationship || parent?.relationship || "Parent";
         const chosenName = route.params?.displayName || (parent?.name ? `${parent.name}'s Voice` : `${chosenRel}'s Voice`);
+        const chosenProvider = (route.params?.provider || "sarvam").toLowerCase();
+
+        logger.info("VOICE", `[VoiceProcessingScreen] Initiating voice cloning pipeline: name="${chosenName}" | provider="${chosenProvider}" | rel="${chosenRel}"`);
 
         // 2. Upload voice sample and register in backend
         const res = await VoiceApi.uploadVoiceSample({
@@ -58,7 +61,7 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
           consent: true,
           displayName: chosenName,
           relationship: chosenRel,
-          provider: "sarvam",
+          provider: chosenProvider,
         });
 
         if (res?.voiceProfile) {

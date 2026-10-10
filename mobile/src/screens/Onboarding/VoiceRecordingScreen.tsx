@@ -20,6 +20,7 @@ import { useVoiceRecorder } from "../../hooks/useVoiceRecorder";
 import { VoiceApi } from "../../services/api/VoiceApi";
 import { ParentApi } from "../../services/api/ParentApi";
 import { useNila } from "../../context/NilaContext";
+import { logger } from "../../utils/logger";
 
 interface Props {
   navigation: any;
@@ -40,12 +41,13 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
     ? "Amma"
     : parent?.relationship === "Appa" || parent?.relationship?.toLowerCase() === "father"
     ? "Appa"
-    : parent?.relationship || "Appa";
+    : parent?.relationship || "Amma";
 
   const [selectedRelationship, setSelectedRelationship] = useState(initialRel);
 
   const initialDefaultName = parent?.name ? `${parent.name}'s Voice` : `${initialRel}'s Voice`;
   const [voiceName, setVoiceName] = useState(initialDefaultName);
+  const [selectedProvider, setSelectedProvider] = useState<"sarvam" | "elevenlabs">("sarvam");
   const [showNameModal, setShowNameModal] = useState(false);
 
   useEffect(() => {
@@ -83,13 +85,14 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleCreateVoice = () => {
-    // Before generation, explicitly prompt the user to confirm/update the voice name
+    // Before generation, explicitly prompt the user to confirm/update the voice name & engine
     setShowNameModal(true);
   };
 
   const handleConfirmVoiceGeneration = () => {
     setShowNameModal(false);
     const finalName = voiceName.trim() || `${selectedRelationship}'s Voice`;
+    logger.info("VOICE", `[VoiceRecordingScreen] Confirmed voice creation: "${finalName}" | rel: ${selectedRelationship} | provider: ${selectedProvider}`);
     setParent((prev) => ({
       ...prev,
       relationship: selectedRelationship as any,
@@ -100,6 +103,7 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
       parentId: parent.id,
       displayName: finalName,
       relationship: selectedRelationship,
+      provider: selectedProvider,
     });
   };
 
@@ -304,6 +308,75 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
                 selectTextOnFocus
                 maxLength={30}
               />
+            </View>
+
+            {/* AI Engine Selection (Testing Mode) */}
+            <Text style={styles.modalFieldLabel}>AI Voice Engine (Testing Mode)</Text>
+            <View style={styles.modalProviderRow}>
+              <TouchableOpacity
+                style={[
+                  styles.modalProviderCard,
+                  selectedProvider === "sarvam" && styles.modalProviderCardActive,
+                ]}
+                onPress={() => setSelectedProvider("sarvam")}
+                activeOpacity={0.8}
+              >
+                <View style={styles.modalProviderTop}>
+                  <Text style={styles.modalProviderBadge}>Tamil Specialist</Text>
+                  {selectedProvider === "sarvam" ? (
+                    <Ionicons name="checkmark-circle" size={16} color={NilaColors.gold} />
+                  ) : (
+                    <View style={styles.modalProviderRadio} />
+                  )}
+                </View>
+                <Text
+                  style={[
+                    styles.modalProviderTitle,
+                    selectedProvider === "sarvam" && styles.modalProviderTitleActive,
+                  ]}
+                >
+                  ⚡ Sarvam AI
+                </Text>
+                <Text style={styles.modalProviderDesc}>
+                  Authentic spoken Tamil dialect & cadence
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalProviderCard,
+                  selectedProvider === "elevenlabs" && styles.modalProviderCardActive,
+                ]}
+                onPress={() => setSelectedProvider("elevenlabs")}
+                activeOpacity={0.8}
+              >
+                <View style={styles.modalProviderTop}>
+                  <Text
+                    style={[
+                      styles.modalProviderBadge,
+                      { color: "#7AA2F7", backgroundColor: "rgba(122, 162, 247, 0.15)" },
+                    ]}
+                  >
+                    Multilingual
+                  </Text>
+                  {selectedProvider === "elevenlabs" ? (
+                    <Ionicons name="checkmark-circle" size={16} color={NilaColors.gold} />
+                  ) : (
+                    <View style={styles.modalProviderRadio} />
+                  )}
+                </View>
+                <Text
+                  style={[
+                    styles.modalProviderTitle,
+                    selectedProvider === "elevenlabs" && styles.modalProviderTitleActive,
+                  ]}
+                >
+                  🌐 ElevenLabs
+                </Text>
+                <Text style={styles.modalProviderDesc}>
+                  Studio-quality neural voice cloning
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.modalActionsRow}>
@@ -590,7 +663,61 @@ const styles = StyleSheet.create({
     borderColor: NilaColors.gold,
     paddingHorizontal: 14,
     width: "100%",
-    marginBottom: 24,
+    marginBottom: 16,
+  },
+  modalProviderRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 20,
+    width: "100%",
+  },
+  modalProviderCard: {
+    flex: 1,
+    backgroundColor: NilaColors.midnight,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: NilaColors.cardBorder,
+  },
+  modalProviderCardActive: {
+    borderColor: NilaColors.gold,
+    backgroundColor: "rgba(245, 199, 106, 0.08)",
+  },
+  modalProviderTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  modalProviderBadge: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: NilaColors.gold,
+    backgroundColor: "rgba(245, 199, 106, 0.15)",
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  modalProviderRadio: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: NilaColors.cardBorder,
+  },
+  modalProviderTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: NilaColors.textPrimary,
+    marginBottom: 3,
+  },
+  modalProviderTitleActive: {
+    color: NilaColors.gold,
+  },
+  modalProviderDesc: {
+    fontSize: 10,
+    color: NilaColors.textMuted,
+    lineHeight: 14,
   },
   modalInputIcon: {
     marginRight: 10,

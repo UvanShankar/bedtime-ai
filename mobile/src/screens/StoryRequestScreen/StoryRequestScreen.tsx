@@ -91,10 +91,10 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
           voiceProfile!.displayName ||
           `${parent?.relationship === "Amma" || parent?.relationship === "mother" ? "Amma" : parent?.relationship === "Appa" || parent?.relationship === "father" ? "Appa" : parent?.name || "Parent"}'s Voice`,
         speaker: voiceProfile!.providerVoiceId || voiceProfile!.id,
-        provider: voiceProfile!.provider || "sarvam",
+        provider: (voiceProfile!.provider || "sarvam").toLowerCase(),
         isCloned: true,
         tag: "âœ¨ Your Cloned Voice",
-        description: "Your own warm voice narrating to your child",
+        description: `Your custom cloned voice (${(voiceProfile!.provider || "sarvam").toUpperCase()})`,
         avatar: "ðŸŽ™ï¸",
         previewUrl:
           (voiceProfile as any)?.previewAudioUrl ||
@@ -220,6 +220,7 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
       voiceName: chosenVoice.name,
     };
 
+    logger.info("STORY", `[StoryRequestScreen] Selected Voice: "${chosenVoice.name}" | Provider: "${chosenVoice.provider}" | Speaker: "${chosenVoice.speaker || 'none'}" | isCloned: ${chosenVoice.isCloned}`);
     logger.info("STORY", `[StoryRequestScreen] Navigating to StoryCreation with configuration`, {
       child: selectedChild?.name,
       topic,
@@ -227,6 +228,7 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
       duration: `${durationNum} min`,
       calmness,
       voice: chosenVoice.name,
+      voiceProvider: chosenVoice.provider,
       speaker: chosenVoice.speaker,
     });
 

@@ -62,7 +62,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
           additionalInstruction += ` Include loving moments with family members.`;
         }
 
-        logger.info("STORY", `[StoryCreationScreen] Triggering StoryApi.generateStory (parentId: ${parentId}, childId: ${childId})`);
+        logger.info("STORY", `[StoryCreationScreen] Triggering StoryApi.generateStory with voiceProvider="${request?.voiceProvider || 'sarvam'}", voiceProfileId="${request?.voiceProfileId || 'none'}", speaker="${request?.speaker || 'none'}" (parentId: ${parentId}, childId: ${childId})`);
         const initialStory = await StoryApi.generateStory({
           parentId,
           childId,
@@ -126,7 +126,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
 
             generatedStory = {
               ...readyStory,
-              narratorName: request?.voiceName || voiceProfile?.displayName || `${parent?.name || "Dad"}'s Voice`,
+              narratorName: request?.voiceName || voiceProfile?.displayName || `${parent?.relationship || parent?.name || "Parent"}'s Voice`,
               narratorStyle: `${parent?.dialect || "Chennai"} · Spoken Tamil`,
               inspiredByMemory: chosenMem ? chosenMem.title : undefined,
               isFavorite: true,

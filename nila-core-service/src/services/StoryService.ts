@@ -49,8 +49,11 @@ export class StoryService {
     let resolvedSpeaker = dto.speaker || dto.voiceName;
     let voiceProfileRel: string | undefined;
 
+    logger.info(`🎤 [StoryService] Initial story request voice config: voiceId="${dto.voiceId || 'none'}", provider="${resolvedTtsProvider || 'none'}", speaker="${resolvedSpeaker || 'none'}"`);
+
     if (dto.voiceId) {
-      const voice = await voiceProfileDao.getVoice(dto.voiceId, resolvedTtsProvider);
+      // Fetch voice profile directly from DynamoDB without restrictive provider filter
+      const voice = await voiceProfileDao.getVoice(dto.voiceId);
       if (voice) {
         if (voice.relationship) {
           voiceProfileRel = voice.relationship;
@@ -58,18 +61,20 @@ export class StoryService {
         if (voice.aiServiceVoiceId) {
           aiVoiceId = voice.aiServiceVoiceId;
         }
-        // Couple voiceId with its registered provider
+        // Couple voiceId with its registered provider (sarvam or elevenlabs)
         if (voice.provider || voice.voiceProvider) {
-          resolvedTtsProvider = voice.provider || voice.voiceProvider;
+          resolvedTtsProvider = ((voice.provider || voice.voiceProvider) as string).toLowerCase();
         }
         if (!resolvedSpeaker && (voice.providerVoiceId || voice.aiServiceVoiceId)) {
           resolvedSpeaker = voice.providerVoiceId || voice.aiServiceVoiceId;
         }
-        logger.debug(`🎤 [StoryService] Coupled voiceId="${dto.voiceId}" with provider="${resolvedTtsProvider}", aiVoiceId="${aiVoiceId || 'none'}", rel="${voiceProfileRel || 'none'}"`);
+        logger.info(`🎤 [StoryService] Successfully coupled voiceId="${dto.voiceId}" with registered provider="${resolvedTtsProvider}", aiVoiceId="${aiVoiceId || 'none'}", speaker="${resolvedSpeaker || 'none'}", rel="${voiceProfileRel || 'none'}"`);
       } else {
-        logger.warn(`⚠️ [StoryService] Voice profile "${dto.voiceId}" not found in DAO; proceeding with default voice`);
+        logger.warn(`⚠️ [StoryService] Voice profile "${dto.voiceId}" not found in DAO; proceeding with provider="${resolvedTtsProvider || 'sarvam'}"`);
       }
     }
+
+    resolvedTtsProvider = (resolvedTtsProvider || 'sarvam').toLowerCase();
 
     const parentRelationship = normalizeRelationship(dto.relationship || voiceProfileRel || user?.relationship || 'Appa');
 
@@ -287,7 +292,7 @@ Begin the story directly with a warm parental opening like "கண்ணா...",
     try {
       await storyDao.updateStoryStatus(storyId, 'GENERATING_SCRIPT', 25, 'Writing story in natural spoken Tamil...');
 
-      logger.info(`🚀 [StoryService] Submitting story pipeline to AI service for storyId=${storyId}`);
+      logger.info(`🚀 [StoryService] Submitting story pipeline to AI service for storyId=${storyId} (ttsProvider="${resolvedTtsProvider}", speaker="${resolvedSpeaker || 'default'}", voiceId="${dto.voiceId || 'none'}")`);
       const job = await aiServiceClient.submitStoryPipeline({
         storyId,
         childName: child.name,
