@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 
-const AWS_PROD_API_URL = "https://vchuxxma5j.execute-api.ap-south-1.amazonaws.com/api/v1";
+const AWS_PROD_API_URL = "https://3ysdv3xa7wxvzjcjkj4oiedcwe0ujesr.lambda-url.ap-south-1.on.aws/api/v1";
 
 const getApiBaseUrl = (): string => {
   const envUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -11,6 +11,11 @@ const getApiBaseUrl = (): string => {
       url = url.replace("localhost", "10.0.2.2");
     }
     return url;
+  }
+
+  // Production fallback
+  if (process.env.EXPO_PUBLIC_ENV === "production") {
+    return AWS_PROD_API_URL;
   }
 
   // Development defaults for local backend
