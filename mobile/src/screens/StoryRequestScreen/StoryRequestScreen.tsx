@@ -26,7 +26,7 @@ interface Props {
 }
 
 export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { parent, selectedChild, memories, voiceProfile } = useNila();
+  const { parent, selectedChild, memories, voiceProfile, voiceProfiles, refreshVoicesFromBackend } = useNila();
   const { suggestedTopic, suggestedType } = route?.params || {};
 
   const [topic, setTopic] = useState(
@@ -47,7 +47,7 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
       isCloned: false,
       tag: "Warm & Gentle",
       description: "Loving motherly Tamil narration",
-      avatar: "ðŸ‘©",
+      avatar: "👩",
       previewUrl: "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3",
     },
     {
@@ -58,7 +58,7 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
       isCloned: false,
       tag: "Cozy Bedtime",
       description: "Deep, gentle fatherly storytelling",
-      avatar: "ðŸ‘¨",
+      avatar: "👨",
       previewUrl: "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_0031d1d3f756_1791578804598.mp3",
     },
     {
@@ -69,54 +69,56 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
       isCloned: false,
       tag: "Storyteller",
       description: "Traditional grandmother story cadence",
-      avatar: "ðŸ‘µ",
+      avatar: "👵",
       previewUrl: "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3",
     },
   ];
 
-  // Only treat as recorded voice if it is a real custom profile, not the static mock default
-  const hasRecordedVoice = !!(
-    voiceProfile &&
-    voiceProfile.id &&
-    voiceProfile.id !== "voc_default_priya" &&
-    voiceProfile.sourceAudioKey &&
-    voiceProfile.sourceAudioKey.trim() !== "" &&
-    voiceProfile.status !== "failed"
-  );
+  // Map all real custom profiles created by the parent
+  const allClonedList = (voiceProfiles && voiceProfiles.length > 0)
+    ? voiceProfiles
+    : (voiceProfile && voiceProfile.id && voiceProfile.id !== "voc_default_priya" ? [voiceProfile] : []);
 
-  const recordedVoiceOption = hasRecordedVoice
-    ? {
-        id: voiceProfile!.id,
+  const clonedVoiceOptions = allClonedList
+    .filter((v) => v && v.id && v.id !== "voc_default_priya" && v.status !== "failed")
+    .map((v) => {
+      const providerLower = (v.provider || "sarvam").toLowerCase();
+      const providerBadge = providerLower === "elevenlabs" ? "🌐 ElevenLabs" : "⚡ Sarvam AI";
+      const providerLabel = providerLower === "elevenlabs" ? "ElevenLabs" : "Sarvam AI";
+      return {
+        id: v.id,
         name:
-          voiceProfile!.displayName ||
+          v.displayName ||
           `${parent?.relationship === "Amma" || parent?.relationship === "mother" ? "Amma" : parent?.relationship === "Appa" || parent?.relationship === "father" ? "Appa" : parent?.name || "Parent"}'s Voice`,
-        speaker: voiceProfile!.providerVoiceId || voiceProfile!.id,
-        provider: (voiceProfile!.provider || "sarvam").toLowerCase(),
+        speaker: v.providerVoiceId || v.id,
+        provider: providerLower,
         isCloned: true,
-        tag: "âœ¨ Your Cloned Voice",
-        description: `Your custom cloned voice (${(voiceProfile!.provider || "sarvam").toUpperCase()})`,
-        avatar: "ðŸŽ™ï¸",
+        tag: `✨ ${providerBadge}`,
+        description: `Your custom voice clone (${providerLabel})`,
+        avatar: "🎙️",
         previewUrl:
-          (voiceProfile as any)?.previewAudioUrl ||
-          (voiceProfile!.sourceAudioKey && (voiceProfile!.sourceAudioKey.startsWith("file") || voiceProfile!.sourceAudioKey.startsWith("http"))
-            ? voiceProfile!.sourceAudioKey
+          v.previewAudioUrl ||
+          (v.sourceAudioKey && (v.sourceAudioKey.startsWith("file") || v.sourceAudioKey.startsWith("http"))
+            ? v.sourceAudioKey
             : ""),
-      }
-    : null;
+      };
+    });
 
-  const voiceOptions = recordedVoiceOption
-    ? [recordedVoiceOption, ...defaultPresets]
-    : defaultPresets;
+  const voiceOptions = [...clonedVoiceOptions, ...defaultPresets];
 
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>(
-    recordedVoiceOption ? recordedVoiceOption.id : "voc_preset_priya"
+    clonedVoiceOptions.length > 0 ? clonedVoiceOptions[0].id : "voc_preset_priya"
   );
 
   useEffect(() => {
-    if (recordedVoiceOption && (selectedVoiceId === "voc_preset_priya" || !selectedVoiceId)) {
-      setSelectedVoiceId(recordedVoiceOption.id);
+    refreshVoicesFromBackend().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (clonedVoiceOptions.length > 0 && (selectedVoiceId === "voc_preset_priya" || !voiceOptions.some((v) => v.id === selectedVoiceId))) {
+      setSelectedVoiceId(clonedVoiceOptions[0].id);
     }
-  }, [recordedVoiceOption?.id]);
+  }, [clonedVoiceOptions.length]);
 
   const { state: previewAudioState, controller: previewController } = useAudioPlayer();
   const [playingPreviewVoiceId, setPlayingPreviewVoiceId] = useState<string | null>(null);

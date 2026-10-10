@@ -25,7 +25,9 @@ interface NilaContextType {
   addChild: (child: Partial<ChildProfile>) => void;
   voiceProfile: VoiceProfile | null;
   setVoiceProfile: React.Dispatch<React.SetStateAction<VoiceProfile | null>>;
-  deleteVoiceProfile: () => void;
+  voiceProfiles: VoiceProfile[];
+  addVoiceProfile: (voice: VoiceProfile) => void;
+  deleteVoiceProfile: (targetId?: string) => void;
   memories: LifeMemory[];
   addMemory: (memory: Omit<LifeMemory, "id" | "timesUsed" | "createdAt" | "updatedAt">) => void;
   updateMemory: (memory: LifeMemory) => void;
@@ -206,6 +208,7 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [childrenList, setChildrenList] = useState<ChildProfile[]>(defaultChildren);
   const [selectedChild, setSelectedChild] = useState<ChildProfile>(defaultChildren[0]);
   const [voiceProfile, setVoiceProfile] = useState<VoiceProfile | null>(defaultVoice);
+  const [voiceProfiles, setVoiceProfiles] = useState<VoiceProfile[]>([]);
   const [memories, setMemories] = useState<LifeMemory[]>(defaultMemories);
   const [stories, setStories] = useState<Story[]>(defaultStories);
   const [styleProfile, setStyleProfile] = useState<ParentStyleProfile>(defaultStyleProfile);
@@ -295,8 +298,12 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const liveVoices = await VoiceApi.getVoices();
         if (liveVoices && liveVoices.length > 0) {
+          setVoiceProfiles(liveVoices);
           setVoiceProfile(liveVoices[0]);
-          logger.success("VOICE", `Synced voice profile: ${liveVoices[0].displayName} (${liveVoices[0].provider})`);
+          logger.success("VOICE", `Synced ${liveVoices.length} voice profiles from backend. Active: ${liveVoices[0].displayName} (${liveVoices[0].provider})`);
+        } else {
+          setVoiceProfiles([]);
+          setVoiceProfile(defaultVoice);
         }
       } catch (voiceErr) {
         logger.warn("VOICE", "Voice sync note", voiceErr);
@@ -347,7 +354,15 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const liveVoices = await VoiceApi.getVoices();
       if (liveVoices && liveVoices.length > 0) {
         logger.success("VOICE", `Retrieved ${liveVoices.length} voice profiles from backend`);
-        setVoiceProfile(liveVoices[0]);
+        setVoiceProfiles(liveVoices);
+        setVoiceProfile((prev) => {
+          if (prev && prev.id && liveVoices.some((v) => v.id === prev.id)) {
+            return liveVoices.find((v) => v.id === prev.id) || prev;
+          }
+          return liveVoices[0];
+        });
+      } else {
+        setVoiceProfiles([]);
       }
     } catch (err) {
       logger.info("VOICE", "Using local voices cache", err);
@@ -408,14 +423,26 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }).catch((err) => logger.warn("CHILD", "Child creation sync note", err));
   };
 
-  const deleteVoiceProfile = () => {
-    logger.info("VOICE", `Deleting current voice profile: ${voiceProfile?.displayName}`);
-    if (voiceProfile?.id && voiceProfile.id !== defaultVoice.id) {
-      VoiceApi.deleteVoiceProfile(voiceProfile.id, voiceProfile.provider).catch((err) =>
+  const addVoiceProfile = (newVoice: VoiceProfile) => {
+    logger.info("VOICE", `Adding voice profile to context: ${newVoice.displayName} (${newVoice.id})`);
+    setVoiceProfiles((prev) => [newVoice, ...prev.filter((v) => v.id !== newVoice.id)]);
+    setVoiceProfile(newVoice);
+  };
+
+  const deleteVoiceProfile = (targetId?: string) => {
+    const idToDelete = targetId || voiceProfile?.id;
+    const voiceToDelete = voiceProfiles.find((v) => v.id === idToDelete) || voiceProfile;
+    logger.info("VOICE", `Deleting voice profile: ${voiceToDelete?.displayName} (${idToDelete})`);
+    if (idToDelete && idToDelete !== defaultVoice.id) {
+      VoiceApi.deleteVoiceProfile(idToDelete, voiceToDelete?.provider).catch((err) =>
         logger.warn("VOICE", "Voice delete note", err)
       );
     }
-    setVoiceProfile(defaultVoice);
+    setVoiceProfiles((prev) => {
+      const updated = prev.filter((v) => v.id !== idToDelete);
+      setVoiceProfile(updated.length > 0 ? updated[0] : defaultVoice);
+      return updated;
+    });
   };
 
   const addMemory = (memoryData: Omit<LifeMemory, "id" | "timesUsed" | "createdAt" | "updatedAt">) => {
@@ -517,6 +544,8 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addChild,
         voiceProfile,
         setVoiceProfile,
+        voiceProfiles,
+        addVoiceProfile,
         deleteVoiceProfile,
         memories,
         addMemory,

@@ -42,6 +42,7 @@ export interface VoiceProfile {
   provider: string;
   providerVoiceId: string;
   sourceAudioKey: string;
+  previewAudioUrl?: string;
   languageCode: string;
   status: "pending" | "processing" | "ready" | "failed";
   consentAccepted: boolean;

@@ -28,7 +28,7 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       id: "voice",
-      title: "Voice Profile (Dad)",
+      title: voiceProfile?.displayName ? `Voice Profile (${voiceProfile.displayName})` : "Voice Profiles",
       icon: "mic-outline",
       onPress: () => navigation.navigate("VoiceProfile"),
     },

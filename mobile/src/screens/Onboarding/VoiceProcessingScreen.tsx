@@ -13,7 +13,7 @@ interface Props {
 }
 
 export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { parent, setParent, setVoiceProfile, ensureBackendProfile } = useNila();
+  const { parent, setParent, setVoiceProfile, addVoiceProfile, ensureBackendProfile } = useNila();
   const { recordingUri } = route.params || {};
 
   const [activeStep, setActiveStep] = useState(0);
@@ -66,7 +66,7 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
 
         if (res?.voiceProfile) {
           logger.success("VOICE", `[VoiceProcessingScreen] Voice registered in database: ${res.voiceProfile.displayName} (id: ${res.voiceProfile.id})`);
-          setVoiceProfile(res.voiceProfile);
+          addVoiceProfile(res.voiceProfile);
           setParent((prev) => ({
             ...prev,
             relationship: chosenRel as any,
