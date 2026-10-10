@@ -76,15 +76,39 @@ export class StoryService {
     // Collect included memories - only valid, existing memories from DynamoDB
     let realMemoryIds: string[] = [];
     let memorySnippet = '';
+    let targetMemories: Array<{ memoryId: string; title: string; description: string; wovenStoryCount?: number }> = [];
+
     if (dto.includeMemoryIds && dto.includeMemoryIds.length > 0) {
       const memories = await Promise.all(
         dto.includeMemoryIds.map(id => memoryDao.getMemory(id))
       );
-      const validMemories = memories.filter((m): m is NonNullable<typeof m> => !!m);
-      realMemoryIds = validMemories.map(m => m.memoryId);
-      memorySnippet = validMemories
+      targetMemories = memories.filter((m): m is NonNullable<typeof m> => !!m);
+    } else if (dto.includeLifeMemories) {
+      const existing = await memoryDao.getMemoriesByChildId(dto.childId);
+      if (existing.length > 0) {
+        targetMemories = [existing[0]];
+      } else {
+        const userMemories = await memoryDao.getMemoriesByUserId(userId);
+        if (userMemories.length > 0) {
+          targetMemories = [userMemories[0]];
+        }
+      }
+    }
+
+    if (targetMemories.length > 0) {
+      realMemoryIds = targetMemories.map(m => m.memoryId);
+      memorySnippet = targetMemories
         .map(m => `${m.title}: ${m.description}`)
         .join('. ');
+
+      // Increment wovenStoryCount asynchronously
+      Promise.all(
+        targetMemories.map(m =>
+          memoryDao.updateMemory(m.memoryId, {
+            wovenStoryCount: (m.wovenStoryCount || 0) + 1,
+          })
+        )
+      ).catch(err => logger.warn(`[StoryService] Failed to increment wovenStoryCount: ${err}`));
     }
 
     const storyId = generateId('sty');

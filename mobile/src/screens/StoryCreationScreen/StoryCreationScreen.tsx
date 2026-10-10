@@ -120,11 +120,15 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
 
           if (readyStory) {
             logger.success("STORY", `[StoryCreationScreen] Live story fully ready: "${readyStory.title}"`);
+            const chosenMem = request?.includeLifeMemories && request?.selectedMemoryIds?.length
+              ? memories?.find((m) => request.selectedMemoryIds.includes(m.id))
+              : undefined;
+
             generatedStory = {
               ...readyStory,
               narratorName: request?.voiceName || voiceProfile?.displayName || `${parent?.name || "Dad"}'s Voice`,
-              narratorStyle: `${parent?.dialect || "Chennai"} Â· Spoken Tamil`,
-              inspiredByMemory: request?.includeLifeMemories && memories?.[0] ? memories[0].location || memories[0].title : undefined,
+              narratorStyle: `${parent?.dialect || "Chennai"} · Spoken Tamil`,
+              inspiredByMemory: chosenMem ? chosenMem.title : undefined,
               isFavorite: true,
             };
           }

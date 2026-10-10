@@ -19,21 +19,28 @@ export interface CoreMemory {
 }
 
 export class MemoryApi {
-  static async getMemories(childId?: string, parentId = "parent-001"): Promise<LifeMemory[]> {
-    const query = childId ? `?childId=${childId}` : "";
-    const list = await apiClient.get<CoreMemory[]>(`/memories${query}`);
-    return (list || []).map((m) => ({
+  private static mapToLifeMemory(m: CoreMemory, defaultParentId = "", defaultChildId = ""): LifeMemory {
+    return {
       id: m.memoryId,
-      parentId: m.userId || parentId,
-      childId: m.childId || childId || "",
+      parentId: m.userId || defaultParentId,
+      childId: m.childId || defaultChildId,
       title: m.title,
+      category: (m.tags && m.tags.length > 0) ? m.tags[0] : "FAMILY MEMORY",
       description: m.description,
-      date: m.eventDate || m.createdAt || new Date().toISOString(),
+      date: m.eventDate || (m.createdAt ? m.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10)),
+      emotions: m.tags || [],
+      imageUrl: m.photoUrl,
       useInStories: true,
       timesUsed: m.wovenStoryCount || 0,
       createdAt: m.createdAt,
       updatedAt: m.updatedAt,
-    }));
+    };
+  }
+
+  static async getMemories(childId?: string, parentId = "parent-001"): Promise<LifeMemory[]> {
+    const query = childId ? `?childId=${childId}` : "";
+    const list = await apiClient.get<CoreMemory[]>(`/memories${query}`);
+    return (list || []).map((m) => this.mapToLifeMemory(m, parentId, childId));
   }
 
   static async createMemory(input: {
@@ -54,18 +61,21 @@ export class MemoryApi {
       tags: input.tags,
       photoUrl: input.photoUrl,
     });
-    return {
-      id: res.memoryId,
-      parentId: res.userId || input.parentId || "",
-      childId: res.childId || input.childId || "",
-      title: res.title,
-      description: res.description,
-      date: res.eventDate || res.createdAt || new Date().toISOString(),
-      useInStories: true,
-      timesUsed: res.wovenStoryCount || 0,
-      createdAt: res.createdAt,
-      updatedAt: res.updatedAt,
-    };
+    return this.mapToLifeMemory(res, input.parentId, input.childId);
+  }
+
+  static async updateMemory(
+    memoryId: string,
+    updates: {
+      title?: string;
+      description?: string;
+      eventDate?: string;
+      tags?: string[];
+      photoUrl?: string;
+    }
+  ): Promise<LifeMemory> {
+    const res = await apiClient.put<CoreMemory>(`/memories/${memoryId}`, updates);
+    return this.mapToLifeMemory(res);
   }
 
   static async deleteMemory(memoryId: string): Promise<void> {

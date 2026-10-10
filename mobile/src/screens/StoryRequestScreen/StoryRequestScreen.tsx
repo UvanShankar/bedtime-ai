@@ -184,15 +184,21 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
     setTopic(randomTopic);
   };
 
+  const handleToggleMemorySelection = (memoryId: string) => {
+    setSelectedMemoryIds((prev) =>
+      prev.includes(memoryId) ? prev.filter((id) => id !== memoryId) : [...prev, memoryId]
+    );
+  };
+
   const handleCreate = () => {
     const durationNum = parseInt(duration) || 5;
     const chosenVoice = voiceOptions.find((v) => v.id === selectedVoiceId) || voiceOptions[0];
     previewController.stop().catch(() => {});
 
-    const canIncludeMemories = Boolean(includeLifeMemories && memories && memories.length > 0);
-    const resolvedSelectedMemoryIds = canIncludeMemories
-      ? (selectedMemoryIds.length > 0 ? selectedMemoryIds : [memories[0].id])
-      : [];
+    const canIncludeMemories = Boolean(
+      includeLifeMemories && memories && memories.length > 0 && selectedMemoryIds.length > 0
+    );
+    const resolvedSelectedMemoryIds = canIncludeMemories ? selectedMemoryIds : [];
 
     const requestPayload = {
       parentId: parent?.id || "parent-001",
@@ -419,21 +425,108 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
             <View style={styles.toggleDivider} />
 
             <NilaToggle
-              label={
+              label="Include life memories"
+              sublabel={
                 memories && memories.length > 0
-                  ? `Include life memories (${memories[0].title})`
-                  : "Include life memories (No memories added yet)"
+                  ? selectedMemoryIds.length > 0
+                    ? `${selectedMemoryIds.length} memory selected to weave tonight`
+                    : "Tap below to select which memories to weave"
+                  : "No memories added yet"
               }
               value={Boolean(memories && memories.length > 0 && includeLifeMemories)}
               onValueChange={(val) => {
                 if (memories && memories.length > 0) {
                   setIncludeLifeMemories(val);
+                  if (val && selectedMemoryIds.length === 0) {
+                    setSelectedMemoryIds([memories[0].id]);
+                  }
                 } else {
                   setIncludeLifeMemories(false);
                 }
               }}
               disabled={!memories || memories.length === 0}
             />
+
+            {/* When life memories is enabled, show the selectable memory list */}
+            {includeLifeMemories && memories && memories.length > 0 ? (
+              <View style={styles.memoryPickerSection}>
+                <View style={styles.memoryPickerHeader}>
+                  <Text style={styles.memoryPickerSubtitle}>Select memories to weave:</Text>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate("AddMemory")}
+                    style={styles.addMemoryInlineBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.addMemoryInlineText}>+ Add New</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.memoryCardsList}>
+                  {memories.map((mem) => {
+                    const isSelected = selectedMemoryIds.includes(mem.id);
+                    return (
+                      <TouchableOpacity
+                        key={mem.id}
+                        style={[
+                          styles.memoryCardItem,
+                          isSelected && styles.memoryCardItemSelected,
+                        ]}
+                        onPress={() => handleToggleMemorySelection(mem.id)}
+                        activeOpacity={0.8}
+                      >
+                        <View style={styles.memoryCardItemLeft}>
+                          <View
+                            style={[
+                              styles.memoryCheckbox,
+                              isSelected && styles.memoryCheckboxSelected,
+                            ]}
+                          >
+                            {isSelected ? (
+                              <Ionicons name="checkmark" size={12} color={NilaColors.midnight} />
+                            ) : null}
+                          </View>
+                          <View style={styles.memoryItemInfo}>
+                            <View style={styles.memoryItemTitleRow}>
+                              <Text
+                                style={[
+                                  styles.memoryItemTitle,
+                                  isSelected && styles.memoryItemTitleSelected,
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {mem.title}
+                              </Text>
+                              {mem.date ? (
+                                <Text style={styles.memoryItemDate}>{mem.date}</Text>
+                              ) : null}
+                            </View>
+                            <Text
+                              style={styles.memoryItemSnippet}
+                              numberOfLines={2}
+                            >
+                              {mem.description}
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+
+            {(!memories || memories.length === 0) ? (
+              <TouchableOpacity
+                style={styles.emptyMemoryBanner}
+                onPress={() => navigation.navigate("AddMemory")}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="sparkles" size={14} color={NilaColors.gold} />
+                <Text style={styles.emptyMemoryBannerText}>
+                  + Add a real family memory to weave tonight
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </View>
       </ScrollView>
@@ -616,5 +709,113 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: NilaColors.cardBorderSubtle,
+  },
+  memoryPickerSection: {
+    marginTop: 10,
+    marginBottom: 6,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: NilaColors.cardBorderSubtle,
+  },
+  memoryPickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  memoryPickerSubtitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: NilaColors.textMuted,
+    letterSpacing: 0.5,
+  },
+  addMemoryInlineBtn: {
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
+  addMemoryInlineText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: NilaColors.gold,
+  },
+  memoryCardsList: {
+    gap: 8,
+  },
+  memoryCardItem: {
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: NilaColors.cardBorderSubtle,
+  },
+  memoryCardItemSelected: {
+    borderColor: NilaColors.gold,
+    backgroundColor: "rgba(245, 199, 106, 0.08)",
+  },
+  memoryCardItemLeft: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  memoryCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: NilaColors.cardBorder,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+    marginTop: 1,
+  },
+  memoryCheckboxSelected: {
+    backgroundColor: NilaColors.gold,
+    borderColor: NilaColors.gold,
+  },
+  memoryItemInfo: {
+    flex: 1,
+  },
+  memoryItemTitleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 3,
+  },
+  memoryItemTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: NilaColors.textPrimary,
+    flex: 1,
+    marginRight: 8,
+  },
+  memoryItemTitleSelected: {
+    color: NilaColors.gold,
+  },
+  memoryItemDate: {
+    fontSize: 11,
+    color: NilaColors.textMuted,
+  },
+  memoryItemSnippet: {
+    fontSize: 12,
+    color: NilaColors.textSecondary,
+    lineHeight: 17,
+  },
+  emptyMemoryBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    marginTop: 8,
+    marginBottom: 4,
+    backgroundColor: "rgba(245, 199, 106, 0.08)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "rgba(245, 199, 106, 0.3)",
+  },
+  emptyMemoryBannerText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: NilaColors.gold,
   },
 });

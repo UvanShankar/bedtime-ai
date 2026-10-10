@@ -35,9 +35,15 @@ export class MemoryService {
   }
 
   async getMemories(userId: string, childId?: string): Promise<IMemorySchema[]> {
-    const list = childId
-      ? await memoryDao.getMemoriesByChildId(childId)
-      : await memoryDao.getMemoriesByUserId(userId);
+    let list: IMemorySchema[] = [];
+    if (childId) {
+      list = await memoryDao.getMemoriesByChildId(childId);
+    }
+    // If no memories found specifically for this child, or no childId specified,
+    // fetch all memories belonging to the authenticated parent/user
+    if (!list || list.length === 0) {
+      list = await memoryDao.getMemoriesByUserId(userId);
+    }
     logger.debug(`📸 [MemoryService] Retrieved ${list.length} memories for user=${userId}, childId=${childId || 'all'}`);
     return list;
   }

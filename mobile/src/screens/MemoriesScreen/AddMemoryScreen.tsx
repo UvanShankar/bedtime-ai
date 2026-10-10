@@ -59,12 +59,23 @@ export const AddMemoryScreen: React.FC<Props> = ({ route, navigation }) => {
       return;
     }
 
+    const fallbackTitle = description.trim().length > 35
+      ? description.trim().slice(0, 35) + "..."
+      : description.trim();
+    const finalTitle = title.trim() || fallbackTitle || "Family memory";
+
+    const formattedDate = when === "Today"
+      ? new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : when === "Yesterday"
+      ? new Date(Date.now() - 86400000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : when;
+
     if (memoryToEdit) {
       updateMemory({
         ...memoryToEdit,
-        title: title.trim() || "Bedtime memory",
+        title: finalTitle,
         description: description.trim(),
-        date: when === "Today" ? new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : when,
+        date: formattedDate,
         people: who,
         emotions,
         useInStories,
@@ -73,9 +84,9 @@ export const AddMemoryScreen: React.FC<Props> = ({ route, navigation }) => {
       addMemory({
         parentId: selectedChild?.parentId || "parent-001",
         childId: selectedChild?.id || "child-001",
-        title: title.trim() || "Bedtime memory",
+        title: finalTitle,
         description: description.trim(),
-        date: when === "Today" ? new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : when,
+        date: formattedDate,
         people: who,
         emotions,
         useInStories,
@@ -88,12 +99,22 @@ export const AddMemoryScreen: React.FC<Props> = ({ route, navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <NilaHeader
-        title="Save a little memory"
+        title={memoryToEdit ? "Edit memory" : "Save a little memory"}
         subtitle="Nila turns this moment into bedtime magic."
         onBack={() => navigation.goBack()}
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Memory Title */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>MEMORY TITLE</Text>
+          <NilaTextInput
+            placeholder="e.g. Marina Beach Trip, First Bike Ride, Making Dosas..."
+            value={title}
+            onChangeText={setTitle}
+          />
+        </View>
+
         {/* What Happened */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>WHAT HAPPENED?</Text>
@@ -181,7 +202,10 @@ export const AddMemoryScreen: React.FC<Props> = ({ route, navigation }) => {
       </ScrollView>
 
       <View style={styles.footer}>
-        <NilaButton title="Save Memory to Nila" onPress={handleSave} />
+        <NilaButton
+          title={memoryToEdit ? "Update Memory" : "Save Memory to Nila"}
+          onPress={handleSave}
+        />
       </View>
     </SafeAreaView>
   );

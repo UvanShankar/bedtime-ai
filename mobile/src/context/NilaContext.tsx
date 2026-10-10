@@ -329,12 +329,13 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const refreshMemoriesFromBackend = async () => {
+  const refreshMemoriesFromBackend = async (childIdToUse?: string) => {
     try {
-      const liveMemories = await MemoryApi.getMemories(selectedChild?.id);
+      const targetChildId = childIdToUse || selectedChild?.id;
+      const liveMemories = await MemoryApi.getMemories(targetChildId);
       setMemories(liveMemories || []);
       if (liveMemories && liveMemories.length > 0) {
-        logger.success("MEMORY", `Retrieved ${liveMemories.length} memories for ${selectedChild?.name}`);
+        logger.success("MEMORY", `Retrieved ${liveMemories.length} memories for ${selectedChild?.name || "active profile"}`);
       }
     } catch (err) {
       logger.info("MEMORY", "Using local memories cache", err);
@@ -356,6 +357,7 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleSelectChild = (child: ChildProfile) => {
     logger.info("CHILD", `Active child selected: ${child.name} (age: ${child.age}, id: ${child.id})`);
     setSelectedChild(child);
+    refreshMemoriesFromBackend(child.id).catch(() => {});
   };
 
   const updateChild = (updated: ChildProfile) => {
@@ -444,12 +446,28 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateMemory = (updated: LifeMemory) => {
     logger.info("MEMORY", `Updating memory: "${updated.title}" (${updated.id})`);
     setMemories((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+
+    // Persist to DynamoDB
+    MemoryApi.updateMemory(updated.id, {
+      title: updated.title,
+      description: updated.description,
+      eventDate: updated.date,
+      tags: updated.emotions,
+      photoUrl: updated.imageUrl,
+    })
+      .then((saved) => {
+        logger.success("MEMORY", `Memory updated on backend: "${saved.title}" (${saved.id})`);
+        setMemories((prev) => prev.map((m) => (m.id === updated.id ? saved : m)));
+      })
+      .catch((err) => logger.warn("MEMORY", "Memory update sync note", err));
   };
 
   const deleteMemory = (id: string) => {
     logger.info("MEMORY", `Deleting memory: ${id}`);
     setMemories((prev) => prev.filter((m) => m.id !== id));
-    MemoryApi.deleteMemory(id).catch((err) => logger.warn("MEMORY", "Memory delete note", err));
+    MemoryApi.deleteMemory(id)
+      .then(() => logger.success("MEMORY", `Memory deleted from backend: ${id}`))
+      .catch((err) => logger.warn("MEMORY", "Memory delete note", err));
   };
 
   const addStory = (story: Story) => {

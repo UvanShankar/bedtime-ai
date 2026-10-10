@@ -47,7 +47,9 @@ export class MemoryDao {
 
   async updateMemory(memoryId: string, updates: Partial<IMemorySchema>): Promise<void> {
     const timestamp = new Date().toISOString();
-    const updateKeys = Object.keys(updates).filter(k => k !== 'memoryId' && k !== 'userId');
+    const updateKeys = Object.keys(updates).filter(
+      k => k !== 'memoryId' && k !== 'userId' && (updates as any)[k] !== undefined
+    );
     if (updateKeys.length === 0) return;
 
     let updateExp = 'SET ' + updateKeys.map(k => `#${k} = :${k}`).join(', ') + ', updatedAt = :t';
