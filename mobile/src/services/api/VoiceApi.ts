@@ -95,8 +95,8 @@ export class VoiceApi {
       // Step C: Register voice profile in DynamoDB via nila-core-service
       logger.info("VOICE", `[Step 3/3] Registering voice profile in backend with provider=${selectedProvider}...`);
       const registered = await apiClient.post<any>("/voices", {
-        displayName: input.displayName || "Appa's Voice",
-        relationship: input.relationship || "Appa",
+        displayName: input.displayName || `${input.relationship || "Parent"}'s Voice`,
+        relationship: input.relationship || "Parent",
         sampleAudioS3Key: key,
         sampleDurationSeconds: 30,
         consentAffirmed: input.consent,
@@ -114,7 +114,7 @@ export class VoiceApi {
         languageCode: "ta",
         status: (registered?.status?.toLowerCase() as any) || "ready",
         consentAccepted: true,
-        displayName: input.displayName || registered?.displayName || "Appa's Voice",
+        displayName: input.displayName || registered?.displayName || `${input.relationship || "Parent"}'s Voice`,
         accentDialect: "Tamil Â· Natural conversational",
         sampleDuration: "30s sample",
         createdAt: registered?.createdAt || now,

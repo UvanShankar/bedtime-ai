@@ -20,7 +20,7 @@ interface Props {
 }
 
 export const VoiceProfileScreen: React.FC<Props> = ({ navigation }) => {
-  const { voiceProfile, deleteVoiceProfile } = useNila();
+  const { parent, voiceProfile, deleteVoiceProfile } = useNila();
   const { state: audioState, controller } = useAudioPlayer();
 
   const handlePreview = async () => {
@@ -83,7 +83,7 @@ export const VoiceProfileScreen: React.FC<Props> = ({ navigation }) => {
             <Ionicons name="mic" size={32} color={NilaColors.gold} />
           </View>
           <Text style={styles.voiceName}>
-            {voiceProfile?.displayName || `${parent?.name || "Dad"}'s Voice Clone`}
+            {voiceProfile?.displayName || `${parent?.relationship === "Amma" || parent?.relationship === "mother" ? "Amma" : parent?.relationship === "Appa" || parent?.relationship === "father" ? "Appa" : parent?.name || "Parent"}'s Voice Clone`}
           </Text>
           <View style={styles.statusBadge}>
             <Text style={styles.statusText}>

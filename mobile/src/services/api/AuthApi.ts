@@ -120,7 +120,6 @@ export class AuthApi {
         phoneNumber: defaultMobile,
         otp: "123456",
         fullName: defaultName,
-        relationship: "Appa",
       });
       return authRes.tokens.accessToken;
     } catch {
@@ -131,7 +130,6 @@ export class AuthApi {
           phoneNumber: defaultMobile,
           otp: code,
           fullName: defaultName,
-          relationship: "Appa",
         });
         return authRes.tokens.accessToken;
       } catch (e: any) {

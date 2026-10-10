@@ -182,6 +182,36 @@ export const SignupScreen: React.FC<Props> = ({ navigation }) => {
                 }}
               />
 
+              <Text style={styles.fieldLabel}>I am...</Text>
+              <View style={styles.relSelectorRow}>
+                {[
+                  { label: "🌸 Amma", val: "Amma" },
+                  { label: "⭐ Appa", val: "Appa" },
+                  { label: "👵 Paati", val: "Paati" },
+                  { label: "👴 Thatha", val: "Thatha" },
+                  { label: "✨ Other", val: "Other" },
+                ].map((item) => (
+                  <TouchableOpacity
+                    key={item.val}
+                    style={[
+                      styles.relPill,
+                      relationship === item.val && styles.relPillActive,
+                    ]}
+                    onPress={() => setRelationship(item.val)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.relPillText,
+                        relationship === item.val && styles.relPillTextActive,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               <Text style={styles.fieldLabel}>Mobile Number</Text>
               <View style={styles.phoneInputRow}>
                 <View style={styles.countryCodeBox}>
@@ -447,5 +477,32 @@ const styles = StyleSheet.create({
   switchAuthHighlight: {
     color: NilaColors.gold,
     fontWeight: "600",
+  },
+  relSelectorRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 16,
+  },
+  relPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: NilaColors.surfaceLight,
+    borderWidth: 1,
+    borderColor: NilaColors.cardBorderSubtle,
+  },
+  relPillActive: {
+    backgroundColor: "rgba(245, 199, 106, 0.15)",
+    borderColor: NilaColors.gold,
+  },
+  relPillText: {
+    fontSize: 13,
+    color: NilaColors.textSecondary,
+    fontWeight: "500",
+  },
+  relPillTextActive: {
+    color: NilaColors.gold,
+    fontWeight: "700",
   },
 });

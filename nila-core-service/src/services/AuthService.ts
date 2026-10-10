@@ -21,6 +21,17 @@ export function normalizePhoneNumber(raw: string): string {
   return '+' + cleaned;
 }
 
+export function normalizeRelationship(rel?: string): string {
+  if (!rel) return 'Parent';
+  const lower = rel.trim().toLowerCase();
+  if (lower === 'mother' || lower === 'mom' || lower === 'amma') return 'Amma';
+  if (lower === 'father' || lower === 'dad' || lower === 'appa') return 'Appa';
+  if (lower === 'grandmother' || lower === 'paati' || lower === 'patti') return 'Paati';
+  if (lower === 'grandfather' || lower === 'thatha' || lower === 'tata') return 'Thatha';
+  if (lower === 'other' || lower === 'guardian') return 'Other';
+  return rel.trim();
+}
+
 export class AuthService {
   async sendOtp(dto: ISendOtpDTO): Promise<{
     success: boolean;
@@ -140,7 +151,7 @@ export class AuthService {
         userId,
         ...(dto.fullName?.trim() && { fullName: dto.fullName.trim() }),
         mobile,
-        ...(dto.relationship && { relationship: dto.relationship as any }),
+        ...(dto.relationship && { relationship: normalizeRelationship(dto.relationship) as any }),
         isVerified: true,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -153,8 +164,9 @@ export class AuthService {
       if (dto.fullName && dto.fullName.trim()) {
         updates.fullName = dto.fullName.trim();
       }
-      if (dto.relationship) {
-        updates.relationship = dto.relationship as any;
+      // Only set relationship if the existing user profile doesn't have one set yet
+      if (dto.relationship && !user.relationship) {
+        updates.relationship = normalizeRelationship(dto.relationship) as any;
       }
       await userDao.updateUser(user.userId, updates).catch((err) => logger.warn('[AuthService] Update user err:', { err: err?.message }));
       user = { ...user, ...updates };
@@ -226,8 +238,8 @@ export class AuthService {
       if (dto.fullName && dto.fullName.trim()) {
         updates.fullName = dto.fullName.trim();
       }
-      if (dto.relationship) {
-        updates.relationship = dto.relationship as any;
+      if (dto.relationship && !existing.relationship) {
+        updates.relationship = normalizeRelationship(dto.relationship) as any;
       }
       if (dto.email && !existing.email) {
         updates.email = dto.email;
@@ -271,7 +283,7 @@ export class AuthService {
       mobile,
       email: dto.email,
       passwordHash,
-      ...(dto.relationship && { relationship: dto.relationship as any }),
+      ...(dto.relationship && { relationship: normalizeRelationship(dto.relationship) as any }),
       isVerified: true,
       createdAt: timestamp,
       updatedAt: timestamp,

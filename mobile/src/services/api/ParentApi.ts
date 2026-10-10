@@ -185,7 +185,7 @@ export class ParentApi {
     return {
       id: res.userId,
       name: res.fullName,
-      relationship: (res.relationship?.toLowerCase() as any) || "father",
+      relationship: res.relationship || "Appa",
       language: res.preferredLanguage === "ta" ? "Tamil" : "English",
       languageCode: res.preferredLanguage || "ta",
       dialect: res.preferredDialect || "Chennai",

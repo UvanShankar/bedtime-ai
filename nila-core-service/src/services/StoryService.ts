@@ -10,6 +10,17 @@ import { generateId } from '../utils';
 import { ApiError, NotFoundError, ValidationError } from '../exceptions/ApiError';
 import logger from '../logger';
 
+export function normalizeRelationship(rel?: string): string {
+  if (!rel) return 'Appa';
+  const lower = rel.trim().toLowerCase();
+  if (lower === 'mother' || lower === 'mom' || lower === 'amma') return 'Amma';
+  if (lower === 'father' || lower === 'dad' || lower === 'appa') return 'Appa';
+  if (lower === 'grandmother' || lower === 'paati' || lower === 'patti') return 'Paati';
+  if (lower === 'grandfather' || lower === 'thatha' || lower === 'tata') return 'Thatha';
+  if (lower === 'other' || lower === 'guardian') return 'Other';
+  return rel.trim();
+}
+
 export class StoryService {
   async requestStory(userId: string, dto: IRequestStoryDTO): Promise<IStorySchema> {
     logger.info(`📖 [StoryService] Requesting story generation for user=${userId}, childId=${dto.childId}`, {
@@ -33,15 +44,17 @@ export class StoryService {
       throw new NotFoundError(`Child profile ${dto.childId} not found`);
     }
 
-    const parentRelationship = user?.relationship || 'Appa';
-
     let aiVoiceId: string | undefined;
     let resolvedTtsProvider = dto.ttsProvider || dto.voiceProvider || dto.provider;
     let resolvedSpeaker = dto.speaker || dto.voiceName;
+    let voiceProfileRel: string | undefined;
 
     if (dto.voiceId) {
       const voice = await voiceProfileDao.getVoice(dto.voiceId, resolvedTtsProvider);
       if (voice) {
+        if (voice.relationship) {
+          voiceProfileRel = voice.relationship;
+        }
         if (voice.aiServiceVoiceId) {
           aiVoiceId = voice.aiServiceVoiceId;
         }
@@ -52,11 +65,13 @@ export class StoryService {
         if (!resolvedSpeaker && (voice.providerVoiceId || voice.aiServiceVoiceId)) {
           resolvedSpeaker = voice.providerVoiceId || voice.aiServiceVoiceId;
         }
-        logger.debug(`🎤 [StoryService] Coupled voiceId="${dto.voiceId}" with provider="${resolvedTtsProvider}", aiVoiceId="${aiVoiceId || 'none'}"`);
+        logger.debug(`🎤 [StoryService] Coupled voiceId="${dto.voiceId}" with provider="${resolvedTtsProvider}", aiVoiceId="${aiVoiceId || 'none'}", rel="${voiceProfileRel || 'none'}"`);
       } else {
         logger.warn(`⚠️ [StoryService] Voice profile "${dto.voiceId}" not found in DAO; proceeding with default voice`);
       }
     }
+
+    const parentRelationship = normalizeRelationship(dto.relationship || voiceProfileRel || user?.relationship || 'Appa');
 
     // Collect included memories
     let memorySnippet = '';

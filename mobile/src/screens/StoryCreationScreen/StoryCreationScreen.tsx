@@ -58,6 +58,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
         const initialStory = await StoryApi.generateStory({
           parentId,
           childId,
+          relationship: request?.relationship || parent?.relationship || "Appa",
           topic,
           storyType: request?.storyType || "bedtime_calm",
           mood: request?.mood || "Gentle & Sleepy",

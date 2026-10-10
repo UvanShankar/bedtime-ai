@@ -87,7 +87,9 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
   const recordedVoiceOption = hasRecordedVoice
     ? {
         id: voiceProfile!.id,
-        name: voiceProfile!.displayName || `${parent?.name || "Dad"}'s Voice`,
+        name:
+          voiceProfile!.displayName ||
+          `${parent?.relationship === "Amma" || parent?.relationship === "mother" ? "Amma" : parent?.relationship === "Appa" || parent?.relationship === "father" ? "Appa" : parent?.name || "Parent"}'s Voice`,
         speaker: voiceProfile!.providerVoiceId || voiceProfile!.id,
         provider: voiceProfile!.provider || "sarvam",
         isCloned: true,
@@ -189,6 +191,7 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
     const requestPayload = {
       parentId: parent?.id || "parent-001",
       childId: selectedChild?.id || "child-001",
+      relationship: parent?.relationship || "Appa",
       topic,
       storyType,
       mood,

@@ -49,7 +49,7 @@ interface NilaContextType {
 const defaultParent: ParentProfile = {
   id: "parent-uvan-001",
   name: "Uvan",
-  relationship: "father",
+  relationship: "Appa",
   language: "Tamil",
   languageCode: "ta",
   dialect: "Chennai",
@@ -291,7 +291,7 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ...prev,
             id: liveParent.userId,
             name: liveParent.fullName || prev.name,
-            relationship: (liveParent.relationship?.toLowerCase() as any) || prev.relationship,
+            relationship: liveParent.relationship || prev.relationship,
           }));
           logger.success("PROFILE", `Synced parent profile: ${liveParent.fullName} (${liveParent.userId})`);
         }

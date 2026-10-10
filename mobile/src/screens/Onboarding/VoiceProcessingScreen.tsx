@@ -13,7 +13,7 @@ interface Props {
 }
 
 export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { parent, setVoiceProfile, ensureBackendProfile } = useNila();
+  const { parent, setParent, setVoiceProfile, ensureBackendProfile } = useNila();
   const { recordingUri } = route.params || {};
 
   const [activeStep, setActiveStep] = useState(0);
@@ -48,19 +48,26 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
           logger.warn("VOICE", `[VoiceProcessingScreen] Profile sync note: ${authErr.message}`);
         }
 
+        const chosenRel = route.params?.relationship || parent?.relationship || "Parent";
+        const chosenName = route.params?.displayName || (parent?.name ? `${parent.name}'s Voice` : `${chosenRel}'s Voice`);
+
         // 2. Upload voice sample and register in backend
         const res = await VoiceApi.uploadVoiceSample({
           parentId: parentId || "parent-001",
           audioUri: recordingUri,
           consent: true,
-          displayName: route.params?.displayName || `${parent?.name || "Appa"}'s Voice`,
-          relationship: route.params?.relationship || parent?.relationship || "Appa",
+          displayName: chosenName,
+          relationship: chosenRel,
           provider: "sarvam",
         });
 
         if (res?.voiceProfile) {
           logger.success("VOICE", `[VoiceProcessingScreen] Voice registered in database: ${res.voiceProfile.displayName} (id: ${res.voiceProfile.id})`);
           setVoiceProfile(res.voiceProfile);
+          setParent((prev) => ({
+            ...prev,
+            relationship: chosenRel as any,
+          }));
 
           if (isMounted) {
             setActiveStep(2);

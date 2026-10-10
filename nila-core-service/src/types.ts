@@ -105,6 +105,7 @@ export interface IRegisterVoiceDTO {
 
 export interface IRequestStoryDTO {
   childId: string;
+  relationship?: string;
   voiceId?: string;
   theme?: string; // 'space', 'animals', 'adventure', 'moral', 'bedtime_calm'
   mood?: string; // 'Warm & Funny', 'Gentle & Sleepy', 'Cozy', 'Magical', 'Peaceful', 'Playful'

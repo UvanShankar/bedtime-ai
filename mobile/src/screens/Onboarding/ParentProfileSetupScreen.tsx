@@ -7,6 +7,7 @@ import { NilaTextInput } from "../../components/common/NilaTextInput";
 import { NilaPill } from "../../components/common/NilaPill";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
+import { ParentApi } from "../../services/api/ParentApi";
 
 interface Props {
   navigation: any;
@@ -15,27 +16,42 @@ interface Props {
 export const ParentProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   const { parent, setParent } = useNila();
 
-  const [parentName, setParentName] = useState(parent.name || "David");
-  const [relationship, setRelationship] = useState(parent.relationship || "father");
+  const normalizedInitialRel = 
+    parent.relationship?.toLowerCase() === "mother" || parent.relationship === "Amma"
+      ? "Amma"
+      : parent.relationship?.toLowerCase() === "father" || parent.relationship === "Appa"
+      ? "Appa"
+      : parent.relationship || "Appa";
+
+  const [parentName, setParentName] = useState(parent.name || "Uvan");
+  const [relationship, setRelationship] = useState(normalizedInitialRel);
   const [childNickname, setChildNickname] = useState(parent.preferredChildName || "Kanna");
 
   const relationships = [
-    { label: "Mother", value: "mother" },
-    { label: "Father", value: "father" },
-    { label: "Grandparent", value: "grandparent" },
-    { label: "Guardian", value: "guardian" },
-    { label: "Other", value: "other" },
+    { label: "🌸 Amma", value: "Amma" },
+    { label: "⭐ Appa", value: "Appa" },
+    { label: "👵 Paati", value: "Paati" },
+    { label: "👴 Thatha", value: "Thatha" },
+    { label: "✨ Other", value: "Other" },
   ];
 
   const nicknameSuggestions = ["Kanna", "Kutty", "Chellam", "Rasa", "Champ"];
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     setParent((prev) => ({
       ...prev,
       name: parentName,
       relationship: relationship as any,
       preferredChildName: childNickname,
     }));
+    try {
+      await ParentApi.updateProfile({
+        fullName: parentName,
+        relationship,
+      });
+    } catch (e: any) {
+      console.warn("[ParentProfileSetup] Update backend profile note:", e.message);
+    }
     navigation.navigate("ChildProfileSetup");
   };
 

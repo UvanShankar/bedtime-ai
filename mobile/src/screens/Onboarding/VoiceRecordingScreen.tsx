@@ -18,6 +18,7 @@ import { NilaHeader } from "../../components/common/NilaHeader";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useVoiceRecorder } from "../../hooks/useVoiceRecorder";
 import { VoiceApi } from "../../services/api/VoiceApi";
+import { ParentApi } from "../../services/api/ParentApi";
 import { useNila } from "../../context/NilaContext";
 
 interface Props {
@@ -25,7 +26,7 @@ interface Props {
 }
 
 export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
-  const { parent, setVoiceProfile } = useNila();
+  const { parent, setParent, setVoiceProfile } = useNila();
 
   const [scriptsList, setScriptsList] = useState<string[]>([
     "நிலா வானில் மெல்ல வந்து, படுக்கை அறையை தன் மென்மையான ஒளியால் நிறைத்தது. குட்டி மான் கண்ணை மூடி தூங்கியது.",
@@ -35,7 +36,15 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
 
   const [scriptIndex, setScriptIndex] = useState(0);
 
-  const initialDefaultName = parent?.name ? `${parent.name}'s Voice` : "Appa's Voice";
+  const initialRel = parent?.relationship === "Amma" || parent?.relationship?.toLowerCase() === "mother"
+    ? "Amma"
+    : parent?.relationship === "Appa" || parent?.relationship?.toLowerCase() === "father"
+    ? "Appa"
+    : parent?.relationship || "Appa";
+
+  const [selectedRelationship, setSelectedRelationship] = useState(initialRel);
+
+  const initialDefaultName = parent?.name ? `${parent.name}'s Voice` : `${initialRel}'s Voice`;
   const [voiceName, setVoiceName] = useState(initialDefaultName);
   const [showNameModal, setShowNameModal] = useState(false);
 
@@ -80,12 +89,17 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleConfirmVoiceGeneration = () => {
     setShowNameModal(false);
-    const finalName = voiceName.trim() || initialDefaultName;
+    const finalName = voiceName.trim() || `${selectedRelationship}'s Voice`;
+    setParent((prev) => ({
+      ...prev,
+      relationship: selectedRelationship as any,
+    }));
+    ParentApi.updateProfile({ relationship: selectedRelationship }).catch(() => {});
     navigation.navigate("VoiceProcessing", {
       recordingUri,
       parentId: parent.id,
       displayName: finalName,
-      relationship: parent.relationship || "Appa",
+      relationship: selectedRelationship,
     });
   };
 
@@ -236,18 +250,54 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
               <Ionicons name="mic" size={26} color={NilaColors.gold} />
             </View>
 
-            <Text style={styles.modalTitle}>Name Your Voice</Text>
+            <Text style={styles.modalTitle}>Voice Profile Setup</Text>
             <Text style={styles.modalSubtitle}>
-              Give this voice profile a name so you can easily select it when creating bedtime stories.
+              Who is speaking, and what should we call this voice profile?
             </Text>
 
+            <Text style={styles.modalFieldLabel}>Voice Belongs To</Text>
+            <View style={styles.modalRelRow}>
+              {[
+                { label: "🌸 Amma", val: "Amma" },
+                { label: "⭐ Appa", val: "Appa" },
+                { label: "👵 Paati", val: "Paati" },
+                { label: "👴 Thatha", val: "Thatha" },
+                { label: "✨ Other", val: "Other" },
+              ].map((item) => (
+                <TouchableOpacity
+                  key={item.val}
+                  style={[
+                    styles.modalRelPill,
+                    selectedRelationship === item.val && styles.modalRelPillActive,
+                  ]}
+                  onPress={() => {
+                    setSelectedRelationship(item.val);
+                    if (!voiceName || voiceName.endsWith("'s Voice")) {
+                      setVoiceName(parent?.name ? `${parent.name}'s Voice` : `${item.val}'s Voice`);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.modalRelPillText,
+                      selectedRelationship === item.val && styles.modalRelPillTextActive,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.modalFieldLabel}>Voice Profile Name</Text>
             <View style={styles.modalInputWrapper}>
               <Ionicons name="pencil" size={16} color={NilaColors.lavender} style={styles.modalInputIcon} />
               <TextInput
                 style={styles.modalTextInput}
                 value={voiceName}
                 onChangeText={setVoiceName}
-                placeholder="e.g. Uvan's Voice, Appa's Voice"
+                placeholder="e.g. Amma's Voice, Appa's Voice"
                 placeholderTextColor={NilaColors.textMuted}
                 autoFocus
                 autoCapitalize="words"
@@ -492,7 +542,44 @@ const styles = StyleSheet.create({
     color: NilaColors.textSecondary,
     textAlign: "center",
     lineHeight: 20,
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  modalFieldLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: NilaColors.lavender,
+    alignSelf: "flex-start",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  modalRelRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    width: "100%",
+    marginBottom: 16,
+  },
+  modalRelPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    backgroundColor: NilaColors.midnight,
+    borderWidth: 1,
+    borderColor: NilaColors.cardBorderSubtle,
+  },
+  modalRelPillActive: {
+    backgroundColor: "rgba(245, 199, 106, 0.15)",
+    borderColor: NilaColors.gold,
+  },
+  modalRelPillText: {
+    fontSize: 13,
+    color: NilaColors.textSecondary,
+    fontWeight: "500",
+  },
+  modalRelPillTextActive: {
+    color: NilaColors.gold,
+    fontWeight: "700",
   },
   modalInputWrapper: {
     flexDirection: "row",

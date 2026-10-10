@@ -44,6 +44,7 @@ export class StoryApi {
   static async generateStory(
     input: StoryRequestInput & {
       promptIdea?: string;
+      relationship?: string;
       voiceProfileId?: string;
       moralTheme?: string;
       voiceProvider?: string;
@@ -54,6 +55,7 @@ export class StoryApi {
   ): Promise<Story> {
     const payload = {
       childId: input.childId,
+      relationship: input.relationship || undefined,
       voiceId: input.voiceProfileId || undefined,
       provider: input.voiceProvider || undefined,
       speaker: input.speaker || undefined,
