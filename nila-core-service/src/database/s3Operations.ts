@@ -28,13 +28,12 @@ export const s3Client = new S3Client({
 export async function getPresignedUploadUrl(params: {
   Bucket: string;
   Key: string;
-  ContentType: string;
+  ContentType?: string;
   expiresInSeconds?: number;
 }): Promise<string> {
   const command = new PutObjectCommand({
     Bucket: params.Bucket,
     Key: params.Key,
-    ContentType: params.ContentType,
   });
   return await getSignedUrl(s3Client, command, { expiresIn: params.expiresInSeconds || 900 });
 }

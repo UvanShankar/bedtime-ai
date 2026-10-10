@@ -69,8 +69,8 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
           includeLifeMemories: request?.includeLifeMemories ?? true,
           selectedMemoryIds: request?.selectedMemoryIds,
           realWorldFacts: false,
-          voiceProfileId: request?.voiceProfileId || (request?.speaker ? undefined : voiceProfile?.id) || undefined,
-          voiceProvider: request?.voiceProvider || voiceProfile?.provider || undefined,
+          voiceProfileId: request?.voiceProfileId || undefined,
+          voiceProvider: request?.voiceProvider || "sarvam",
           speaker: request?.speaker || undefined,
           voiceName: request?.voiceName || undefined,
           dialect: parent?.dialect || selectedChild?.storySettings?.tamilDialect || "Chennai",
@@ -114,7 +114,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
             generatedStory = {
               ...readyStory,
               narratorName: request?.voiceName || voiceProfile?.displayName || `${parent?.name || "Dad"}'s Voice`,
-              narratorStyle: `${parent?.dialect || "Chennai"} · Spoken Tamil`,
+              narratorStyle: `${parent?.dialect || "Chennai"} Â· Spoken Tamil`,
               inspiredByMemory: request?.includeLifeMemories && memories?.[0] ? memories[0].location || memories[0].title : undefined,
               isFavorite: true,
             };
@@ -185,7 +185,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
         {/* Glow Moon */}
         <View style={styles.illustrationWrapper}>
           <View style={styles.glowCircle} />
-          <Text style={styles.moonIcon}>☾</Text>
+          <Text style={styles.moonIcon}>â˜¾</Text>
         </View>
 
         <Text style={styles.title}>Creating tonight's story...</Text>

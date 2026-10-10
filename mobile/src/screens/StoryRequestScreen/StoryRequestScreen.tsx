@@ -40,40 +40,48 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
   const defaultPresets = [
     {
       id: "voc_preset_priya",
-      name: "Amma / Priya (அம்மா)",
+      name: "Amma / Priya (à®…à®®à¯à®®à®¾)",
       speaker: "priya",
       provider: "sarvam",
       isCloned: false,
       tag: "Warm & Gentle",
       description: "Loving motherly Tamil narration",
-      avatar: "👩",
+      avatar: "ðŸ‘©",
       previewUrl: "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3",
     },
     {
       id: "voc_preset_karun",
-      name: "Appa / Karun (அப்பா)",
+      name: "Appa / Karun (à®…à®ªà¯à®ªà®¾)",
       speaker: "karun",
       provider: "sarvam",
       isCloned: false,
       tag: "Cozy Bedtime",
       description: "Deep, gentle fatherly storytelling",
-      avatar: "👨",
+      avatar: "ðŸ‘¨",
       previewUrl: "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_0031d1d3f756_1791578804598.mp3",
     },
     {
       id: "voc_preset_kavitha",
-      name: "Paati / Kavitha (பாட்டி)",
+      name: "Paati / Kavitha (à®ªà®¾à®Ÿà¯à®Ÿà®¿)",
       speaker: "kavitha",
       provider: "sarvam",
       isCloned: false,
       tag: "Storyteller",
       description: "Traditional grandmother story cadence",
-      avatar: "👵",
+      avatar: "ðŸ‘µ",
       previewUrl: "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3",
     },
   ];
 
-  const hasRecordedVoice = !!(voiceProfile && voiceProfile.id && voiceProfile.status !== "failed");
+  // Only treat as recorded voice if it is a real custom profile, not the static mock default
+  const hasRecordedVoice = !!(
+    voiceProfile &&
+    voiceProfile.id &&
+    voiceProfile.id !== "voc_default_priya" &&
+    voiceProfile.sourceAudioKey &&
+    voiceProfile.sourceAudioKey.trim() !== "" &&
+    voiceProfile.status !== "failed"
+  );
 
   const recordedVoiceOption = hasRecordedVoice
     ? {
@@ -82,9 +90,9 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
         speaker: voiceProfile!.providerVoiceId || voiceProfile!.id,
         provider: voiceProfile!.provider || "sarvam",
         isCloned: true,
-        tag: "✨ Your Cloned Voice",
+        tag: "âœ¨ Your Cloned Voice",
         description: "Your own warm voice narrating to your child",
-        avatar: "🎙️",
+        avatar: "ðŸŽ™ï¸",
         previewUrl:
           (voiceProfile!.sourceAudioKey && (voiceProfile!.sourceAudioKey.startsWith("file") || voiceProfile!.sourceAudioKey.startsWith("http"))
             ? voiceProfile!.sourceAudioKey
@@ -217,7 +225,7 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
               onPress={handleSurpriseMe}
               activeOpacity={0.7}
             >
-              <Text style={styles.surpriseText}>✨ Surprise me</Text>
+              <Text style={styles.surpriseText}>âœ¨ Surprise me</Text>
             </TouchableOpacity>
           </View>
           <NilaTextInput
@@ -289,7 +297,7 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
         {/* Narrator Voice Selection */}
         <View style={styles.section}>
           <View style={styles.topicHeaderRow}>
-            <Text style={styles.sectionLabel}>Narrator Voice (குரல் தேர்வு)</Text>
+            <Text style={styles.sectionLabel}>Narrator Voice (à®•à¯à®°à®²à¯ à®¤à¯‡à®°à¯à®µà¯)</Text>
             <TouchableOpacity
               style={styles.surpriseButton}
               onPress={() => {

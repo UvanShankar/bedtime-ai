@@ -41,6 +41,8 @@ export class ComputeStack extends cdk.Stack {
         AWS_LWA_PORT: '8082',
         AI_SPEECH_BUCKET: props.storageStack.aiSpeechBucket.bucketName,
         STORY_AUDIO_BUCKET: props.storageStack.storyAudioBucket.bucketName,
+        UPLOADS_BUCKET: props.storageStack.uploadsBucket.bucketName,
+        MEDIA_UPLOADS_BUCKET: props.storageStack.uploadsBucket.bucketName,
         STORY_QUEUE_URL: props.queuesStack.storyGenerationQueue.queueUrl,
         DYNAMODB_AI_JOBS_TABLE: props.databaseStack.aiJobsTable.tableName,
         DYNAMODB_VOICE_REGISTRY_TABLE: props.databaseStack.aiVoiceRegistryTable.tableName,

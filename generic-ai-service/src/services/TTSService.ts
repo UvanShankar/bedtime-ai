@@ -43,13 +43,27 @@ export class TTSService {
     const voiceCandidate = resolvedParams.speaker || resolvedParams.aiVoiceId;
     const providerCandidate = resolvedParams.provider || (resolvedParams as any).voiceProvider;
 
-    if (voiceCandidate && !voiceCandidate.startsWith('svc-')) {
+    const PRETRAINED_SARVAM_SPEAKERS = [
+      'anushka', 'abhilash', 'manisha', 'vidya', 'arya', 'karun', 'hitesh', 'aditya', 'ritu', 'priya',
+      'neha', 'rahul', 'pooja', 'rohan', 'simran', 'kavya', 'amit', 'dev', 'ishita', 'shreya',
+      'ratan', 'varun', 'manan', 'sumit', 'roopa', 'kabir', 'aayan', 'shubh', 'ashutosh', 'advait',
+      'anand', 'tanya', 'tarun', 'sunny', 'mani', 'gokul', 'vijay', 'shruti', 'suhani', 'mohit',
+      'kavitha', 'rehan', 'soham', 'rupali', 'niharika'
+    ];
+
+    const isPretrained = typeof voiceCandidate === 'string' && PRETRAINED_SARVAM_SPEAKERS.includes(voiceCandidate.toLowerCase());
+
+    if (voiceCandidate && !voiceCandidate.startsWith('svc-') && !isPretrained) {
       try {
-        const registered = await aiVoiceRegistryDao.getVoice(voiceCandidate, providerCandidate);
-        if (registered && registered.providerVoiceId) {
-          logger.debug(`[TTSService] Resolved voiceCandidate "${voiceCandidate}" to provider voice "${registered.providerVoiceId}" (${registered.provider})`);
-          resolvedParams.speaker = registered.providerVoiceId;
-          resolvedParams.aiVoiceId = registered.providerVoiceId;
+        let registered = await aiVoiceRegistryDao.getVoice(voiceCandidate, providerCandidate);
+        if (!registered && (voiceCandidate.startsWith('voc_') || voiceCandidate.startsWith('voc-'))) {
+          registered = await aiVoiceRegistryDao.getVoiceByExternalRef('nila', voiceCandidate);
+        }
+        if (registered && (registered.providerVoiceId || registered.aiVoiceId)) {
+          const finalVoiceId = registered.providerVoiceId || registered.aiVoiceId;
+          logger.info(`[TTSService] Resolved voiceCandidate "${voiceCandidate}" to registered provider voice "${finalVoiceId}" (${registered.provider})`);
+          resolvedParams.speaker = finalVoiceId;
+          resolvedParams.aiVoiceId = finalVoiceId;
           if (registered.provider) {
             resolvedParams.provider = registered.provider;
           }
@@ -62,13 +76,13 @@ export class TTSService {
     }
 
     const provider = this.getProvider(resolvedParams.provider);
-    logger.info(`🎙️ [TTSService] Synthesizing speech via provider=${provider.name}, speaker=${resolvedParams.speaker || 'default'}, textLen=${resolvedParams.text?.length || 0}`);
+    logger.info(`ðŸŽ™ï¸ [TTSService] Synthesizing speech via provider=${provider.name}, speaker=${resolvedParams.speaker || 'default'}, voiceId=${resolvedParams.aiVoiceId || 'none'}, textLen=${resolvedParams.text?.length || 0}`);
     const { audioBuffer, durationSeconds } = await provider.synthesizeSpeech(resolvedParams);
 
     const bucket = params.targetBucket || process.env.STORY_AUDIO_BUCKET || process.env.AI_SPEECH_BUCKET || 'generic-ai-speech-output-prod';
     const key = params.targetKey || `speech/${uuidv4()}.${params.outputFormat || 'mp3'}`;
 
-    logger.debug(`☁️ [TTSService] Uploading synthesized audio (${audioBuffer.length} bytes) to S3 bucket=${bucket}, key=${key}`);
+    logger.debug(`â˜ï¸ [TTSService] Uploading synthesized audio (${audioBuffer.length} bytes) to S3 bucket=${bucket}, key=${key}`);
     const audioUrl = await uploadBufferToS3({
       Bucket: bucket,
       Key: key,

@@ -66,9 +66,11 @@ export class SarvamTTSProvider implements ITTSProvider {
       params.speaker ||
       (Array.isArray(params.speakers) ? params.speakers[0] : params.speakers) ||
       params.aiVoiceId;
-    const isClonedVoice = typeof rawSpeaker === 'string' && rawSpeaker.startsWith('svc-');
+    const isClonedVoice = typeof rawSpeaker === 'string' && (rawSpeaker.startsWith('svc-') || rawSpeaker.startsWith('svc_'));
     const speakerCandidate = (rawSpeaker || 'priya').toLowerCase();
-    const speaker = VALID_SARVAM_SPEAKERS.includes(speakerCandidate) ? speakerCandidate : 'priya';
+    const speaker = isClonedVoice ? rawSpeaker : (VALID_SARVAM_SPEAKERS.includes(speakerCandidate) ? speakerCandidate : 'priya');
+
+    logger.info(`ðŸŽ™ï¸ [SarvamTTSProvider] Speech synthesis config: rawSpeaker="${rawSpeaker}", effectiveSpeaker="${speaker}", isCloned=${isClonedVoice}, targetLanguage="${targetLanguageCode}"`);
 
     // Respect Sarvam character chunk limits (bulbul:v3 supports up to 2500 characters)
     const maxChunkLength = isClonedVoice ? 900 : 2000;
@@ -93,11 +95,11 @@ export class SarvamTTSProvider implements ITTSProvider {
     const audioBuffers: Buffer[] = [];
     let totalDuration = 0;
 
-    logger.debug(`[SarvamTTSProvider] Synthesizing ${textChunks.length} text chunks (speaker=${speaker}, cloned=${isClonedVoice})`);
+    logger.info(`[SarvamTTSProvider] Synthesizing ${textChunks.length} text chunks (speaker=${speaker}, cloned=${isClonedVoice})`);
     let chunkIndex = 0;
     for (const chunk of textChunks) {
       chunkIndex++;
-      logger.debug(`[SarvamTTSProvider] Requesting audio chunk ${chunkIndex}/${textChunks.length} (${chunk.length} chars)`);
+      logger.info(`[SarvamTTSProvider] Requesting audio chunk ${chunkIndex}/${textChunks.length} (${chunk.length} chars)`);
       let response: Response;
 
       if (isClonedVoice) {
@@ -179,8 +181,11 @@ export class SarvamTTSProvider implements ITTSProvider {
     if (params.sampleAudioUrls && params.sampleAudioUrls.length > 0) {
       const sampleUrl = params.sampleAudioUrls[0];
       try {
+        logger.info(`[SarvamTTSProvider] Loading voice clone sample audio from "${sampleUrl}"...`);
         audioBuffer = await getBufferFromUrlOrS3(sampleUrl);
+        logger.info(`[SarvamTTSProvider] Sample audio loaded successfully: ${audioBuffer.length} bytes`);
       } catch (err: any) {
+        logger.error(`[SarvamTTSProvider] Failed to fetch sample audio for Sarvam voice cloning: ${err.message}`);
         throw new ApiError(`Failed to fetch sample audio for Sarvam voice cloning from ${sampleUrl}: ${err.message}`);
       }
     } else {
@@ -191,10 +196,26 @@ export class SarvamTTSProvider implements ITTSProvider {
     const langKey = rawLang.toLowerCase();
     const targetLanguageCode = SARVAM_SUPPORTED_LANGUAGES[langKey] || rawLang;
 
-    const isMp3 = (params.sampleAudioUrls[0] || '').toLowerCase().includes('.mp3');
-    const mimeType = isMp3 ? 'audio/mpeg' : 'audio/wav';
-    const sampleFileName = isMp3 ? 'sample_voice.mp3' : 'sample_voice.wav';
+    // Detect format accurately from URL or binary magic numbers
+    const sampleUrl = (params.sampleAudioUrls[0] || '').toLowerCase();
+    const isMp3 = sampleUrl.includes('.mp3') ||
+      (audioBuffer.length >= 3 && audioBuffer[0] === 0x49 && audioBuffer[1] === 0x44 && audioBuffer[2] === 0x33);
+    const isM4a = sampleUrl.includes('.m4a') || sampleUrl.includes('.aac') || sampleUrl.includes('.mp4') ||
+      (audioBuffer.length >= 8 && audioBuffer[4] === 0x66 && audioBuffer[5] === 0x74 && audioBuffer[6] === 0x79 && audioBuffer[7] === 0x70);
+
+    let mimeType = 'audio/wav';
+    let sampleFileName = 'sample_voice.wav';
+    if (isM4a) {
+      mimeType = 'audio/m4a';
+      sampleFileName = 'sample_voice.m4a';
+    } else if (isMp3) {
+      mimeType = 'audio/mpeg';
+      sampleFileName = 'sample_voice.mp3';
+    }
+
     const voiceName = (params.displayName || `Parent_${Date.now()}`).trim().slice(0, 100);
+
+    logger.info(`ðŸŽ¤ [SarvamTTSProvider] Calling Sarvam /voices/create: name="${voiceName}", lang="${targetLanguageCode}", mimeType="${mimeType}", fileName="${sampleFileName}", bytes=${audioBuffer.length}`);
 
     const formData = new FormData();
     const blob = new Blob([audioBuffer], { type: mimeType });
@@ -214,15 +235,20 @@ export class SarvamTTSProvider implements ITTSProvider {
 
     if (!response.ok) {
       const errorText = await response.text();
+      logger.error(`âŒ [SarvamTTSProvider] Sarvam voice creation failed (${response.status}): ${errorText}`);
       throw new ApiError(`Sarvam voice cloning failed (${response.status}): ${errorText}`);
     }
 
     const resData = (await response.json()) as any;
+    logger.info(`âœ… [SarvamTTSProvider] Sarvam /voices/create response: ${JSON.stringify(resData)}`);
     const voiceId = resData?.data?.voice_id || resData?.voice_id;
 
     if (!voiceId) {
+      logger.error(`âŒ [SarvamTTSProvider] Sarvam response missing voice_id: ${JSON.stringify(resData)}`);
       throw new ApiError('Sarvam did not return a voice_id from /voices/create');
     }
+
+    logger.info(`ðŸŽ‰ [SarvamTTSProvider] Voice clone created successfully: voiceId=${voiceId}`);
 
     return {
       aiVoiceId: voiceId,

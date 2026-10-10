@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
@@ -13,7 +13,7 @@ interface Props {
 }
 
 export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { parent, setVoiceProfile } = useNila();
+  const { parent, setVoiceProfile, ensureBackendProfile } = useNila();
   const { recordingUri } = route.params || {};
 
   const [activeStep, setActiveStep] = useState(0);
@@ -29,34 +29,61 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
 
     // Simulate subtle step advancement while calling API
     const timer1 = setTimeout(() => isMounted && setActiveStep(1), 1200);
-    const timer2 = setTimeout(() => isMounted && setActiveStep(2), 2400);
 
     const processUpload = async () => {
       logger.info("VOICE", `[VoiceProcessingScreen] Processing voice sample upload (${recordingUri})...`);
       try {
-        if (recordingUri && parent?.id) {
-          const res = await VoiceApi.uploadVoiceSample({
-            parentId: parent.id,
-            audioUri: recordingUri,
-            consent: true,
-            displayName: route.params?.displayName || `${parent.name || "Appa"}'s Voice`,
-            relationship: route.params?.relationship || parent.relationship || "Appa",
-            provider: "sarvam",
-          });
-          if (res?.voiceProfile) {
-            logger.success("VOICE", `[VoiceProcessingScreen] Voice ready: ${res.voiceProfile.displayName} (id: ${res.voiceProfile.id})`);
-            setVoiceProfile(res.voiceProfile);
+        if (!recordingUri) {
+          throw new Error("No voice recording was provided");
+        }
+
+        // 1. Ensure backend authentication and profile
+        let parentId = parent?.id;
+        try {
+          const synced = await ensureBackendProfile();
+          if (synced?.parentId) {
+            parentId = synced.parentId;
+          }
+        } catch (authErr: any) {
+          logger.warn("VOICE", `[VoiceProcessingScreen] Profile sync note: ${authErr.message}`);
+        }
+
+        // 2. Upload voice sample and register in backend
+        const res = await VoiceApi.uploadVoiceSample({
+          parentId: parentId || "parent-001",
+          audioUri: recordingUri,
+          consent: true,
+          displayName: route.params?.displayName || `${parent?.name || "Appa"}'s Voice`,
+          relationship: route.params?.relationship || parent?.relationship || "Appa",
+          provider: "sarvam",
+        });
+
+        if (res?.voiceProfile) {
+          logger.success("VOICE", `[VoiceProcessingScreen] Voice registered in database: ${res.voiceProfile.displayName} (id: ${res.voiceProfile.id})`);
+          setVoiceProfile(res.voiceProfile);
+
+          if (isMounted) {
+            setActiveStep(2);
+            setTimeout(() => {
+              if (isMounted) {
+                logger.info("VOICE", `[VoiceProcessingScreen] Transitioning to VoiceReady screen with recordingUri=${recordingUri}`);
+                navigation.replace("VoiceReady", { recordingUri });
+              }
+            }, 800);
           }
         }
       } catch (err: any) {
-        logger.warn("VOICE", `[VoiceProcessingScreen] Voice upload fallback note: ${err.message}`);
-      } finally {
-        setTimeout(() => {
-          if (isMounted) {
-            logger.info("VOICE", `[VoiceProcessingScreen] Transitioning to VoiceReady screen with recordingUri=${recordingUri}`);
-            navigation.replace("VoiceReady", { recordingUri });
-          }
-        }, 3600);
+        logger.error("VOICE", `[VoiceProcessingScreen] Voice processing failed: ${err.message}`, err);
+        if (isMounted) {
+          Alert.alert(
+            "Voice Registration Failed",
+            err.message || "Failed to process and clone voice sample on the server. Please try again.",
+            [
+              { text: "Retry", onPress: () => processUpload() },
+              { text: "Cancel", style: "cancel", onPress: () => navigation.goBack() },
+            ]
+          );
+        }
       }
     };
 
@@ -65,7 +92,6 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
     return () => {
       isMounted = false;
       clearTimeout(timer1);
-      clearTimeout(timer2);
     };
   }, [recordingUri, parent.id, navigation]);
 
@@ -74,7 +100,7 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
       <View style={styles.content}>
         <View style={styles.illustrationWrapper}>
           <View style={styles.glowCircle} />
-          <Text style={styles.moonIcon}>☾</Text>
+          <Text style={styles.moonIcon}>â˜¾</Text>
         </View>
 
         <Text style={styles.title}>Getting to know your voice...</Text>

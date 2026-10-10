@@ -3,6 +3,7 @@ import { ApiClient } from "./ApiClient";
 import { AppConfig } from "../../config";
 import { VoiceProfile } from "../../models";
 import { logger } from "../../utils/logger";
+import { AuthApi } from "./AuthApi";
 
 const apiClient = new ApiClient(AppConfig.apiBaseUrl);
 
@@ -30,7 +31,7 @@ export class VoiceApi {
     } catch {
       logger.info("VOICE", "Using fallback reading prompt");
       return {
-        scriptTamil: "ஒரு அழகான காட்ல ஒரு சின்ன முயல் இருந்துச்சாம். அந்த முயலுக்கு நிலாவ ரொம்ப பிடிக்குமாம். தினமும் சாயங்காலம் வானத்தைப் பார்த்து நிலா கிட்ட பேசுமாம்...",
+        scriptTamil: "à®’à®°à¯ à®…à®´à®•à®¾à®© à®•à®¾à®Ÿà¯à®² à®’à®°à¯ à®šà®¿à®©à¯à®© à®®à¯à®¯à®²à¯ à®‡à®°à¯à®¨à¯à®¤à¯à®šà¯à®šà®¾à®®à¯. à®…à®¨à¯à®¤ à®®à¯à®¯à®²à¯à®•à¯à®•à¯ à®¨à®¿à®²à®¾à®µ à®°à¯Šà®®à¯à®ª à®ªà®¿à®Ÿà®¿à®•à¯à®•à¯à®®à®¾à®®à¯. à®¤à®¿à®©à®®à¯à®®à¯ à®šà®¾à®¯à®™à¯à®•à®¾à®²à®®à¯ à®µà®¾à®©à®¤à¯à®¤à¯ˆà®ªà¯ à®ªà®¾à®°à¯à®¤à¯à®¤à¯ à®¨à®¿à®²à®¾ à®•à®¿à®Ÿà¯à®Ÿ à®ªà¯‡à®šà¯à®®à®¾à®®à¯...",
         scriptEnglishTransliteration: "Oru azhagana kaatla oru chinna muyal irundhuchaam. Andha muyalukku nilava romba pidikkumaam...",
         targetDurationSeconds: 45,
         consentStatement: "I explicitly consent to Nila using my recorded voice sample solely for synthesizing personalized bedtime stories for my family.",
@@ -64,10 +65,13 @@ export class VoiceApi {
     logger.info("VOICE", `Starting voice sample registration process for parentId=${input.parentId}, provider=${selectedProvider}`);
 
     try {
+      // Step 0: Ensure valid backend session
+      await AuthApi.ensureAuth();
+
       // Step A: Request AWS S3 pre-signed upload URL
-      logger.info("VOICE", `[Step 1/3] Requesting S3 presigned URL for ${fileName}...`);
+      logger.info("VOICE", `[Step 1/3] Requesting S3 presigned URL for ${fileName} (${mimeType})...`);
       const { uploadUrl, key } = await this.getUploadUrl(fileName, mimeType);
-      logger.success("VOICE", `S3 presigned URL obtained for key: ${key}`);
+      logger.success("VOICE", `[Step 1/3] S3 presigned URL obtained for key: ${key}`);
 
       // Step B: Upload audio directly to Amazon S3
       logger.info("VOICE", `[Step 2/3] Uploading audio binary directly to AWS S3 (${input.audioUri})...`);
@@ -79,10 +83,12 @@ export class VoiceApi {
         },
       });
 
+      logger.info("VOICE", `[Step 2/3] S3 upload returned HTTP status ${uploadRes.status}`);
       if (uploadRes.status < 200 || uploadRes.status >= 300) {
-        throw new Error(`S3 direct upload failed with status ${uploadRes.status}`);
+        logger.error("VOICE", `[Step 2/3] S3 direct upload failed with status ${uploadRes.status}: ${uploadRes.body}`);
+        throw new Error(`S3 direct upload failed with status ${uploadRes.status}: ${uploadRes.body || "Could not upload audio to S3"}`);
       }
-      logger.success("VOICE", `Audio sample binary successfully uploaded to Amazon S3 (status ${uploadRes.status})`);
+      logger.success("VOICE", `[Step 2/3] Audio sample binary successfully uploaded to Amazon S3 (status ${uploadRes.status})`);
 
       // Step C: Register voice profile in DynamoDB via nila-core-service
       logger.info("VOICE", `[Step 3/3] Registering voice profile in backend with provider=${selectedProvider}...`);
@@ -98,22 +104,22 @@ export class VoiceApi {
 
       const now = new Date().toISOString();
       const voiceProfile: VoiceProfile = {
-        id: registered?.voiceId || `voc_${Date.now()}`,
+        id: registered?.voiceId || registered?.id || `voc_${Date.now()}`,
         parentId: input.parentId,
         provider: registered?.provider || registered?.voiceProvider || selectedProvider,
-        providerVoiceId: registered?.providerVoiceId || registered?.aiServiceVoiceId || "priya",
+        providerVoiceId: registered?.providerVoiceId || registered?.aiServiceVoiceId || registered?.voiceId,
         sourceAudioKey: key,
         languageCode: "ta",
         status: (registered?.status?.toLowerCase() as any) || "ready",
         consentAccepted: true,
         displayName: input.displayName || registered?.displayName || "Appa's Voice",
-        accentDialect: "Tamil · Natural conversational",
+        accentDialect: "Tamil Â· Natural conversational",
         sampleDuration: "30s sample",
         createdAt: registered?.createdAt || now,
         updatedAt: registered?.updatedAt || now,
       };
 
-      logger.success("VOICE", `Voice profile registered: ${voiceProfile.displayName} (id: ${voiceProfile.id}, provider: ${voiceProfile.provider})`);
+      logger.success("VOICE", `[Step 3/3] Voice profile successfully registered: ${voiceProfile.displayName} (id: ${voiceProfile.id}, providerVoiceId: ${voiceProfile.providerVoiceId}, provider: ${voiceProfile.provider})`);
 
       return {
         voiceProfile,
@@ -121,30 +127,8 @@ export class VoiceApi {
         message: registered?.message || "Voice sample registered successfully",
       };
     } catch (err: any) {
-      logger.warn("VOICE", `Voice upload note, using graceful fallback profile: ${err.message}`);
-      const now = new Date().toISOString();
-      return {
-        voiceProfile: {
-          id: `voice-${Date.now()}`,
-          parentId: input.parentId,
-          provider: selectedProvider,
-          providerVoiceId: "priya",
-          sourceAudioKey: input.audioUri || "voices/recorded.m4a",
-          languageCode: "ta",
-          status: "ready",
-          consentAccepted: true,
-          displayName: input.displayName || "Appa's Voice",
-          accentDialect: "Tamil · Natural conversational",
-          sampleDuration: "30s sample",
-          createdAt: now,
-          updatedAt: now,
-        },
-        styleProfile: {
-          warmth: 0.9,
-          pacing: "gentle",
-        },
-        message: "Voice registered with local preview",
-      };
+      logger.error("VOICE", `[VoiceApi] Voice upload/registration failed: ${err.message}`, err);
+      throw err;
     }
   }
 
@@ -162,7 +146,7 @@ export class VoiceApi {
         displayName: v.displayName || "Parent Voice",
         status: v.status?.toLowerCase() === "ready" ? "ready" : "processing",
         consentAccepted: v.consentVerified ?? v.consentAffirmed ?? true,
-        accentDialect: "Tamil · Conversational",
+        accentDialect: "Tamil Â· Conversational",
         sampleDuration: `${v.sampleDurationSeconds || 30}s`,
         createdAt: v.createdAt,
         updatedAt: v.updatedAt,
@@ -188,7 +172,7 @@ export class VoiceApi {
         displayName: v.displayName || "Parent Voice",
         status: v.status?.toLowerCase() === "ready" ? "ready" : "processing",
         consentAccepted: v.consentVerified ?? true,
-        accentDialect: "Tamil · Conversational",
+        accentDialect: "Tamil Â· Conversational",
         sampleDuration: `${v.sampleDurationSeconds || 30}s`,
         createdAt: v.createdAt,
         updatedAt: v.updatedAt,

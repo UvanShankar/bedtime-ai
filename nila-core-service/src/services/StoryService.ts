@@ -12,7 +12,7 @@ import logger from '../logger';
 
 export class StoryService {
   async requestStory(userId: string, dto: IRequestStoryDTO): Promise<IStorySchema> {
-    logger.info(`📖 [StoryService] Requesting story generation for user=${userId}, childId=${dto.childId}`, {
+    logger.info(`Ã°Å¸â€œâ€“ [StoryService] Requesting story generation for user=${userId}, childId=${dto.childId}`, {
       childId: dto.childId,
       voiceId: dto.voiceId,
       theme: dto.theme,
@@ -36,10 +36,11 @@ export class StoryService {
     const parentRelationship = user?.relationship || 'Appa';
 
     let aiVoiceId: string | undefined;
-    let resolvedTtsProvider = dto.ttsProvider || dto.voiceProvider || dto.provider;
+    let resolvedTtsProvider = dto.ttsProvider || dto.voiceProvider || dto.provider || 'sarvam';
     let resolvedSpeaker = dto.speaker || dto.voiceName;
 
     if (dto.voiceId) {
+      logger.info(`Ã°Å¸Å½Â¤ [StoryService] Looking up voiceId="${dto.voiceId}" in DynamoDB...`);
       const voice = await voiceProfileDao.getVoice(dto.voiceId, resolvedTtsProvider);
       if (voice) {
         if (voice.aiServiceVoiceId) {
@@ -47,16 +48,20 @@ export class StoryService {
         }
         // Couple voiceId with its registered provider
         if (voice.provider || voice.voiceProvider) {
-          resolvedTtsProvider = voice.provider || voice.voiceProvider;
+          resolvedTtsProvider = voice.provider || voice.voiceProvider || 'sarvam';
         }
-        if (!resolvedSpeaker && (voice.providerVoiceId || voice.aiServiceVoiceId)) {
-          resolvedSpeaker = voice.providerVoiceId || voice.aiServiceVoiceId;
-        }
-        logger.debug(`🎤 [StoryService] Coupled voiceId="${dto.voiceId}" with provider="${resolvedTtsProvider}", aiVoiceId="${aiVoiceId || 'none'}"`);
+        resolvedSpeaker = voice.providerVoiceId || voice.aiServiceVoiceId || voice.voiceId;
+        logger.info(`Ã°Å¸Å½Â¤ [StoryService] Coupled voiceId="${dto.voiceId}" with provider="${resolvedTtsProvider}", speaker="${resolvedSpeaker}", aiVoiceId="${aiVoiceId || 'none'}"`);
       } else {
-        logger.warn(`⚠️ [StoryService] Voice profile "${dto.voiceId}" not found in DAO; proceeding with default voice`);
+        logger.warn(`Ã¢Å¡Â Ã¯Â¸Â [StoryService] Voice profile "${dto.voiceId}" not found in DAO; retaining explicit speaker="${resolvedSpeaker || 'priya'}"`);
       }
     }
+
+    if (!resolvedSpeaker) {
+      resolvedSpeaker = 'priya';
+    }
+
+    logger.info(`Ã°Å¸Å½â„¢Ã¯Â¸Â [StoryService] Story TTS configuration: speaker="${resolvedSpeaker}", voiceId="${dto.voiceId || 'none'}", provider="${resolvedTtsProvider}"`);
 
     // Collect included memories
     let memorySnippet = '';
@@ -90,7 +95,7 @@ export class StoryService {
     if (childAge <= 4) {
       ageGuidelines = `AGE APPROPRIATE LEVEL (Age ${childAge} - Toddler):
 - Keep concepts very simple, comforting, sensory, and repetitive.
-- Use soft sounds and warm sensory descriptions (மெதுவா, பளபளன்னு, பஞ்சு போல, வெதுவெதுப்பா).
+- Use soft sounds and warm sensory descriptions (Ã Â®Â®Ã Â¯â€ Ã Â®Â¤Ã Â¯ÂÃ Â®ÂµÃ Â®Â¾, Ã Â®ÂªÃ Â®Â³Ã Â®ÂªÃ Â®Â³Ã Â®Â©Ã Â¯ÂÃ Â®Â©Ã Â¯Â, Ã Â®ÂªÃ Â®Å¾Ã Â¯ÂÃ Â®Å¡Ã Â¯Â Ã Â®ÂªÃ Â¯â€¹Ã Â®Â², Ã Â®ÂµÃ Â¯â€ Ã Â®Â¤Ã Â¯ÂÃ Â®ÂµÃ Â¯â€ Ã Â®Â¤Ã Â¯ÂÃ Â®ÂªÃ Â¯ÂÃ Â®ÂªÃ Â®Â¾).
 - Short, simple sentences with soothing spoken cadence.`;
     } else if (childAge <= 7) {
       ageGuidelines = `AGE APPROPRIATE LEVEL (Age ${childAge} - Early Childhood):
@@ -104,8 +109,8 @@ export class StoryService {
     // Protagonist governance
     const useChildName = dto.includeChildName !== false;
     const protagonistInstruction = useChildName
-      ? `PROTAGONIST: The hero is ${child.name}. Address ${child.name} with intimate parental affection ('கண்ணா ${child.name}', 'செல்லம்', 'தங்கம்').`
-      : `PROTAGONIST: Do NOT use the child's real name in the story plot. Create lovable storybook characters as heroes, but address the listening child affectionately as 'கண்ணா' or 'செல்லக்குட்டி'.`;
+      ? `PROTAGONIST: The hero is ${child.name}. Address ${child.name} with intimate parental affection ('Ã Â®â€¢Ã Â®Â£Ã Â¯ÂÃ Â®Â£Ã Â®Â¾ ${child.name}', 'Ã Â®Å¡Ã Â¯â€ Ã Â®Â²Ã Â¯ÂÃ Â®Â²Ã Â®Â®Ã Â¯Â', 'Ã Â®Â¤Ã Â®â„¢Ã Â¯ÂÃ Â®â€¢Ã Â®Â®Ã Â¯Â').`
+      : `PROTAGONIST: Do NOT use the child's real name in the story plot. Create lovable storybook characters as heroes, but address the listening child affectionately as 'Ã Â®â€¢Ã Â®Â£Ã Â¯ÂÃ Â®Â£Ã Â®Â¾' or 'Ã Â®Å¡Ã Â¯â€ Ã Â®Â²Ã Â¯ÂÃ Â®Â²Ã Â®â€¢Ã Â¯ÂÃ Â®â€¢Ã Â¯ÂÃ Â®Å¸Ã Â¯ÂÃ Â®Å¸Ã Â®Â¿'.`;
 
     // Strict safety & fear avoidance guardrails (negative constraints)
     let fearAvoidanceInstruction = '';
@@ -129,8 +134,8 @@ The entire environment must feel 100% safe, loving, cozy, and reassuring.`;
     }
     if (dto.includeFamilyMembers) {
       const familyMention = parentRelationship === 'Amma' 
-        ? 'Amma (அம்மா) and Appa (அப்பா)' 
-        : 'Appa (அப்பா) and Amma (அம்மா)';
+        ? 'Amma (Ã Â®â€¦Ã Â®Â®Ã Â¯ÂÃ Â®Â®Ã Â®Â¾) and Appa (Ã Â®â€¦Ã Â®ÂªÃ Â¯ÂÃ Â®ÂªÃ Â®Â¾)' 
+        : 'Appa (Ã Â®â€¦Ã Â®ÂªÃ Â¯ÂÃ Â®ÂªÃ Â®Â¾) and Amma (Ã Â®â€¦Ã Â®Â®Ã Â¯ÂÃ Â®Â®Ã Â®Â¾)';
       personalizationRules.push(`Weave in loving references to family (${familyMention}, Thatha, Paati) giving warm hugs, tucking into bed, and keeping the child safe.`);
     }
     if (memorySnippet) {
@@ -151,8 +156,8 @@ The entire environment must feel 100% safe, loving, cozy, and reassuring.`;
     if (calmness >= 0.7) {
       pacingInstruction = `BEDTIME WIND-DOWN (Deep Sleep Pacing - Calmness: ${calmness}/1.0):
 - Start with an enchanting premise, but progressively SLOW DOWN the tempo throughout the second half.
-- Use repetitive, rhythmic, lullaby-like spoken Tamil phrases describing heavy eyelids (கண்கள் மெதுவா சொக்குது), deep calm breathing (ஆழ்ந்த மூச்சு), cozy warm blankets (கதகதப்பான போர்வை), twinkling night stars (மினுக்கும் நிலா), and sweet peaceful slumber.
-- End with a gentle, soothing bedtime blessing: "நல்லா தூங்கு கண்ணா... இனிமையான கனவுகள் வரட்டும்."`;
+- Use repetitive, rhythmic, lullaby-like spoken Tamil phrases describing heavy eyelids (Ã Â®â€¢Ã Â®Â£Ã Â¯ÂÃ Â®â€¢Ã Â®Â³Ã Â¯Â Ã Â®Â®Ã Â¯â€ Ã Â®Â¤Ã Â¯ÂÃ Â®ÂµÃ Â®Â¾ Ã Â®Å¡Ã Â¯Å Ã Â®â€¢Ã Â¯ÂÃ Â®â€¢Ã Â¯ÂÃ Â®Â¤Ã Â¯Â), deep calm breathing (Ã Â®â€ Ã Â®Â´Ã Â¯ÂÃ Â®Â¨Ã Â¯ÂÃ Â®Â¤ Ã Â®Â®Ã Â¯â€šÃ Â®Å¡Ã Â¯ÂÃ Â®Å¡Ã Â¯Â), cozy warm blankets (Ã Â®â€¢Ã Â®Â¤Ã Â®â€¢Ã Â®Â¤Ã Â®ÂªÃ Â¯ÂÃ Â®ÂªÃ Â®Â¾Ã Â®Â© Ã Â®ÂªÃ Â¯â€¹Ã Â®Â°Ã Â¯ÂÃ Â®ÂµÃ Â¯Ë†), twinkling night stars (Ã Â®Â®Ã Â®Â¿Ã Â®Â©Ã Â¯ÂÃ Â®â€¢Ã Â¯ÂÃ Â®â€¢Ã Â¯ÂÃ Â®Â®Ã Â¯Â Ã Â®Â¨Ã Â®Â¿Ã Â®Â²Ã Â®Â¾), and sweet peaceful slumber.
+- End with a gentle, soothing bedtime blessing: "Ã Â®Â¨Ã Â®Â²Ã Â¯ÂÃ Â®Â²Ã Â®Â¾ Ã Â®Â¤Ã Â¯â€šÃ Â®â„¢Ã Â¯ÂÃ Â®â€¢Ã Â¯Â Ã Â®â€¢Ã Â®Â£Ã Â¯ÂÃ Â®Â£Ã Â®Â¾... Ã Â®â€¡Ã Â®Â©Ã Â®Â¿Ã Â®Â®Ã Â¯Ë†Ã Â®Â¯Ã Â®Â¾Ã Â®Â© Ã Â®â€¢Ã Â®Â©Ã Â®ÂµÃ Â¯ÂÃ Â®â€¢Ã Â®Â³Ã Â¯Â Ã Â®ÂµÃ Â®Â°Ã Â®Å¸Ã Â¯ÂÃ Â®Å¸Ã Â¯ÂÃ Â®Â®Ã Â¯Â."`;
     } else if (calmness >= 0.4) {
       pacingInstruction = `BEDTIME WIND-DOWN (Balanced Pacing - Calmness: ${calmness}/1.0):
 - Balanced, cozy storytelling with gentle adventures that smoothly transition into relaxing bedtime calmness at the end.`;
@@ -163,21 +168,21 @@ The entire environment must feel 100% safe, loving, cozy, and reassuring.`;
 
     // Dialect & Linguistic Guidance
     const dialectGuideline = `DIALECT & SPOKEN STYLE (${dialect} Spoken Tamil):
-- Speak in NATURAL SPOKEN TAMIL (எளிய பேச்சுத் தமிழ்), exactly how parents talk to kids at home in Tamil Nadu.
-- DO NOT use archaic written/literary Tamil (தூய எழுத்துத் தமிழ்) like 'சென்றான்', 'கூறினான்', 'அங்குள்ள', 'மகிழ்ந்தான்'.
-- USE natural colloquial forms: 'போனான்', 'சொன்னான்', 'அங்க இருக்கிற', 'ரொம்ப சந்தோஷப்பட்டான்', 'பாத்தியா', 'அப்புறம்'.
+- Speak in NATURAL SPOKEN TAMIL (Ã Â®Å½Ã Â®Â³Ã Â®Â¿Ã Â®Â¯ Ã Â®ÂªÃ Â¯â€¡Ã Â®Å¡Ã Â¯ÂÃ Â®Å¡Ã Â¯ÂÃ Â®Â¤Ã Â¯Â Ã Â®Â¤Ã Â®Â®Ã Â®Â¿Ã Â®Â´Ã Â¯Â), exactly how parents talk to kids at home in Tamil Nadu.
+- DO NOT use archaic written/literary Tamil (Ã Â®Â¤Ã Â¯â€šÃ Â®Â¯ Ã Â®Å½Ã Â®Â´Ã Â¯ÂÃ Â®Â¤Ã Â¯ÂÃ Â®Â¤Ã Â¯ÂÃ Â®Â¤Ã Â¯Â Ã Â®Â¤Ã Â®Â®Ã Â®Â¿Ã Â®Â´Ã Â¯Â) like 'Ã Â®Å¡Ã Â¯â€ Ã Â®Â©Ã Â¯ÂÃ Â®Â±Ã Â®Â¾Ã Â®Â©Ã Â¯Â', 'Ã Â®â€¢Ã Â¯â€šÃ Â®Â±Ã Â®Â¿Ã Â®Â©Ã Â®Â¾Ã Â®Â©Ã Â¯Â', 'Ã Â®â€¦Ã Â®â„¢Ã Â¯ÂÃ Â®â€¢Ã Â¯ÂÃ Â®Â³Ã Â¯ÂÃ Â®Â³', 'Ã Â®Â®Ã Â®â€¢Ã Â®Â¿Ã Â®Â´Ã Â¯ÂÃ Â®Â¨Ã Â¯ÂÃ Â®Â¤Ã Â®Â¾Ã Â®Â©Ã Â¯Â'.
+- USE natural colloquial forms: 'Ã Â®ÂªÃ Â¯â€¹Ã Â®Â©Ã Â®Â¾Ã Â®Â©Ã Â¯Â', 'Ã Â®Å¡Ã Â¯Å Ã Â®Â©Ã Â¯ÂÃ Â®Â©Ã Â®Â¾Ã Â®Â©Ã Â¯Â', 'Ã Â®â€¦Ã Â®â„¢Ã Â¯ÂÃ Â®â€¢ Ã Â®â€¡Ã Â®Â°Ã Â¯ÂÃ Â®â€¢Ã Â¯ÂÃ Â®â€¢Ã Â®Â¿Ã Â®Â±', 'Ã Â®Â°Ã Â¯Å Ã Â®Â®Ã Â¯ÂÃ Â®Âª Ã Â®Å¡Ã Â®Â¨Ã Â¯ÂÃ Â®Â¤Ã Â¯â€¹Ã Â®Â·Ã Â®ÂªÃ Â¯ÂÃ Â®ÂªÃ Â®Å¸Ã Â¯ÂÃ Â®Å¸Ã Â®Â¾Ã Â®Â©Ã Â¯Â', 'Ã Â®ÂªÃ Â®Â¾Ã Â®Â¤Ã Â¯ÂÃ Â®Â¤Ã Â®Â¿Ã Â®Â¯Ã Â®Â¾', 'Ã Â®â€¦Ã Â®ÂªÃ Â¯ÂÃ Â®ÂªÃ Â¯ÂÃ Â®Â±Ã Â®Â®Ã Â¯Â'.
 ${dialect === 'Chennai' ? '- Incorporate warm Chennai spoken cadence and natural colloquial words.' : ''}
-${dialect === 'Kongu' ? '- Incorporate respectful, affectionate Kongu dialect cadence (ஏனுங், அப்புடிங், கண்ணு).' : ''}
-${dialect === 'Madurai' ? '- Incorporate warm, rhythmic Madurai dialect cadence (சொல்லுங்கப்பா, அம்புட்டுதான், பார்த்தீயளா).' : ''}
-${dialect === 'Tirunelveli' ? '- Incorporate Nellai spoken warmth and cadence (ஏலே, அடேங்கப்பா).' : ''}`;
+${dialect === 'Kongu' ? '- Incorporate respectful, affectionate Kongu dialect cadence (Ã Â®ÂÃ Â®Â©Ã Â¯ÂÃ Â®â„¢Ã Â¯Â, Ã Â®â€¦Ã Â®ÂªÃ Â¯ÂÃ Â®ÂªÃ Â¯ÂÃ Â®Å¸Ã Â®Â¿Ã Â®â„¢Ã Â¯Â, Ã Â®â€¢Ã Â®Â£Ã Â¯ÂÃ Â®Â£Ã Â¯Â).' : ''}
+${dialect === 'Madurai' ? '- Incorporate warm, rhythmic Madurai dialect cadence (Ã Â®Å¡Ã Â¯Å Ã Â®Â²Ã Â¯ÂÃ Â®Â²Ã Â¯ÂÃ Â®â„¢Ã Â¯ÂÃ Â®â€¢Ã Â®ÂªÃ Â¯ÂÃ Â®ÂªÃ Â®Â¾, Ã Â®â€¦Ã Â®Â®Ã Â¯ÂÃ Â®ÂªÃ Â¯ÂÃ Â®Å¸Ã Â¯ÂÃ Â®Å¸Ã Â¯ÂÃ Â®Â¤Ã Â®Â¾Ã Â®Â©Ã Â¯Â, Ã Â®ÂªÃ Â®Â¾Ã Â®Â°Ã Â¯ÂÃ Â®Â¤Ã Â¯ÂÃ Â®Â¤Ã Â¯â‚¬Ã Â®Â¯Ã Â®Â³Ã Â®Â¾).' : ''}
+${dialect === 'Tirunelveli' ? '- Incorporate Nellai spoken warmth and cadence (Ã Â®ÂÃ Â®Â²Ã Â¯â€¡, Ã Â®â€¦Ã Â®Å¸Ã Â¯â€¡Ã Â®â„¢Ã Â¯ÂÃ Â®â€¢Ã Â®ÂªÃ Â¯ÂÃ Â®ÂªÃ Â®Â¾).' : ''}`;
 
     // Full System Instruction
     const systemInstruction = `You are an affectionate Tamil ${parentRelationship} telling an intimate bedtime story to your child.
 You speak with absolute parental love, warmth, and tenderness.
 
 CORE RULES:
-1. STRICT SPOKEN TAMIL (எளிய பேச்சுத் தமிழ்):
-   Write exclusively in conversational Tamil script (தமிழ் எழுத்துகளில் எளிய பேச்சு வழக்கு). Never use archaic literary Tamil (எழுத்துத் தமிழ்).
+1. STRICT SPOKEN TAMIL (Ã Â®Å½Ã Â®Â³Ã Â®Â¿Ã Â®Â¯ Ã Â®ÂªÃ Â¯â€¡Ã Â®Å¡Ã Â¯ÂÃ Â®Å¡Ã Â¯ÂÃ Â®Â¤Ã Â¯Â Ã Â®Â¤Ã Â®Â®Ã Â®Â¿Ã Â®Â´Ã Â¯Â):
+   Write exclusively in conversational Tamil script (Ã Â®Â¤Ã Â®Â®Ã Â®Â¿Ã Â®Â´Ã Â¯Â Ã Â®Å½Ã Â®Â´Ã Â¯ÂÃ Â®Â¤Ã Â¯ÂÃ Â®Â¤Ã Â¯ÂÃ Â®â€¢Ã Â®Â³Ã Â®Â¿Ã Â®Â²Ã Â¯Â Ã Â®Å½Ã Â®Â³Ã Â®Â¿Ã Â®Â¯ Ã Â®ÂªÃ Â¯â€¡Ã Â®Å¡Ã Â¯ÂÃ Â®Å¡Ã Â¯Â Ã Â®ÂµÃ Â®Â´Ã Â®â€¢Ã Â¯ÂÃ Â®â€¢Ã Â¯Â). Never use archaic literary Tamil (Ã Â®Å½Ã Â®Â´Ã Â¯ÂÃ Â®Â¤Ã Â¯ÂÃ Â®Â¤Ã Â¯ÂÃ Â®Â¤Ã Â¯Â Ã Â®Â¤Ã Â®Â®Ã Â®Â¿Ã Â®Â´Ã Â¯Â).
 2. ${dialectGuideline}
 3. ${ageGuidelines}
 4. ${protagonistInstruction}
@@ -205,11 +210,11 @@ ${fearAvoidanceInstruction ? `5. ${fearAvoidanceInstruction}\n` : ''}
 
 ${promptDetails.join('\n')}
 
-Begin the story directly with a warm parental opening like "கண்ணா...", without any title prefixes, Markdown headers, or meta-commentary. Write the entire story in continuous, immersive spoken Tamil paragraphs.`;
+Begin the story directly with a warm parental opening like "Ã Â®â€¢Ã Â®Â£Ã Â¯ÂÃ Â®Â£Ã Â®Â¾...", without any title prefixes, Markdown headers, or meta-commentary. Write the entire story in continuous, immersive spoken Tamil paragraphs.`;
 
     const storyTitle = dto.promptIdea && dto.promptIdea.length <= 40
       ? dto.promptIdea
-      : `${child.name}-இன் நிலா கதை`;
+      : `${child.name}-Ã Â®â€¡Ã Â®Â©Ã Â¯Â Ã Â®Â¨Ã Â®Â¿Ã Â®Â²Ã Â®Â¾ Ã Â®â€¢Ã Â®Â¤Ã Â¯Ë†`;
 
     const story: IStorySchema = {
       storyId,
@@ -235,7 +240,7 @@ Begin the story directly with a warm parental opening like "கண்ணா...",
     };
 
     await storyDao.createStory(story);
-    logger.info(`✅ [StoryService] Created initial story record storyId=${storyId}`);
+    logger.info(`Ã¢Å“â€¦ [StoryService] Created initial story record storyId=${storyId}`);
 
     // Dynamic speaking rate & token budget
     const dynamicSpeakingRate = dto.speakingRate || (calmness >= 0.7 ? 0.85 : calmness >= 0.4 ? 0.90 : 0.95);
@@ -246,7 +251,7 @@ Begin the story directly with a warm parental opening like "கண்ணா...",
     try {
       await storyDao.updateStoryStatus(storyId, 'GENERATING_SCRIPT', 25, 'Writing story in natural spoken Tamil...');
 
-      logger.info(`🚀 [StoryService] Submitting story pipeline to AI service for storyId=${storyId}`);
+      logger.info(`Ã°Å¸Å¡â‚¬ [StoryService] Submitting story pipeline to AI service for storyId=${storyId}`);
       const job = await aiServiceClient.submitStoryPipeline({
         storyId,
         childName: child.name,
@@ -270,10 +275,10 @@ Begin the story directly with a warm parental opening like "கண்ணா...",
         bedtimeCalmness: calmness,
       });
 
-      logger.info(`🎉 [StoryService] AI job returned: jobId=${job.jobId}, status=${job.status}`);
+      logger.info(`Ã°Å¸Å½â€° [StoryService] AI job returned: jobId=${job.jobId}, status=${job.status}`);
 
       if (job.status === 'COMPLETED' && job.result) {
-        logger.info(`🎉 [StoryService] AI job completed for storyId=${storyId}! Audio: ${job.result.audioUrl}`);
+        logger.info(`Ã°Å¸Å½â€° [StoryService] AI job completed for storyId=${storyId}! Audio: ${job.result.audioUrl}`);
         await storyDao.completeStory(storyId, {
           storyScript: job.result.storyScript,
           audioUrl: job.result.audioUrl,
@@ -292,14 +297,14 @@ Begin the story directly with a warm parental opening like "கண்ணா...",
           audioDurationSeconds: job.result.durationSeconds || targetDurationMinutes * 60,
         };
       } else if (job.status === 'FAILED') {
-        logger.error(`❌ [StoryService] AI job failed for storyId=${storyId}: ${job.errorMessage}`);
+        logger.error(`Ã¢ÂÅ’ [StoryService] AI job failed for storyId=${storyId}: ${job.errorMessage}`);
         await storyDao.updateStoryStatus(storyId, 'FAILED', 0, job.errorMessage || 'Generation failed');
         throw new ApiError(`AI generation failed: ${job.errorMessage}`);
       } else {
         return story;
       }
     } catch (err: any) {
-      logger.error(`💥 [StoryService] Failed to generate story ${storyId}: ${err.message}`, { stack: err.stack });
+      logger.error(`Ã°Å¸â€™Â¥ [StoryService] Failed to generate story ${storyId}: ${err.message}`, { stack: err.stack });
       await storyDao.updateStoryStatus(storyId, 'FAILED', 0, err.message);
       throw err;
     }

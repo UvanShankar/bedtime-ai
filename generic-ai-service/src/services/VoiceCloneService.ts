@@ -34,10 +34,13 @@ export class VoiceCloneService {
   async cloneVoice(params: IVoiceCloneDTO): Promise<IVoiceCloneResult> {
     const requestedProvider = params.provider || (params as any).voiceProvider;
     const provider = this.getProvider(requestedProvider);
-    logger.info(`🎤 [VoiceCloneService] Initiating voice clone via provider=${provider.name}, name="${params.displayName || 'unnamed'}", samples=${params.sampleAudioUrls?.length || 0}`);
+    logger.info(`ðŸŽ¤ [VoiceCloneService] Initiating voice clone via provider=${provider.name}, name="${params.displayName || 'unnamed'}", samples=${params.sampleAudioUrls?.length || 0}`);
     const cloneResult = await provider.cloneVoice({ ...params, provider: provider.name });
-    const aiVoiceId = uuidv4();
+    const finalProviderVoiceId = cloneResult.providerVoiceId || cloneResult.aiVoiceId;
+    const aiVoiceId = finalProviderVoiceId || uuidv4();
     const timestamp = new Date().toISOString();
+
+    logger.info(`ðŸ’¾ [VoiceCloneService] Persisting cloned voice in DynamoDB: aiVoiceId=${aiVoiceId}, providerVoiceId=${finalProviderVoiceId}, extRef=${params.externalReferenceId || 'none'}`);
 
     await aiVoiceRegistryDao.createVoice({
       aiVoiceId,
@@ -47,7 +50,7 @@ export class VoiceCloneService {
       displayName: params.displayName || 'Cloned Voice',
       provider: cloneResult.provider as any,
       voiceProvider: cloneResult.provider,
-      providerVoiceId: cloneResult.providerVoiceId,
+      providerVoiceId: finalProviderVoiceId,
       sampleAudioUrls: params.sampleAudioUrls,
       status: cloneResult.status,
       previewAudioUrl: cloneResult.previewAudioUrl,
@@ -60,7 +63,7 @@ export class VoiceCloneService {
       voiceId: aiVoiceId,
       provider: cloneResult.provider,
       voiceProvider: cloneResult.provider,
-      providerVoiceId: cloneResult.providerVoiceId,
+      providerVoiceId: finalProviderVoiceId,
       status: cloneResult.status,
       previewAudioUrl: cloneResult.previewAudioUrl,
     } as any;
