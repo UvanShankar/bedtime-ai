@@ -103,7 +103,9 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
           <Text style={styles.moonIcon}>â˜¾</Text>
         </View>
 
-        <Text style={styles.title}>Getting to know your voice...</Text>
+        <Text style={styles.title}>
+          {route.params?.displayName ? `Setting up ${route.params.displayName}...` : "Getting to know your voice..."}
+        </Text>
         <Text style={styles.subtitle}>
           Nila is listening to the warmth of your recording.
         </Text>

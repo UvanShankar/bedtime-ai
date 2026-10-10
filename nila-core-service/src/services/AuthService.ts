@@ -81,20 +81,13 @@ export class AuthService {
     await otpDao.saveOtp(mobile, otp, ttlMinutes);
     logger.debug(`[AuthService] Saved OTP to DynamoDB (Nila_Otp_prod)`, { mobile, expiresAt });
 
-    // 3. Trigger transactional SMS via AWS SNS
-    const smsMessage = `Your Nila verification code is ${otp}. Valid for 10 minutes.`;
-    try {
-      const messageId = await sendSms(mobile, smsMessage);
-      logger.info(`[AuthService] AWS SNS SMS dispatched successfully to ${mobile}`, { messageId });
-    } catch (snsError: any) {
-      logger.warn(`[AuthService] SNS SMS delivery notice for ${mobile}: ${snsError?.message || snsError}`);
-      logger.debug(`[AuthService] [DEV DEBUG] OTP code for ${mobile}: ${otp}`);
-    }
+    // 3. Testing mode: Don't send real SMS via AWS SNS; allow 123456 bypass OTP
+    logger.info(`[AuthService] [TESTING MODE] SMS dispatch skipped for ${mobile}. Testing bypass OTP is 123456 (or generated: ${otp})`);
 
-    // 4. Return clean API response without exposing the OTP
+    // 4. Return clean API response
     return {
       success: true,
-      message: `OTP sent successfully to ${mobile}`,
+      message: `OTP sent successfully to ${mobile} (Testing code: 123456)`,
       mobile,
       isNewUser,
       expiresAt,
@@ -124,7 +117,7 @@ export class AuthService {
 
     if (!isValidOtp && !isMasterOtp) {
       logger.warn(`[AuthService] OTP verification failed for ${mobile}: Invalid or expired code`);
-      throw new ValidationError('Invalid or expired OTP. Please request a new one.');
+      throw new ValidationError('Invalid or expired OTP. Please use testing code: 123456.');
     }
 
     // Delete verified OTP record so it cannot be replayed

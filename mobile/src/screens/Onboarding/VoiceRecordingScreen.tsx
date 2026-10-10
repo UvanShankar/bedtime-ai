@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -30,6 +31,9 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
   ]);
 
   const [scriptIndex, setScriptIndex] = useState(0);
+
+  const initialDefaultName = parent?.name ? `${parent.name}'s Voice` : "Appa's Voice";
+  const [voiceName, setVoiceName] = useState(initialDefaultName);
 
   useEffect(() => {
     VoiceApi.getPrompt().then((p) => {
@@ -66,10 +70,11 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleCreateVoice = async () => {
+    const finalName = voiceName.trim() || initialDefaultName;
     navigation.navigate("VoiceProcessing", {
       recordingUri,
       parentId: parent.id,
-      displayName: `${parent.name || "Appa"}'s Voice`,
+      displayName: finalName,
       relationship: parent.relationship || "Appa",
     });
   };
@@ -160,6 +165,28 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
                   {isPlayingPreview ? "Pause" : "Play preview"}
                 </Text>
               </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Editable Voice Name Input */}
+          {state === "recorded" && (
+            <View style={styles.voiceNameCard}>
+              <View style={styles.voiceNameHeader}>
+                <Ionicons name="pencil" size={15} color={NilaColors.lavender} />
+                <Text style={styles.voiceNameLabel}>Voice Profile Name</Text>
+              </View>
+              <TextInput
+                style={styles.voiceNameInput}
+                value={voiceName}
+                onChangeText={setVoiceName}
+                placeholder="e.g. Uvan's Voice, Appa's Voice"
+                placeholderTextColor={NilaColors.textMuted}
+                autoCapitalize="words"
+                maxLength={30}
+              />
+              <Text style={styles.voiceNameHint}>
+                Update the name to whatever you'd like it to appear as in stories.
+              </Text>
             </View>
           )}
 
@@ -324,6 +351,41 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: "center",
     marginTop: 8,
+  },
+  voiceNameCard: {
+    backgroundColor: NilaColors.surfaceLight,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: NilaColors.cardBorder,
+  },
+  voiceNameHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 6,
+  },
+  voiceNameLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: NilaColors.lavender,
+  },
+  voiceNameInput: {
+    backgroundColor: NilaColors.midnight,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: NilaColors.textPrimary,
+    borderWidth: 1,
+    borderColor: NilaColors.cardBorder,
+  },
+  voiceNameHint: {
+    fontSize: 12,
+    color: NilaColors.textMuted,
+    marginTop: 6,
   },
   footer: {
     paddingHorizontal: 20,
