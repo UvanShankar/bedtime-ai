@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -34,6 +37,7 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
 
   const initialDefaultName = parent?.name ? `${parent.name}'s Voice` : "Appa's Voice";
   const [voiceName, setVoiceName] = useState(initialDefaultName);
+  const [showNameModal, setShowNameModal] = useState(false);
 
   useEffect(() => {
     VoiceApi.getPrompt().then((p) => {
@@ -69,7 +73,13 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
     setScriptIndex((prev) => (prev + 1) % scriptsList.length);
   };
 
-  const handleCreateVoice = async () => {
+  const handleCreateVoice = () => {
+    // Before generation, explicitly prompt the user to confirm/update the voice name
+    setShowNameModal(true);
+  };
+
+  const handleConfirmVoiceGeneration = () => {
+    setShowNameModal(false);
     const finalName = voiceName.trim() || initialDefaultName;
     navigation.navigate("VoiceProcessing", {
       recordingUri,
@@ -209,6 +219,63 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
           disabled={state === "recording"}
         />
       </View>
+
+      {/* Confirmation Modal Before Voice Generation */}
+      <Modal
+        visible={showNameModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNameModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconCircle}>
+              <Ionicons name="mic" size={26} color={NilaColors.gold} />
+            </View>
+
+            <Text style={styles.modalTitle}>Name Your Voice</Text>
+            <Text style={styles.modalSubtitle}>
+              Give this voice profile a name so you can easily select it when creating bedtime stories.
+            </Text>
+
+            <View style={styles.modalInputWrapper}>
+              <Ionicons name="pencil" size={16} color={NilaColors.lavender} style={styles.modalInputIcon} />
+              <TextInput
+                style={styles.modalTextInput}
+                value={voiceName}
+                onChangeText={setVoiceName}
+                placeholder="e.g. Uvan's Voice, Appa's Voice"
+                placeholderTextColor={NilaColors.textMuted}
+                autoFocus
+                autoCapitalize="words"
+                selectTextOnFocus
+                maxLength={30}
+              />
+            </View>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowNameModal(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={handleConfirmVoiceGeneration}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalConfirmButtonText}>Create Voice ✨</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -386,6 +453,98 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: NilaColors.textMuted,
     marginTop: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  modalContent: {
+    backgroundColor: NilaColors.surface,
+    borderRadius: 24,
+    padding: 24,
+    width: "100%",
+    maxWidth: 380,
+    borderWidth: 1,
+    borderColor: NilaColors.cardBorder,
+    alignItems: "center",
+  },
+  modalIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(245, 199, 106, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: NilaColors.textPrimary,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: NilaColors.textSecondary,
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalInputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: NilaColors.midnight,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: NilaColors.gold,
+    paddingHorizontal: 14,
+    width: "100%",
+    marginBottom: 24,
+  },
+  modalInputIcon: {
+    marginRight: 10,
+  },
+  modalTextInput: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: NilaColors.textPrimary,
+    fontWeight: "500",
+  },
+  modalActionsRow: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: NilaColors.surfaceLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCancelButtonText: {
+    color: NilaColors.textSecondary,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  modalConfirmButton: {
+    flex: 1.5,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: NilaColors.gold,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalConfirmButtonText: {
+    color: NilaColors.textDark,
+    fontSize: 15,
+    fontWeight: "700",
   },
   footer: {
     paddingHorizontal: 20,
