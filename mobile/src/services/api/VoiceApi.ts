@@ -40,7 +40,7 @@ export class VoiceApi {
   }
 
   // 2. Get AWS S3 Pre-signed URL for direct media upload
-  static async getUploadUrl(fileName: string, fileType = "audio/aac"): Promise<{ uploadUrl: string; key: string }> {
+  static async getUploadUrl(fileName: string, fileType = "audio/m4a"): Promise<{ uploadUrl: string; key: string }> {
     return apiClient.post<{ uploadUrl: string; key: string }>("/voices/upload-url", {
       fileName,
       fileType,
@@ -58,9 +58,9 @@ export class VoiceApi {
     relationship?: string;
     provider?: string;
   }): Promise<VoiceUploadResponse> {
-    const rawExt = (input.audioUri.split(".").pop() || "aac").toLowerCase();
-    const ext = rawExt === "wav" ? "wav" : rawExt === "mp3" ? "mp3" : "aac";
-    const mimeType = input.mimeType || (ext === "wav" ? "audio/wav" : ext === "mp3" ? "audio/mpeg" : "audio/aac");
+    const rawExt = (input.audioUri.split(".").pop() || "m4a").toLowerCase();
+    const ext = rawExt === "wav" ? "wav" : rawExt === "mp3" ? "mp3" : rawExt === "aac" ? "aac" : "m4a";
+    const mimeType = input.mimeType || (ext === "wav" ? "audio/wav" : ext === "mp3" ? "audio/mpeg" : ext === "aac" ? "audio/aac" : "audio/m4a");
     const fileName = `voice_${Date.now()}.${ext}`;
     const selectedProvider = (input.provider || "sarvam").toLowerCase();
 

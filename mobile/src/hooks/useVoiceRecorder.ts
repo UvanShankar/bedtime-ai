@@ -1,45 +1,14 @@
 import { useState, useRef, useEffect } from "react";
-import { Platform } from "react-native";
 import {
   useAudioRecorder,
   createAudioPlayer,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
   RecordingPresets,
-  IOSOutputFormat,
-  AudioQuality,
   AudioPlayer,
   AudioStatus,
-  RecordingOptions,
 } from "expo-audio";
 import { logger } from "../utils/logger";
-
-// Direct recording in formats natively accepted by Sarvam AI without conversion:
-// Android: AAC Audio Data Transport Stream (.aac)
-// iOS: Linear PCM 16-bit WAV (.wav)
-export const VOICE_RECORDING_OPTIONS: RecordingOptions = {
-  extension: Platform.OS === "ios" ? ".wav" : ".aac",
-  sampleRate: 24000,
-  numberOfChannels: 1,
-  bitRate: 128000,
-  android: {
-    extension: ".aac",
-    outputFormat: "aac_adts",
-    audioEncoder: "aac",
-  },
-  ios: {
-    extension: ".wav",
-    outputFormat: IOSOutputFormat.LINEARPCM,
-    audioQuality: AudioQuality.MAX,
-    linearPCMBitDepth: 16,
-    linearPCMIsBigEndian: false,
-    linearPCMIsFloat: false,
-  },
-  web: {
-    mimeType: "audio/webm",
-    bitsPerSecond: 128000,
-  },
-};
 
 export type RecorderState =
   | "idle"
@@ -75,7 +44,7 @@ export function useVoiceRecorder(): UseVoiceRecorderResult {
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const recorder = useAudioRecorder(VOICE_RECORDING_OPTIONS, (status) => {
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY, (status) => {
     if (status.hasError && status.error) {
       setErrorMessage(status.error);
       setState("error");
