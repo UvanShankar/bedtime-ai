@@ -7,6 +7,7 @@ interface NilaToggleProps {
   sublabel?: string;
   value: boolean;
   onValueChange: (val: boolean) => void;
+  disabled?: boolean;
   style?: ViewStyle;
 }
 
@@ -15,10 +16,11 @@ export const NilaToggle: React.FC<NilaToggleProps> = ({
   sublabel,
   value,
   onValueChange,
+  disabled,
   style,
 }) => {
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, style, disabled && { opacity: 0.5 }]}>
       <View style={styles.textContainer}>
         <Text style={styles.label}>{label}</Text>
         {sublabel && <Text style={styles.sublabel}>{sublabel}</Text>}
@@ -26,6 +28,7 @@ export const NilaToggle: React.FC<NilaToggleProps> = ({
       <Switch
         value={value}
         onValueChange={onValueChange}
+        disabled={disabled}
         trackColor={{ false: NilaColors.cardBorder, true: NilaColors.gold }}
         thumbColor={value ? NilaColors.midnight : NilaColors.textSecondary}
         ios_backgroundColor={NilaColors.cardBorder}

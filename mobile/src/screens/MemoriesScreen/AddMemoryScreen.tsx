@@ -26,24 +26,19 @@ export const AddMemoryScreen: React.FC<Props> = ({ route, navigation }) => {
   const { memoryToEdit } = route?.params || {};
   const { selectedChild, addMemory, updateMemory } = useNila();
 
-  const [description, setDescription] = useState(
-    memoryToEdit?.description ||
-      "We baked chocolate chip cookies together. Aarav got flour on his nose and called himself the Cookie Monster. Teddy got the first bite..."
-  );
-  const [title, setTitle] = useState(memoryToEdit?.title || "Baking cookies afternoon");
+  const [description, setDescription] = useState(memoryToEdit?.description || "");
+  const [title, setTitle] = useState(memoryToEdit?.title || "");
   const [when, setWhen] = useState(memoryToEdit?.date || "Today");
   const [who, setWho] = useState<string[]>(
-    memoryToEdit?.people || [selectedChild?.name || "Aarav", "Dad", "Mom"]
+    memoryToEdit?.people || (selectedChild?.name ? [selectedChild.name] : [])
   );
-  const [emotions, setEmotions] = useState<string[]>(
-    memoryToEdit?.emotions || ["Cozy", "Silly"]
-  );
+  const [emotions, setEmotions] = useState<string[]>(memoryToEdit?.emotions || []);
   const [useInStories, setUseInStories] = useState(
     memoryToEdit ? memoryToEdit.useInStories : true
   );
 
   const whenOptions = ["Today", "Yesterday", "Choose date..."];
-  const whoOptions = [selectedChild?.name || "Aarav", "Mom", "Dad", "Paati", "Thatha"];
+  const whoOptions = [selectedChild?.name || "Child", "Amma", "Appa", "Paati", "Thatha"];
   const emotionOptions = ["Cozy", "Silly", "Happy", "Peaceful", "Emotional"];
 
   const toggleWho = (person: string) => {
@@ -69,18 +64,18 @@ export const AddMemoryScreen: React.FC<Props> = ({ route, navigation }) => {
         ...memoryToEdit,
         title: title.trim() || "Bedtime memory",
         description: description.trim(),
-        date: when === "Today" ? "May 14, 2026" : when,
+        date: when === "Today" ? new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : when,
         people: who,
         emotions,
         useInStories,
       });
     } else {
       addMemory({
-        parentId: "parent-001",
+        parentId: selectedChild?.parentId || "parent-001",
         childId: selectedChild?.id || "child-001",
         title: title.trim() || "Bedtime memory",
         description: description.trim(),
-        date: when === "Today" ? "May 14, 2026" : when,
+        date: when === "Today" ? new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : when,
         people: who,
         emotions,
         useInStories,
@@ -103,7 +98,7 @@ export const AddMemoryScreen: React.FC<Props> = ({ route, navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>WHAT HAPPENED?</Text>
           <NilaTextInput
-            placeholder="We baked chocolate chip cookies together..."
+            placeholder="Tell us what happened (e.g. visited the beach, played in the rain, went to grandma's house)..."
             value={description}
             onChangeText={setDescription}
             multiline

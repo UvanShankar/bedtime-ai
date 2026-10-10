@@ -43,9 +43,17 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
 
         // 2. Prepare contextual instructions
         let additionalInstruction = "";
-        if (request?.includeLifeMemories && memories && memories.length > 0) {
-          const mem = memories[0];
-          additionalInstruction += ` Weave in this memory: "${mem.title} - ${mem.description}".`;
+        if (
+          request?.includeLifeMemories &&
+          request?.selectedMemoryIds &&
+          request.selectedMemoryIds.length > 0 &&
+          memories &&
+          memories.length > 0
+        ) {
+          const matchedMems = memories.filter((m) => request.selectedMemoryIds!.includes(m.id));
+          if (matchedMems.length > 0) {
+            additionalInstruction += ` Weave in this memory: "${matchedMems[0].title} - ${matchedMems[0].description}".`;
+          }
         }
         if (request?.includeFavoriteThings && selectedChild?.interests?.length) {
           additionalInstruction += ` Child's favorites: ${selectedChild.interests.join(", ")}.`;
@@ -65,10 +73,10 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
           durationMinutes: request?.durationMinutes || 5,
           bedtimeCalmness: request?.bedtimeCalmness ?? 0.8,
           includeChildName: request?.includeChildName ?? true,
-          includeFavoriteThings: request?.includeFavoriteThings ?? true,
+          includeFavoriteThings: request?.includeFavoriteThings ?? false,
           includeFamilyMembers: request?.includeFamilyMembers ?? false,
-          includeLifeMemories: request?.includeLifeMemories ?? true,
-          selectedMemoryIds: request?.selectedMemoryIds,
+          includeLifeMemories: Boolean(request?.includeLifeMemories && request?.selectedMemoryIds?.length),
+          selectedMemoryIds: request?.includeLifeMemories ? request?.selectedMemoryIds : [],
           realWorldFacts: false,
           voiceProfileId: request?.voiceProfileId || undefined,
           voiceProvider: request?.voiceProvider || "sarvam",

@@ -55,27 +55,30 @@ export const MemoryDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         {/* Top Header Card */}
         <View style={styles.categoryRow}>
           <Text style={styles.categoryText}>
-            {memory?.category || "BEACH DAY TRIP"}
+            {memory?.category || "FAMILY MEMORY"}
           </Text>
-          <Text style={styles.dateText}>{memory?.date || "May 12, 2026"}</Text>
+          {memory?.date ? <Text style={styles.dateText}>{memory.date}</Text> : null}
         </View>
 
-        <Text style={styles.title}>{memory?.title || "Sunny beach afternoon"}</Text>
+        <Text style={styles.title}>{memory?.title || "Family Memory"}</Text>
 
         <Text style={styles.description}>
-          {memory?.description ||
-            "Aarav built a giant sandcastle with a seaweed flag, then chased tiny crabs until sunset. He insisted on bringing a small jar of salty water home so the crabs wouldn't get lonely."}
+          {memory?.description || ""}
         </Text>
 
         {/* Tagged Emotions */}
-        <Text style={styles.sectionLabel}>TAGGED EMOTIONS</Text>
-        <View style={styles.emotionsRow}>
-          {(memory?.emotions || ["Happy", "Peaceful"]).map((emo: string) => (
-            <View key={emo} style={styles.emotionPill}>
-              <Text style={styles.emotionText}>{emo}</Text>
+        {memory?.emotions && memory.emotions.length > 0 ? (
+          <>
+            <Text style={styles.sectionLabel}>TAGGED EMOTIONS</Text>
+            <View style={styles.emotionsRow}>
+              {memory.emotions.map((emo: string) => (
+                <View key={emo} style={styles.emotionPill}>
+                  <Text style={styles.emotionText}>{emo}</Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
+          </>
+        ) : null}
 
         {/* Story Usage Card */}
         <View style={styles.usageCard}>

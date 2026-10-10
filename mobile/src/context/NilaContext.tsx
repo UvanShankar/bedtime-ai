@@ -104,59 +104,7 @@ const defaultVoice: VoiceProfile = {
   updatedAt: new Date().toISOString(),
 };
 
-const defaultMemories: LifeMemory[] = [
-  {
-    id: "mem-1",
-    parentId: "parent-uvan-001",
-    childId: "child-aarav-001",
-    title: "Sunny beach afternoon",
-    category: "BEACH DAY TRIP",
-    description:
-      "Aarav built a giant sandcastle with a seaweed flag, then chased tiny crabs until sunset. He insisted on bringing a small jar of salty water home so the crabs wouldn't get lonely.",
-    date: "May 12, 2026",
-    people: ["Aarav", "Dad", "Mom"],
-    location: "Marina Beach",
-    emotions: ["Happy", "Peaceful"],
-    useInStories: true,
-    timesUsed: 3,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "mem-2",
-    parentId: "parent-uvan-001",
-    childId: "child-aarav-001",
-    title: "Toy train rescue",
-    category: "HOME ADVENTURE",
-    description:
-      "The blue train car got stuck in the hallway fort. Teddy helped tow it out safely after Aarav connected three wooden blocks together.",
-    date: "May 08, 2026",
-    people: ["Aarav", "Dad"],
-    location: "Living Room",
-    emotions: ["Cozy", "Silly"],
-    useInStories: true,
-    timesUsed: 3,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "mem-3",
-    parentId: "parent-uvan-001",
-    childId: "child-aarav-001",
-    title: "Under the mango tree",
-    category: "GRANDMA'S GARDEN",
-    description:
-      "Chasing fireflies in grandma's garden. Aarav tried to feed one some sweet mango juice so it would shine even brighter in the night.",
-    date: "May 02, 2026",
-    people: ["Aarav", "Paati", "Dad"],
-    location: "Madurai Garden",
-    emotions: ["Happy", "Peaceful"],
-    useInStories: true,
-    timesUsed: 3,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+const defaultMemories: LifeMemory[] = [];
 
 const S3_STORY_AUDIO_1 = "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3";
 const S3_STORY_AUDIO_2 = "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_0031d1d3f756_1791578804598.mp3";
@@ -308,20 +256,24 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSelectedChild(backendChildren[0]);
           logger.success("CHILD", `Synced ${backendChildren.length} children from backend. Active: ${backendChildren[0].name}`);
         } else {
-          // Create initial child in DynamoDB
-          logger.info("CHILD", "Creating initial child profile in backend...");
-          const newChild = await ParentApi.createChild({
-            name: selectedChild.name || "Aarav",
-            age: selectedChild.age || 4,
-            interests: selectedChild.interests || ["Trains", "Stars"],
-            personality: selectedChild.personality || ["Curious", "Playful"],
-            avoidTopics: selectedChild.avoidTopics || ["Monsters"],
-            favoriteCharacters: selectedChild.favoriteCharacters || [],
-          });
-          currentChildId = newChild.id;
-          setSelectedChild(newChild);
-          setChildrenList([newChild]);
-          logger.success("CHILD", `Created initial child: ${newChild.name} (${newChild.id})`);
+          // If the user already customized a child in local state, sync it; otherwise wait for user onboarding
+          if (selectedChild?.name && selectedChild.name !== "Aarav") {
+            logger.info("CHILD", `Creating user child profile in backend: ${selectedChild.name}...`);
+            const newChild = await ParentApi.createChild({
+              name: selectedChild.name,
+              age: selectedChild.age || 4,
+              interests: selectedChild.interests || [],
+              personality: selectedChild.personality || [],
+              avoidTopics: selectedChild.avoidTopics || [],
+              favoriteCharacters: selectedChild.favoriteCharacters || [],
+            });
+            currentChildId = newChild.id;
+            setSelectedChild(newChild);
+            setChildrenList([newChild]);
+            logger.success("CHILD", `Created child: ${newChild.name} (${newChild.id})`);
+          } else {
+            logger.info("CHILD", "No children profiles found in backend yet. Will be configured during setup.");
+          }
         }
       } catch (childErr) {
         logger.warn("CHILD", "Children sync note", childErr);
@@ -330,11 +282,12 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 4. Fetch live memories from DynamoDB Nila_Memories_prod
       try {
         const liveMemories = await MemoryApi.getMemories(currentChildId);
+        setMemories(liveMemories || []);
         if (liveMemories && liveMemories.length > 0) {
-          setMemories(liveMemories);
           logger.success("MEMORY", `Synced ${liveMemories.length} life memories from backend`);
         }
       } catch (memErr) {
+        setMemories([]);
         logger.warn("MEMORY", "Memories sync note", memErr);
       }
 
@@ -379,9 +332,9 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshMemoriesFromBackend = async () => {
     try {
       const liveMemories = await MemoryApi.getMemories(selectedChild?.id);
+      setMemories(liveMemories || []);
       if (liveMemories && liveMemories.length > 0) {
         logger.success("MEMORY", `Retrieved ${liveMemories.length} memories for ${selectedChild?.name}`);
-        setMemories(liveMemories);
       }
     } catch (err) {
       logger.info("MEMORY", "Using local memories cache", err);

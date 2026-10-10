@@ -14,21 +14,23 @@ interface Props {
 }
 
 export const ChildProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
-  const { selectedChild, updateChild } = useNila();
+  const { selectedChild, addChild } = useNila();
 
-  const [childName, setChildName] = useState(selectedChild?.name || "Aarav");
+  const hasUserCustomChild = Boolean(selectedChild?.name && selectedChild.name !== "Aarav");
+
+  const [childName, setChildName] = useState(hasUserCustomChild ? selectedChild.name : "");
   const [age, setAge] = useState(selectedChild?.age || 4);
   const [interests, setInterests] = useState<string[]>(
-    selectedChild?.interests || ["Trains", "Dinosaurs", "Animals", "Space"]
+    hasUserCustomChild ? selectedChild?.interests || [] : []
   );
   const [personalities, setPersonalities] = useState<string[]>(
-    selectedChild?.personality || ["Curious", "Playful", "Imaginative"]
+    hasUserCustomChild ? selectedChild?.personality || [] : ["Curious", "Playful"]
   );
   const [favoriteCharacters, setFavoriteCharacters] = useState(
-    selectedChild?.favoriteCharacters?.join(", ") || "Leo the friendly lion, blue trains"
+    hasUserCustomChild ? selectedChild?.favoriteCharacters?.join(", ") || "" : ""
   );
   const [avoidances, setAvoidances] = useState<string[]>(
-    selectedChild?.avoidTopics || ["Monsters", "Darkness", "Loud noises"]
+    hasUserCustomChild ? selectedChild?.avoidTopics || [] : []
   );
 
   const interestOptions = [
@@ -85,9 +87,9 @@ export const ChildProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleContinue = () => {
-    updateChild({
-      ...selectedChild,
-      name: childName,
+    const finalChildName = childName.trim() || "Kanna";
+    addChild({
+      name: finalChildName,
       age,
       interests,
       personality: personalities,
@@ -110,7 +112,7 @@ export const ChildProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <NilaTextInput
           label="Child's Name"
-          placeholder="Aarav"
+          placeholder="e.g. Aarav, Ananya, Kanna"
           value={childName}
           onChangeText={setChildName}
         />

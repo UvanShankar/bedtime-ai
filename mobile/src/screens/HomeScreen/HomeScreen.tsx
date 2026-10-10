@@ -55,7 +55,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
             activeOpacity={0.8}
           >
             <Text style={styles.childAvatarEmoji}>👦🏽</Text>
-            <Text style={styles.childBadgeText}>{selectedChild?.name || "Aarav"}</Text>
+            <Text style={styles.childBadgeText}>{selectedChild?.name || "Kanna"}</Text>
           </TouchableOpacity>
         </View>
 
@@ -70,7 +70,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.heroMoon}>☾</Text>
           <Text style={styles.heroTitle}>Create tonight's story</Text>
           <Text style={styles.heroSubtitle}>
-            A new custom bedtime adventure for {selectedChild?.name || "Aarav"}.
+            A new custom bedtime adventure for {selectedChild?.name || "Kanna"}.
           </Text>
 
           <NilaButton
@@ -131,9 +131,9 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
         </TouchableOpacity>
 
-        {/* Suggested for Aarav */}
+        {/* Suggested for Child */}
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Suggested for {selectedChild?.name || "Aarav"}</Text>
+          <Text style={styles.sectionTitle}>Suggested for {selectedChild?.name || "Kanna"}</Text>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suggestedScroll}>

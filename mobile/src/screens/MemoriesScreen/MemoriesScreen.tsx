@@ -46,7 +46,7 @@ export const MemoriesScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={styles.headerTitle}>Little pieces of home</Text>
         <Text style={styles.headerSubtitle}>
           Save small real-life moments here. Nila will seamlessly weave them into{" "}
-          {selectedChild?.name || "Aarav"}'s bedtime stories.
+          {selectedChild?.name || "Kanna"}'s bedtime stories.
         </Text>
       </View>
 
@@ -62,38 +62,50 @@ export const MemoriesScreen: React.FC<Props> = ({ navigation }) => {
           />
         }
       >
-        {memories.map((mem) => (
-          <TouchableOpacity
-            key={mem.id}
-            style={styles.memoryCard}
-            onPress={() => handleCardPress(mem)}
-            activeOpacity={0.85}
-          >
-            <View style={styles.cardHeaderRow}>
-              <Text style={styles.cardTitle}>{mem.title}</Text>
-              <Text style={styles.cardDate}>{mem.date}</Text>
+        {memories.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="sparkles" size={28} color={NilaColors.gold} />
             </View>
-
-            <Text style={styles.cardDesc} numberOfLines={3}>
-              {mem.description}
+            <Text style={styles.emptyTitle}>No Memories Added Yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Capture special family moments, trips, and milestones to weave them into personalized bedtime stories.
             </Text>
-
-            <View style={styles.cardFooter}>
-              <View style={styles.usageTag}>
-                <Ionicons name="sparkles" size={13} color={NilaColors.gold} />
-                <Text style={styles.usageText}>Used in {mem.timesUsed || 1} stories</Text>
+          </View>
+        ) : (
+          memories.map((mem) => (
+            <TouchableOpacity
+              key={mem.id}
+              style={styles.memoryCard}
+              onPress={() => handleCardPress(mem)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.cardHeaderRow}>
+                <Text style={styles.cardTitle}>{mem.title}</Text>
+                <Text style={styles.cardDate}>{mem.date}</Text>
               </View>
 
-              <TouchableOpacity
-                onPress={() => handleEditPress(mem)}
-                activeOpacity={0.7}
-                style={styles.editButton}
-              >
-                <Text style={styles.editText}>Edit Memory</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        ))}
+              <Text style={styles.cardDesc} numberOfLines={3}>
+                {mem.description}
+              </Text>
+
+              <View style={styles.cardFooter}>
+                <View style={styles.usageTag}>
+                  <Ionicons name="sparkles" size={13} color={NilaColors.gold} />
+                  <Text style={styles.usageText}>Used in {mem.timesUsed || 1} stories</Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => handleEditPress(mem)}
+                  activeOpacity={0.7}
+                  style={styles.editButton}
+                >
+                  <Text style={styles.editText}>Edit Memory</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
 
       <View style={styles.bottomBar}>
@@ -204,5 +216,34 @@ const styles = StyleSheet.create({
   },
   addButton: {
     width: "100%",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+    paddingTop: 80,
+    paddingBottom: 40,
+  },
+  emptyIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(245, 199, 106, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: NilaColors.textPrimary,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: NilaColors.textSecondary,
+    textAlign: "center",
+    lineHeight: 22,
   },
 });

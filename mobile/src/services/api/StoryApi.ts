@@ -69,9 +69,9 @@ export class StoryApi {
       includeChildName: input.includeChildName ?? true,
       includeFavoriteThings: input.includeFavoriteThings ?? true,
       includeFamilyMembers: input.includeFamilyMembers ?? false,
-      dialect: input.dialect || undefined,
-      includeMemoryIds: input.selectedMemoryIds || (input.includeLifeMemories ? [] : undefined),
-      additionalInstruction: input.additionalInstruction || undefined,
+      includeMemoryIds: (input.includeLifeMemories && input.selectedMemoryIds && input.selectedMemoryIds.length > 0)
+        ? input.selectedMemoryIds
+        : undefined,
     };
 
     logger.info("STORY", `Initiating story generation: "${input.promptIdea || input.topic}"`, {

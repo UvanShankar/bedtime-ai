@@ -73,15 +73,17 @@ export class StoryService {
 
     const parentRelationship = normalizeRelationship(dto.relationship || voiceProfileRel || user?.relationship || 'Appa');
 
-    // Collect included memories
+    // Collect included memories - only valid, existing memories from DynamoDB
+    let realMemoryIds: string[] = [];
     let memorySnippet = '';
     if (dto.includeMemoryIds && dto.includeMemoryIds.length > 0) {
       const memories = await Promise.all(
         dto.includeMemoryIds.map(id => memoryDao.getMemory(id))
       );
-      memorySnippet = memories
-        .filter(Boolean)
-        .map(m => `${m!.title}: ${m!.description}`)
+      const validMemories = memories.filter((m): m is NonNullable<typeof m> => !!m);
+      realMemoryIds = validMemories.map(m => m.memoryId);
+      memorySnippet = validMemories
+        .map(m => `${m.title}: ${m.description}`)
         .join('. ');
     }
 
@@ -238,7 +240,7 @@ Begin the story directly with a warm parental opening like "கண்ணா...",
       promptIdea: dto.promptIdea,
       targetDurationMinutes,
       moralLesson: dto.moralLesson,
-      includedMemoryIds: dto.includeMemoryIds || [],
+      includedMemoryIds: realMemoryIds,
       language: 'ta',
       dialect,
       status: 'QUEUED',

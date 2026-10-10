@@ -143,9 +143,10 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
 
   // Personalization toggles
   const [includeChildName, setIncludeChildName] = useState(true);
-  const [includeFavoriteThings, setIncludeFavoriteThings] = useState(true);
+  const [includeFavoriteThings, setIncludeFavoriteThings] = useState(false);
   const [includeFamilyMembers, setIncludeFamilyMembers] = useState(false);
-  const [includeLifeMemories, setIncludeLifeMemories] = useState(true);
+  const [includeLifeMemories, setIncludeLifeMemories] = useState(false);
+  const [selectedMemoryIds, setSelectedMemoryIds] = useState<string[]>([]);
 
   const surpriseTopics = [
     "A little elephant who wants to count the stars",
@@ -188,6 +189,11 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
     const chosenVoice = voiceOptions.find((v) => v.id === selectedVoiceId) || voiceOptions[0];
     previewController.stop().catch(() => {});
 
+    const canIncludeMemories = Boolean(includeLifeMemories && memories && memories.length > 0);
+    const resolvedSelectedMemoryIds = canIncludeMemories
+      ? (selectedMemoryIds.length > 0 ? selectedMemoryIds : [memories[0].id])
+      : [];
+
     const requestPayload = {
       parentId: parent?.id || "parent-001",
       childId: selectedChild?.id || "child-001",
@@ -198,10 +204,10 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
       durationMinutes: durationNum,
       bedtimeCalmness: calmness,
       includeChildName,
-      includeFavoriteThings,
+      includeFavoriteThings: Boolean(includeFavoriteThings && selectedChild?.interests?.length),
       includeFamilyMembers,
-      includeLifeMemories,
-      selectedMemoryIds: includeLifeMemories ? memories.slice(0, 2).map((m) => m.id) : [],
+      includeLifeMemories: canIncludeMemories,
+      selectedMemoryIds: resolvedSelectedMemoryIds,
       voiceProfileId: chosenVoice.isCloned ? chosenVoice.id : undefined,
       voiceProvider: chosenVoice.provider,
       speaker: chosenVoice.speaker,
@@ -388,14 +394,18 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
           <Text style={styles.sectionLabel}>Make it theirs</Text>
           <View style={styles.togglesCard}>
             <NilaToggle
-              label={`Include child's name (${selectedChild?.name || "Aarav"})`}
+              label={`Include child's name (${selectedChild?.name || "Child"})`}
               value={includeChildName}
               onValueChange={setIncludeChildName}
             />
             <View style={styles.toggleDivider} />
 
             <NilaToggle
-              label="Include favorite things (Trains)"
+              label={
+                selectedChild?.interests && selectedChild.interests.length > 0
+                  ? `Include favorite things (${selectedChild.interests[0]})`
+                  : "Include favorite things"
+              }
               value={includeFavoriteThings}
               onValueChange={setIncludeFavoriteThings}
             />
@@ -409,9 +419,20 @@ export const StoryRequestScreen: React.FC<Props> = ({ route, navigation }) => {
             <View style={styles.toggleDivider} />
 
             <NilaToggle
-              label="Include life memories (Marina Beach)"
-              value={includeLifeMemories}
-              onValueChange={setIncludeLifeMemories}
+              label={
+                memories && memories.length > 0
+                  ? `Include life memories (${memories[0].title})`
+                  : "Include life memories (No memories added yet)"
+              }
+              value={Boolean(memories && memories.length > 0 && includeLifeMemories)}
+              onValueChange={(val) => {
+                if (memories && memories.length > 0) {
+                  setIncludeLifeMemories(val);
+                } else {
+                  setIncludeLifeMemories(false);
+                }
+              }}
+              disabled={!memories || memories.length === 0}
             />
           </View>
         </View>
