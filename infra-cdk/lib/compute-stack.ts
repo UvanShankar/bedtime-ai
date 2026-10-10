@@ -19,6 +19,8 @@ export interface ComputeStackProps extends cdk.StackProps {
 export class ComputeStack extends cdk.Stack {
   public readonly nilaFunction: lambda.DockerImageFunction;
   public readonly aiFunction: lambda.DockerImageFunction;
+  public readonly nilaFunctionUrl: lambda.FunctionUrl;
+  public readonly aiFunctionUrl: lambda.FunctionUrl;
   public readonly httpApi: apigwv2.HttpApi;
 
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
@@ -84,7 +86,26 @@ export class ComputeStack extends cdk.Stack {
       description: 'Nila Core Backend Service - Domain APIs, Auth, Children, Stories ($0.00 idle cost)',
     });
 
-    // 3. Serverless HTTP API Gateway (v2) - $0.00 base cost at 0 traffic
+    // 3. Direct Lambda Function URLs (Bypasses API Gateway 30-second timeout ceiling)
+    this.aiFunctionUrl = this.aiFunction.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+      cors: {
+        allowedOrigins: ['*'],
+        allowedMethods: [lambda.HttpMethod.ALL],
+        allowedHeaders: ['*'],
+      },
+    });
+
+    this.nilaFunctionUrl = this.nilaFunction.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+      cors: {
+        allowedOrigins: ['*'],
+        allowedMethods: [lambda.HttpMethod.ALL],
+        allowedHeaders: ['*'],
+      },
+    });
+
+    // 4. Serverless HTTP API Gateway (v2) - $0.00 base cost at 0 traffic
     this.httpApi = new apigwv2.HttpApi(this, 'NilaHttpApi', {
       apiName: `nila-api-${env}`,
       description: 'Serverless HTTP API Gateway for Nila Bedtime Stories ($0.00 at 0 traffic)',
@@ -122,14 +143,26 @@ export class ComputeStack extends cdk.Stack {
       integration: nilaIntegration,
     });
 
-    // Point Nila Core's AI_SERVICE_URL to the API Gateway endpoint
-    this.nilaFunction.addEnvironment('AI_SERVICE_URL', this.httpApi.apiEndpoint);
+    // Point Nila Core's AI_SERVICE_URL directly to Generic AI Lambda Function URL (bypasses 30s API Gateway ceiling)
+    this.nilaFunction.addEnvironment('AI_SERVICE_URL', this.aiFunctionUrl.url);
 
-    // 4. Output the Serverless Public Endpoint
+    // 5. Output the Serverless Public Endpoints
     new cdk.CfnOutput(this, 'HttpApiEndpoint', {
       value: this.httpApi.apiEndpoint,
       description: 'Serverless HTTP API Gateway URL ($0.00 at 0 traffic)',
       exportName: `NilaApiEndpoint-${env}`,
+    });
+
+    new cdk.CfnOutput(this, 'NilaFunctionUrl', {
+      value: this.nilaFunctionUrl.url,
+      description: 'Direct Lambda Function URL for Nila Core Service (Bypasses API Gateway 30s timeout)',
+      exportName: `NilaFunctionUrl-${env}`,
+    });
+
+    new cdk.CfnOutput(this, 'AIFunctionUrl', {
+      value: this.aiFunctionUrl.url,
+      description: 'Direct Lambda Function URL for Generic AI Service (Bypasses API Gateway 30s timeout)',
+      exportName: `AIFunctionUrl-${env}`,
     });
   }
 }

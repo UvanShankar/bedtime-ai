@@ -6,7 +6,7 @@ export class AIServiceClient {
   private apiKey: string;
 
   constructor() {
-    this.baseUrl = process.env.AI_SERVICE_URL || 'http://localhost:8081';
+    this.baseUrl = (process.env.AI_SERVICE_URL || 'http://localhost:8081').replace(/\/+$/, '');
     this.apiKey = process.env.AI_SERVICE_API_KEY || 'test-ai-key-secret-12345';
   }
 

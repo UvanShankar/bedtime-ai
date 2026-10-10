@@ -132,14 +132,9 @@ export class SarvamTTSProvider implements ITTSProvider {
       if (currentChunk) textChunks.push(currentChunk);
     }
 
-    const audioBuffers: Buffer[] = [];
-    let totalDuration = 0;
-
-    logger.info(`[SarvamTTSProvider] Synthesizing ${textChunks.length} text chunks (speaker=${effectiveSpeaker}, cloned=${isClonedVoice})`);
-    let chunkIndex = 0;
-    for (const chunk of textChunks) {
-      chunkIndex++;
-      logger.info(`[SarvamTTSProvider] Requesting audio chunk ${chunkIndex}/${textChunks.length} (${chunk.length} chars)`);
+    logger.info(`[SarvamTTSProvider] Synthesizing ${textChunks.length} text chunks in parallel (speaker=${effectiveSpeaker}, cloned=${isClonedVoice})`);
+    const chunkPromises = textChunks.map(async (chunk, index) => {
+      logger.info(`[SarvamTTSProvider] Requesting audio chunk ${index + 1}/${textChunks.length} (${chunk.length} chars)`);
       let response: Response;
 
       if (isClonedVoice) {
@@ -154,7 +149,7 @@ export class SarvamTTSProvider implements ITTSProvider {
         response = await fetch(`${this.baseUrl}/voices/clone`, {
           method: 'POST',
           headers: {
-            'api-subscription-key': this.apiKey,
+            'api-subscription-key': this.apiKey!,
           },
           body: formData,
         });
@@ -163,7 +158,7 @@ export class SarvamTTSProvider implements ITTSProvider {
         response = await fetch(`${this.baseUrl}/text-to-speech`, {
           method: 'POST',
           headers: {
-            'api-subscription-key': this.apiKey,
+            'api-subscription-key': this.apiKey!,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -191,9 +186,15 @@ export class SarvamTTSProvider implements ITTSProvider {
       }
 
       const buf = Buffer.from(base64Audio, 'base64');
-      audioBuffers.push(buf);
-      totalDuration += data.audio_duration ? Math.round(data.audio_duration) : Math.round(buf.length / (22050 * 2));
-    }
+      const duration = data.audio_duration ? Math.round(data.audio_duration) : Math.round(buf.length / (22050 * 2));
+      return { index, buf, duration };
+    });
+
+    const chunkResults = await Promise.all(chunkPromises);
+    chunkResults.sort((a, b) => a.index - b.index);
+
+    const audioBuffers = chunkResults.map(r => r.buf);
+    const totalDuration = chunkResults.reduce((acc, r) => acc + r.duration, 0);
 
     const finalBuffer = audioBuffers.length === 1 ? audioBuffers[0] : Buffer.concat(audioBuffers);
     return {
