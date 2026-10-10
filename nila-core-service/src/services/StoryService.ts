@@ -207,30 +207,76 @@ The entire environment must feel 100% safe, loving, cozy, and reassuring.`;
 - Lively, fun storytelling with spirited events, softly winding down into bedtime cuddles at the very end.`;
     }
 
-    // Dialect & Linguistic Guidance
-    const dialectGuideline = `DIALECT & SPOKEN STYLE (${dialect} Spoken Tamil):
-- Speak in NATURAL SPOKEN TAMIL (எளிய பேச்சுத் தமிழ்), exactly how parents talk to kids at home in Tamil Nadu.
-- DO NOT use archaic written/literary Tamil (தூய எழுத்துத் தமிழ்) like 'சென்றான்', 'கூறினான்', 'அங்குள்ள', 'மகிழ்ந்தான்'.
-- USE natural colloquial forms: 'போனான்', 'சொன்னான்', 'அங்க இருக்கிற', 'ரொம்ப சந்தோஷப்பட்டான்', 'பாத்தியா', 'அப்புறம்'.
-${dialect === 'Chennai' ? '- Incorporate warm Chennai spoken cadence and natural colloquial words.' : ''}
-${dialect === 'Kongu' ? '- Incorporate respectful, affectionate Kongu dialect cadence (ஏனுங், அப்புடிங், கண்ணு).' : ''}
-${dialect === 'Madurai' ? '- Incorporate warm, rhythmic Madurai dialect cadence (சொல்லுங்கப்பா, அம்புட்டுதான், பார்த்தீயளா).' : ''}
-${dialect === 'Tirunelveli' ? '- Incorporate Nellai spoken warmth and cadence (ஏலே, அடேங்கப்பா).' : ''}`;
+    // Strict Colloquial Tamil & Slang Guidance (Zero Thuya Tamil)
+    const colloquialSpokenRules = `STRICT COLLOQUIAL SPOKEN TAMIL (இயல்பான பேச்சுத் தமிழ் மட்டுமே - புத்தகத் தமிழ் அறவே கூடாது):
+- The narration MUST sound 100% like a loving Tamil parent speaking naturally at bedtime, NOT reading from a printed storybook.
+- STRICTLY FORBIDDEN WORDS (தூய / புத்தகத் தமிழ் தடை) & MANDATORY SPOKEN REPLACEMENTS:
+  * ❌ NEVER USE "கூறினார்" / "கூறினான்" / "கூறியது" / "கூறினார்கள்" / "என்றார்" -> ALWAYS USE "சொன்னான்" / "சொன்னாரு" / "சொல்லிச்சு" / "சொன்னாங்க" / "கேட்டுச்சு"
+  * ❌ NEVER USE "சென்றான்" / "சென்றது" / "சென்றார்கள்" / "சென்றன" -> ALWAYS USE "போனான்" / "போச்சு" / "போனாங்க" / "கிளம்பிச்சு"
+  * ❌ NEVER USE "உண்டான்" / "உண்டது" / "அருந்தினான்" -> ALWAYS USE "சாப்பிட்டான்" / "சாப்பிட்டுச்சு" / "குடிச்சான்"
+  * ❌ NEVER USE "கண்டான்" / "கண்டது" -> ALWAYS USE "பார்த்தான்" / "பார்த்துச்சு" / "பாத்துச்சு"
+  * ❌ NEVER USE "மகிழ்ந்தான்" / "மகிழ்ச்சியடைந்தார்" -> ALWAYS USE "ரொம்ப சந்தோஷப்பட்டான்" / "குஷி ஆயிட்டான்" / "ரொம்ப குஷியா இருந்துச்சு"
+  * ❌ NEVER USE "அங்குள்ள" / "இங்குள்ள" / "எங்குள்ள" -> ALWAYS USE "அங்க இருக்கிற" / "இங்க இருக்கிற" / "எங்க இருக்கிற"
+  * ❌ NEVER USE "செய்தான்" / "செய்தது" / "செய்தார்கள்" -> ALWAYS USE "பண்ணினான்" / "செஞ்சான்" / "பண்ணுச்சு" / "செஞ்சாங்க"
+  * ❌ NEVER USE "அப்பொழுது" / "இப்பொழுது" / "எப்பொழுது" -> ALWAYS USE "அப்போ" / "இப்போ" / "எப்போ"
+  * ❌ NEVER USE "அதனால்" / "எனவே" / "ஆகையால்" -> ALWAYS USE "அதனால" / "அதனாலதான்"
+  * ❌ NEVER USE "ஓடியது" / "பறந்தது" / "நின்றது" -> ALWAYS USE "ஓடுச்சு" / "பறந்துச்சு" / "நின்னுச்சு"
+  * ❌ NEVER USE "வந்தது" / "இருந்தது" / "ஆனது" -> ALWAYS USE "வந்துச்சு" / "இருந்துச்சு" / "ஆச்சு"
+  * ❌ NEVER USE "அவனுடைய" / "அவளுடைய" / "அவர்களுடைய" -> ALWAYS USE "அவனோட" / "அவளோட" / "அவங்களோட"
+  * ❌ NEVER USE "வீட்டிற்கு" / "காட்டிற்கு" / "நாட்டிற்கு" -> ALWAYS USE "வீட்டுக்கு" / "காட்டுக்கு" / "நாட்டுக்கு"
+  * ❌ NEVER USE "பெரியதொரு" / "சிறியதொரு" -> ALWAYS USE "ஒரு பெரிய" / "ஒரு சின்ன"
+  * ❌ NEVER USE "விழுந்தது" / "கேட்டது" -> ALWAYS USE "விழுந்துச்சு" / "கேட்டுச்சு"
+
+- ORAL STORYTELLING CADENCE & PARENTAL HOOKS:
+  * Weave in natural intimate rhetorical questions and pauses:
+    "தெரியுமா கண்ணா?", "அப்புறம் என்னாச்சு தெரியுமா?", "அடடா!", "ஆஹா!", "பாருடா செல்லம்", "அங்க என்ன நடந்துச்சு தெரியுமா?", "அப்புறம் மெதுவா..."
+  * Real conversational cadence: Keep it cozy, tender, and deeply affectionate.`;
+
+    // Dialect Slang Guidance
+    let dialectSlangGuideline = '';
+    if (dialect === 'Chennai') {
+      dialectSlangGuideline = `REGIONAL SLANG (${dialect} Spoken Tamil):
+- Use everyday warm Chennai colloquial terms and friendly street rhythm: "சூப்பரா", "செம ஜாலியா", "கலக்கிட்டான்", "பாத்துக்கோ", "அப்புறம் என்னாச்சு தெரியுமா?", "நம்ம குட்டி", "அடேங்கப்பா".`;
+    } else if (dialect === 'Kongu') {
+      dialectSlangGuideline = `REGIONAL SLANG (${dialect} Spoken Tamil):
+- Use tender Kongu speech cadence and affectionate markers: "ஏனுங்", "கண்ணு", "அப்புடிங்", "பண்ணுச்சுங்க", "தங்கமே", "சமத்தா", "இருந்துதுங்க".`;
+    } else if (dialect === 'Madurai') {
+      dialectSlangGuideline = `REGIONAL SLANG (${dialect} Spoken Tamil):
+- Use hearty Madurai colloquial phrasing: "சொல்லுங்கப்பா", "அம்புட்டுதான்", "பார்த்தீயளா", "ஜம்முன்னு", "பொசுக்குன்னு", "கண்ணு", "ராசா".`;
+    } else if (dialect === 'Tirunelveli') {
+      dialectSlangGuideline = `REGIONAL SLANG (${dialect} Spoken Tamil):
+- Use authentic Nellai cadence: "ஏலே", "அடேங்கப்பா", "மக்களே", "செல்லக்குட்டி", "அசந்து போச்சு", "அப்படியே".`;
+    } else {
+      dialectSlangGuideline = `REGIONAL SLANG (Natural Spoken Tamil):
+- Warm colloquial spoken rhythm with conversational Tamil expressions.`;
+    }
+
+    // Story Logic, Meaning, Quality & Non-rambling Guardrail
+    const storyQualityAndLogicGuideline = `STORY QUALITY, LOGIC, MEANING & MORAL (NO BLABBER / NO RAMBLING):
+1. STRICTLY NO BLABBER OR NONSENSICAL RAMBLING:
+   - Do NOT produce repetitive filler, disconnected sentences, aimless wandering, or circular loops.
+   - Every sentence must carry purpose, warmth, and advance the narrative smoothly.
+2. COMPELLING NARRATIVE LOGIC & CAUSE-AND-EFFECT:
+   - The plot must make logical sense to a child. Actions must have clear reasons and believable consequences.
+   - Characters must have relatable motivations, face a gentle, intriguing dilemma or curiosity, and resolve it using wit, kindness, patience, sharing, or teamwork—NOT random unexplained magic or nonsensical plot jumps.
+3. MEANINGFUL MORAL & EMOTIONAL DEPTH:
+   - The story MUST carry a genuine, heartwarming life lesson / moral (${dto.moralLesson || 'kindness, empathy, patience, or sharing'}).
+   - The moral must NOT feel like a dry lecture or robotic conclusion; it must flow organically from how the characters solved their dilemma and treated each other.`;
 
     // Full System Instruction
     const systemInstruction = `You are an affectionate Tamil ${parentRelationship} telling an intimate bedtime story to your child.
-You speak with absolute parental love, warmth, and tenderness.
+You speak with absolute parental love, warmth, and tenderness sitting right by the bed.
 
 CORE RULES:
-1. STRICT SPOKEN TAMIL (எளிய பேச்சுத் தமிழ்):
-   Write exclusively in conversational Tamil script (தமிழ் எழுத்துகளில் எளிய பேச்சு வழக்கு). Never use archaic literary Tamil (எழுத்துத் தமிழ்).
-2. ${dialectGuideline}
-3. ${ageGuidelines}
-4. ${protagonistInstruction}
-${fearAvoidanceInstruction ? `5. ${fearAvoidanceInstruction}\n` : ''}
-6. STORY LENGTH & WORD COUNT:
+1. ${colloquialSpokenRules}
+2. ${dialectSlangGuideline}
+3. ${storyQualityAndLogicGuideline}
+4. ${ageGuidelines}
+5. ${protagonistInstruction}
+${fearAvoidanceInstruction ? `6. ${fearAvoidanceInstruction}\n` : ''}
+7. STORY LENGTH & WORD COUNT:
    The story MUST be between ${minWords} and ${maxWords} Tamil words (target: ~${targetWords} words) to match a ${targetDurationMinutes}-minute spoken narration. DO NOT make it too short or abruptly cut it off.
-7. ${pacingInstruction}`;
+8. ${pacingInstruction}`;
 
     // Prompt Idea with full governance details
     const promptDetails: string[] = [
@@ -251,7 +297,10 @@ ${fearAvoidanceInstruction ? `5. ${fearAvoidanceInstruction}\n` : ''}
 
 ${promptDetails.join('\n')}
 
-Begin the story directly with a warm parental opening like "கண்ணா...", without any title prefixes, Markdown headers, or meta-commentary. Write the entire story in continuous, immersive spoken Tamil paragraphs.`;
+STORYTELLING EXECUTION GUIDELINES:
+1. Realistic Voice & Slang: Tell this story out loud as a loving ${parentRelationship}. Use pure everyday conversational spoken Tamil with natural dialogue particles ("தெரியுமா கண்ணா?", "அப்புறம் என்னாச்சு தெரியுமா?", "அடடா!"). Zero Thuya Tamil (absolutely no "கூறினார்", "சென்றான்", "உண்டான்").
+2. Quality & Logic: Build a coherent, meaningful story with a clear, logical beginning, gentle problem/curiosity, clever/kind resolution, and an authentic moral lesson. Absolutely no rambling, blabbering, or repetitive filler.
+3. Format: Begin the story directly with a warm parental opening like "கண்ணா...", without any title prefixes, Markdown headers, or meta-commentary. Write the entire story in continuous, immersive spoken Tamil paragraphs that smoothly wind down into cozy bedtime sleep.`;
 
     const storyTitle = dto.promptIdea && dto.promptIdea.length <= 40
       ? dto.promptIdea

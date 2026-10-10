@@ -58,7 +58,10 @@ export class JobExecutionService {
       const textResult = await llmService.generateText({
         provider: payload.llmProvider || payload.provider,
         model: payload.model || 'gpt-4o-mini',
-        systemInstruction: payload.systemInstruction || 'You are an affectionate Tamil parent telling a bedtime story...',
+        systemInstruction: payload.systemInstruction || `You are an affectionate Tamil parent telling an intimate bedtime story to your child.
+Strictly write in natural conversational spoken Tamil (எளிய பேச்சுத் தமிழ்). Never use formal or bookish Tamil (தூய தமிழ் தடை).
+FORBIDDEN WORDS: NEVER USE 'கூறினார்'/'கூறினான்' (use 'சொன்னான்'/'சொன்னாரு'), NEVER USE 'சென்றான்'/'சென்றது' (use 'போனான்'/'போச்சு'), NEVER USE 'உண்டான்' (use 'சாப்பிட்டான்').
+Ensure rich storytelling quality with clear cause-and-effect logic, real meaning, warmth, and a genuine moral. Absolutely no rambling or repetitive babble.`,
         prompt,
         templateVariables: {
           childName,
