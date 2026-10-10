@@ -1,0 +1,25 @@
+name: View CloudWatch Logs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  get-logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
+
+      - name: Fetch Nila Core Service Logs
+        run: |
+          echo "=== NILA CORE SERVICE LOGS (LAST 20 MIN) ==="
+          aws logs tail /aws/lambda/nila-core-service-prod --since 20m || true
+
+      - name: Fetch Generic AI Service Logs
+        run: |
+          echo "=== GENERIC AI SERVICE LOGS (LAST 20 MIN) ==="
+          aws logs tail /aws/lambda/nila-generic-ai-service-prod --since 20m || true
