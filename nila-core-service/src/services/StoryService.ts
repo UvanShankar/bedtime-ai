@@ -263,6 +263,42 @@ The entire environment must feel 100% safe, loving, cozy, and reassuring.`;
    - The story MUST carry a genuine, heartwarming life lesson / moral (${dto.moralLesson || 'kindness, empathy, patience, or sharing'}).
    - The moral must NOT feel like a dry lecture or robotic conclusion; it must flow organically from how the characters solved their dilemma and treated each other.`;
 
+    // Provider-specific TTS Best Practices & Formatting (Sarvam AI vs ElevenLabs)
+    let ttsFormattingGuideline = '';
+    let providerExecutionRule = '';
+
+    if (resolvedTtsProvider === 'elevenlabs') {
+      ttsFormattingGuideline = `ELEVENLABS TTS FORMATTING & BEST PRACTICES (Ref: elevenlabs.io/docs/overview/capabilities/text-to-speech/best-practices):
+1. NATURAL PAUSES WITH SSML BREAKS:
+   - Use SSML break tags '<break time="1.0s" />' or '<break time="1.5s" />' for natural pauses between major story transitions and before the sleepy bedtime conclusion.
+   - DO NOT overuse break tags (maximum 3 to 4 breaks across the entire story) to maintain voice stability.
+   - Use em-dashes ('—') and ellipses ('...') for soft, hesitant, sleepy parental cadence.
+2. DIALOGUE FORMATTING & QUOTES:
+   - Put all spoken dialogue inside double quotes (e.g. "கண்ணா, இங்க பாரு...") to enable ElevenLabs' expressive conversational inflections.
+3. TEXT NORMALIZATION:
+   - Spell out ALL numbers and units completely in words (e.g. 'மூன்று', 'ஐந்து', never raw digits like '3', '5').
+4. PARAGRAPH PACING:
+   - Separate narrative scene segments with clean double line breaks (\\n\\n).`;
+
+      providerExecutionRule = `Output Formatting: Format for ElevenLabs TTS. Incorporate tasteful '<break time="1.0s" />' tags (3-4 times max) at key scene transitions and wind-down pauses, use em-dashes ('—') and quotes for dialogue, and spell out all numbers into words.`;
+    } else {
+      // Default to Sarvam AI Best Practices
+      ttsFormattingGuideline = `SARVAM AI TTS FORMATTING & BEST PRACTICES (Ref: docs.sarvam.ai/creative-tts-best-practices):
+1. DELIBERATE PUNCTUATION FOR PACING:
+   - Punctuate deliberately. Commas (',') and trailing ellipses ('...') control pacing and breathing.
+   - Under-punctuated text sounds rushed in Sarvam Bulbul. Use frequent, natural commas and ellipses between clauses to give the speaker natural breathing points.
+2. ZERO SSML & ZERO BRACKET TAGS (CRITICAL):
+   - ABSOLUTELY NO SSML tags (never write '<break>').
+   - ABSOLUTELY NO bracketed or parenthetical tags (never write '[whispers]', '[pause]', or '(pause)').
+   - Sarvam will literally read bracketed words aloud as garbled speech.
+3. SPELL OUT ALL NUMBERS & ABBREVIATIONS:
+   - Spell out all numbers, dates, and amounts completely in Tamil words (e.g. 'ஒன்று', 'இரண்டு', 'பத்து', never '1', '2', '10').
+4. PURE NATIVE SCRIPT:
+   - Write 100% in Tamil script to match the ta-IN model with perfect native pronunciation.`;
+
+      providerExecutionRule = `Output Formatting: Format for Sarvam AI TTS. Use deliberate punctuation (frequent commas and ellipses '...' for natural breathing pauses). Zero SSML tags (no <break>), zero brackets, and spell out all numbers completely in Tamil words.`;
+    }
+
     // Full System Instruction
     const systemInstruction = `You are an affectionate Tamil ${parentRelationship} telling an intimate bedtime story to your child.
 You speak with absolute parental love, warmth, and tenderness sitting right by the bed.
@@ -270,13 +306,14 @@ You speak with absolute parental love, warmth, and tenderness sitting right by t
 CORE RULES:
 1. ${colloquialSpokenRules}
 2. ${dialectSlangGuideline}
-3. ${storyQualityAndLogicGuideline}
-4. ${ageGuidelines}
-5. ${protagonistInstruction}
-${fearAvoidanceInstruction ? `6. ${fearAvoidanceInstruction}\n` : ''}
-7. STORY LENGTH & WORD COUNT:
+3. ${ttsFormattingGuideline}
+4. ${storyQualityAndLogicGuideline}
+5. ${ageGuidelines}
+6. ${protagonistInstruction}
+${fearAvoidanceInstruction ? `7. ${fearAvoidanceInstruction}\n` : ''}
+8. STORY LENGTH & WORD COUNT:
    The story MUST be between ${minWords} and ${maxWords} Tamil words (target: ~${targetWords} words) to match a ${targetDurationMinutes}-minute spoken narration. DO NOT make it too short or abruptly cut it off.
-8. ${pacingInstruction}`;
+9. ${pacingInstruction}`;
 
     // Prompt Idea with full governance details
     const promptDetails: string[] = [
@@ -300,7 +337,8 @@ ${promptDetails.join('\n')}
 STORYTELLING EXECUTION GUIDELINES:
 1. Realistic Voice & Slang: Tell this story out loud as a loving ${parentRelationship}. Use pure everyday conversational spoken Tamil with natural dialogue particles ("தெரியுமா கண்ணா?", "அப்புறம் என்னாச்சு தெரியுமா?", "அடடா!"). Zero Thuya Tamil (absolutely no "கூறினார்", "சென்றான்", "உண்டான்").
 2. Quality & Logic: Build a coherent, meaningful story with a clear, logical beginning, gentle problem/curiosity, clever/kind resolution, and an authentic moral lesson. Absolutely no rambling, blabbering, or repetitive filler.
-3. Format: Begin the story directly with a warm parental opening like "கண்ணா...", without any title prefixes, Markdown headers, or meta-commentary. Write the entire story in continuous, immersive spoken Tamil paragraphs that smoothly wind down into cozy bedtime sleep.`;
+3. ${providerExecutionRule}
+4. Format: Begin the story directly with a warm parental opening like "கண்ணா...", without any title prefixes, Markdown headers, or meta-commentary. Write the entire story in continuous, immersive spoken Tamil paragraphs that smoothly wind down into cozy bedtime sleep.`;
 
     const storyTitle = dto.promptIdea && dto.promptIdea.length <= 40
       ? dto.promptIdea
