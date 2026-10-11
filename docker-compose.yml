@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  localstack:
+    container_name: nila-localstack
+    image: localstack/localstack:3.8.0
+    ports:
+      - "4566:4566"            # LocalStack Gateway
+      - "4510-4559:4510-4559"  # external services port range
+    environment:
+      - SERVICES=dynamodb,s3,sqs
+      - AWS_DEFAULT_REGION=ap-south-1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "./scripts/init-localstack.sh:/etc/localstack/init/ready.d/init-aws.sh"
+      - "localstack_data:/var/lib/localstack"
+
+volumes:
+  localstack_data:
