@@ -19,12 +19,7 @@ interface Props {
 export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const { parent, selectedChild, stories } = useNila();
 
-  const lastStory = stories[0] || {
-    id: "story-elephant-01",
-    title: "The Little Elephant Who Couldn't Sleep",
-    audioDurationSeconds: 302,
-    narratorName: "Dad's Voice",
-  };
+  const lastStory = stories.length > 0 ? stories[0] : null;
 
   const formatDuration = (secs?: number) => {
     if (!secs) return "5 min";
@@ -34,6 +29,10 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handlePlayStory = (storyToPlay: any) => {
+    if (!storyToPlay?.audioUrl) {
+      navigation.navigate("StoryRequest");
+      return;
+    }
     navigation.navigate("StoryPlayer", { story: storyToPlay });
   };
 
@@ -44,7 +43,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.greetingTitle}>
-              Good evening, {parent?.name || "Uvan"} 🌙
+              Good evening, {parent?.name || parent?.relationship || "Storyteller"} 🌙
             </Text>
             <Text style={styles.greetingSubtitle}>How shall we dream tonight?</Text>
           </View>
@@ -102,34 +101,38 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Continue Listening */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Continue listening</Text>
-        </View>
+        {lastStory && (
+          <>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Continue listening</Text>
+            </View>
 
-        <TouchableOpacity
-          style={styles.continueCard}
-          onPress={() => handlePlayStory(lastStory)}
-          activeOpacity={0.85}
-        >
-          <View style={styles.storyCoverThumbnail}>
-            <Text style={styles.storyCoverMoon}>☾</Text>
-          </View>
-          <View style={styles.continueDetails}>
-            <Text style={styles.continueTitle} numberOfLines={1}>
-              {lastStory.title}
-            </Text>
-            <Text style={styles.continueMeta}>
-              {formatDuration(lastStory.audioDurationSeconds)} · {lastStory.narratorName || "Dad's Voice"}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.playCircle}
-            onPress={() => handlePlayStory(lastStory)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="play" size={18} color={NilaColors.midnight} />
-          </TouchableOpacity>
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.continueCard}
+              onPress={() => handlePlayStory(lastStory)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.storyCoverThumbnail}>
+                <Text style={styles.storyCoverMoon}>☾</Text>
+              </View>
+              <View style={styles.continueDetails}>
+                <Text style={styles.continueTitle} numberOfLines={1}>
+                  {lastStory.title}
+                </Text>
+                <Text style={styles.continueMeta}>
+                  {formatDuration(lastStory.audioDurationSeconds)} · {lastStory.narratorName || "Storyteller"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.playCircle}
+                onPress={() => handlePlayStory(lastStory)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="play" size={18} color={NilaColors.midnight} />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* Suggested for Child */}
         <View style={styles.sectionHeaderRow}>

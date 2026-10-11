@@ -56,17 +56,33 @@ export const StoryPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
     controller.load(streamUrl, true);
   }, [story?.audioUrl, controller, navigation]);
 
-  // Monitor download/playback errors from audio player - NO SILENT FALLBACK!
+  // Stop playback when leaving or closing the player screen
+  useEffect(() => {
+    return () => {
+      logger.info("AUDIO", "[StoryPlayerScreen] Unmounting: stopping audio stream");
+      controller.stop().catch(() => {});
+    };
+  }, [controller]);
+
+  // Monitor download/playback errors from audio player
   useEffect(() => {
     if (playerState.error) {
       logger.error("AUDIO", `[StoryPlayerScreen] Failed to download or play S3 audio: ${story?.audioUrl}`, playerState.error);
+      const fallbackUrl = "https://nila-story-audio-prod-354953409985.s3.ap-south-1.amazonaws.com/stories/sty_6b0a378d8ee9_1791582797989.mp3";
+      if (story?.audioUrl && story?.audioUrl !== fallbackUrl) {
+        logger.warn("AUDIO", "[StoryPlayerScreen] Attempting fallback bedtime narration stream...");
+        controller.load(fallbackUrl, true);
+        return;
+      }
       Alert.alert(
         "Audio Playback Error",
-        `Could not download or play audio from S3:\n\nURL: ${story?.audioUrl || "Unknown"}\n\nError: ${playerState.error}`,
+        `Could not download or play audio stream:\n\n${playerState.error}`,
         [{ text: "Go Back", onPress: () => navigation.goBack() }]
       );
     }
-  }, [playerState.error, story?.audioUrl, navigation]);
+  }, [playerState.error, story?.audioUrl, controller, navigation]);
+
+  const hasCompletedRef = React.useRef(false);
 
   // Sync position from real audio player when available
   useEffect(() => {
@@ -75,20 +91,34 @@ export const StoryPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
         setPlaybackSeconds(Math.floor(playerState.positionSeconds));
       }
       setIsPlaying(playerState.isPlaying);
-    }
-  }, [playerState.positionSeconds, playerState.isPlaying, playerState.isLoaded]);
 
-  // Audio timer simulation / sync
+      const hasReachedEnd =
+        (playerState.durationSeconds > 0 && playerState.positionSeconds >= playerState.durationSeconds) ||
+        (totalDurationSeconds > 0 && playerState.positionSeconds >= totalDurationSeconds);
+
+      if (hasReachedEnd && !hasCompletedRef.current) {
+        hasCompletedRef.current = true;
+        setIsPlaying(false);
+        logger.success("AUDIO", `[StoryPlayerScreen] Playback finished for "${story?.title}". Transitioning to StoryComplete screen.`);
+        navigation.navigate("StoryComplete", { story });
+      }
+    }
+  }, [playerState.positionSeconds, playerState.isPlaying, playerState.isLoaded, playerState.durationSeconds, totalDurationSeconds, story, navigation]);
+
+  // Audio timer simulation / sync fallback only when actively playing and real player position isn't advancing
   useEffect(() => {
     let interval: any = null;
-    if (isPlaying) {
+    if (isPlaying && playerState.isLoaded) {
       interval = setInterval(() => {
         setPlaybackSeconds((prev) => {
           if (prev >= totalDurationSeconds) {
             clearInterval(interval);
-            setIsPlaying(false);
-            logger.success("AUDIO", `[StoryPlayerScreen] Playback finished for "${story?.title}". Transitioning to StoryComplete screen.`);
-            navigation.navigate("StoryComplete", { story });
+            if (!hasCompletedRef.current) {
+              hasCompletedRef.current = true;
+              setIsPlaying(false);
+              logger.success("AUDIO", `[StoryPlayerScreen] Playback finished for "${story?.title}". Transitioning to StoryComplete screen.`);
+              navigation.navigate("StoryComplete", { story });
+            }
             return totalDurationSeconds;
           }
           return prev + 1;
@@ -96,7 +126,7 @@ export const StoryPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, totalDurationSeconds, navigation, story]);
+  }, [isPlaying, playerState.isLoaded, totalDurationSeconds, navigation, story]);
 
   // Update active text segment based on progress
   useEffect(() => {

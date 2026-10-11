@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
+import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
 import { Story } from "../../models";
 
@@ -19,7 +20,7 @@ interface Props {
 }
 
 export const StoriesScreen: React.FC<Props> = ({ navigation }) => {
-  const { stories, toggleFavoriteStory, refreshStoriesFromBackend } = useNila();
+  const { parent, stories, toggleFavoriteStory, refreshStoriesFromBackend } = useNila();
 
   const [activeFilter, setActiveFilter] = useState<"All" | "Favorites" | "This week">("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -145,6 +146,11 @@ export const StoriesScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.emptyDesc}>
               Create a little adventure tonight using your loving voice.
             </Text>
+            <NilaButton
+              title="Create Tonight's Story"
+              onPress={() => navigation.navigate("StoryRequest")}
+              style={{ marginTop: 20 }}
+            />
           </View>
         ) : (
           Object.keys(groups).map((groupTitle) => (
@@ -166,7 +172,7 @@ export const StoriesScreen: React.FC<Props> = ({ navigation }) => {
                       {story.title}
                     </Text>
                     <Text style={styles.storyMeta}>
-                      {formatDuration(story.audioDurationSeconds)} · {story.narratorName || "Dad's voice"}
+                      {formatDuration(story.audioDurationSeconds)} · {story.narratorName || (parent?.relationship ? `${parent.relationship}'s voice` : "Storyteller")}
                     </Text>
                   </View>
 

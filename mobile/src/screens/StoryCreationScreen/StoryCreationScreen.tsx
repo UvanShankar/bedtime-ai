@@ -21,9 +21,10 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
   const [stageMessage, setStageMessage] = useState("Initiating bedtime story creation...");
   const [progressPercent, setProgressPercent] = useState(5);
 
+  const storyLanguage = parent?.language || "Tamil";
   const steps = [
     `Thinking about ${selectedChild?.name || "Aarav"}`,
-    "Writing story in natural spoken Tamil",
+    `Writing story in natural spoken ${storyLanguage}`,
     "Bringing home memories into the story",
     "Synthesizing voice narration",
     "Getting bedtime ready",
@@ -66,7 +67,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
         const initialStory = await StoryApi.generateStory({
           parentId,
           childId,
-          relationship: request?.relationship || parent?.relationship || "Appa",
+          relationship: request?.relationship || parent?.relationship || "Mother",
           topic,
           storyType: request?.storyType || "bedtime_calm",
           mood: request?.mood || "Gentle & Sleepy",
@@ -127,7 +128,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
             generatedStory = {
               ...readyStory,
               narratorName: request?.voiceName || voiceProfile?.displayName || `${parent?.relationship || parent?.name || "Parent"}'s Voice`,
-              narratorStyle: `${parent?.dialect || "Chennai"} · Spoken Tamil`,
+              narratorStyle: `${parent?.dialect || "Standard"} · Spoken ${storyLanguage}`,
               inspiredByMemory: chosenMem ? chosenMem.title : undefined,
               isFavorite: true,
             };
@@ -198,7 +199,7 @@ export const StoryCreationScreen: React.FC<Props> = ({ route, navigation }) => {
         {/* Glow Moon */}
         <View style={styles.illustrationWrapper}>
           <View style={styles.glowCircle} />
-          <Text style={styles.moonIcon}>â˜¾</Text>
+          <Text style={styles.moonIcon}>☾</Text>
         </View>
 
         <Text style={styles.title}>Creating tonight's story...</Text>

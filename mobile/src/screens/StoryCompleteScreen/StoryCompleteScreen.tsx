@@ -11,8 +11,18 @@ interface Props {
 }
 
 export const StoryCompleteScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { selectedChild } = useNila();
+  const { parent, selectedChild } = useNila();
   const { story } = route.params || {};
+
+  const farewellsByLanguage: Record<string, string> = {
+    Tamil: "நல்லா தூங்கு கண்ணா...",
+    English: "Sleep tight, sweet dreams...",
+    Hindi: "मीठे सपने, सो जाओ प्यारे...",
+    Telugu: "బాగా నిద్రపో నాన్నా...",
+    Kannada: "ಚೆನ್ನಾಗಿ ಮಲಗು ಕಂದ...",
+    Malayalam: "നന്നായി ഉറങ്ങൂ മുത്തേ...",
+  };
+  const farewellText = farewellsByLanguage[parent?.language || "Tamil"] || farewellsByLanguage.Tamil;
 
   const handleListenAgain = () => {
     navigation.replace("StoryPlayer", { story });
@@ -30,7 +40,7 @@ export const StoryCompleteScreen: React.FC<Props> = ({ route, navigation }) => {
         </View>
 
         <Text style={styles.title}>Good night, {selectedChild?.name || "Aarav"}.</Text>
-        <Text style={styles.tamilFarewell}>"நல்லா தூங்கு கண்ணா..."</Text>
+        <Text style={styles.tamilFarewell}>"{farewellText}"</Text>
 
         <Text style={styles.starIcon}>✦</Text>
         <Text style={styles.sweetDreams}>Sweet dreams</Text>
