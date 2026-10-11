@@ -136,7 +136,10 @@ export class VoiceCloneService {
     });
 
     const region = process.env.AWS_REGION || 'ap-south-1';
-    const downloadUrl = `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+    const isDebug = process.env.DEBUG === 'true';
+    const downloadUrl = isDebug && process.env.S3_ENDPOINT
+      ? `${process.env.S3_ENDPOINT}/${bucket}/${key}`
+      : `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
 
     return {
       uploadUrl,

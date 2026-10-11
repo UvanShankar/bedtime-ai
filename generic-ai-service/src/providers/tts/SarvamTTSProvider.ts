@@ -82,7 +82,12 @@ export class SarvamTTSProvider implements ITTSProvider {
   async synthesizeSpeech(params: ISpeechSynthesizeDTO): Promise<{ audioBuffer: Buffer; durationSeconds: number }> {
     if (!this.apiKey) {
       if (process.env.NODE_ENV !== 'production') {
-        // Safe offline fallback in development
+        const sampleAudioPath = path.resolve(__dirname, '../../../assets/sample_story_audio.mp3');
+        if (fs.existsSync(sampleAudioPath)) {
+          logger.info('[SarvamTTSProvider] Using bundled bedtime story audio sample for development');
+          const audioBuffer = fs.readFileSync(sampleAudioPath);
+          return { audioBuffer, durationSeconds: 120 };
+        }
         const silentMp3Header = Buffer.from([
           0xff, 0xfb, 0x90, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ]);

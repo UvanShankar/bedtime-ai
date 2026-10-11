@@ -12,6 +12,8 @@ const hasExplicitAwsCredentials = !isLambda && !!(process.env.AWS_ACCESS_KEY_ID 
 
 export const s3Client = new S3Client({
   region,
+  requestChecksumCalculation: 'WHEN_REQUIRED',
+  responseChecksumValidation: 'WHEN_REQUIRED',
   ...(hasExplicitAwsCredentials && {
     credentials: {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
@@ -38,6 +40,9 @@ export async function uploadBufferToS3(params: {
   try {
     const command = new PutObjectCommand(params);
     await s3Client.send(command);
+    if (isDebug && process.env.S3_ENDPOINT) {
+      return `${process.env.S3_ENDPOINT}/${params.Bucket}/${params.Key}`;
+    }
     return `https://${params.Bucket}.s3.${region}.amazonaws.com/${params.Key}`;
   } catch (error: any) {
     if (process.env.NODE_ENV !== 'production' && (error.name === 'CredentialsProviderError' || !process.env.AWS_ACCESS_KEY_ID)) {
