@@ -33,6 +33,21 @@ export class ParentController {
       next(error);
     }
   }
+
+  async deleteProfile(req: Request, res: Response, next: NextFunction) {
+    try {
+      await parentService.deleteAccount(req.userId!);
+      const response: IResponse<any> = {
+        data: { message: 'Account and associated data deleted successfully' },
+        success: true,
+        statusCode: StatusCodes.OK,
+        error: null,
+      };
+      return res.status(StatusCodes.OK).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export default new ParentController();

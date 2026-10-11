@@ -11,14 +11,24 @@ import { ApiError, NotFoundError, ValidationError } from '../exceptions/ApiError
 import logger from '../logger';
 
 export function normalizeRelationship(rel?: string): string {
-  if (!rel) return 'Appa';
+  if (!rel) return 'Mother';
   const lower = rel.trim().toLowerCase();
-  if (lower === 'mother' || lower === 'mom' || lower === 'amma') return 'Amma';
-  if (lower === 'father' || lower === 'dad' || lower === 'appa') return 'Appa';
-  if (lower === 'grandmother' || lower === 'paati' || lower === 'patti') return 'Paati';
-  if (lower === 'grandfather' || lower === 'thatha' || lower === 'tata') return 'Thatha';
-  if (lower === 'other' || lower === 'guardian') return 'Other';
+  if (lower === 'mother' || lower === 'mom' || lower === 'amma') return 'Mother';
+  if (lower === 'father' || lower === 'dad' || lower === 'appa') return 'Father';
+  if (lower === 'grandmother' || lower === 'grandma' || lower === 'paati' || lower === 'patti') return 'Grandmother';
+  if (lower === 'grandfather' || lower === 'grandpa' || lower === 'thatha' || lower === 'tata') return 'Grandfather';
+  if (lower === 'other' || lower === 'guardian') return 'Guardian';
   return rel.trim();
+}
+
+export function resolveAudioUrl(url?: string): string {
+  if (!url) return '';
+  const isDebug = process.env.DEBUG === 'true';
+  const s3Endpoint = process.env.S3_ENDPOINT || (isDebug ? 'http://localhost:4566' : '');
+  if (s3Endpoint && url.includes('nila-story-audio-dev.s3.ap-south-1.amazonaws.com')) {
+    return url.replace('https://nila-story-audio-dev.s3.ap-south-1.amazonaws.com', `${s3Endpoint}/nila-story-audio-dev`);
+  }
+  return url;
 }
 
 export class StoryService {
@@ -76,7 +86,7 @@ export class StoryService {
 
     resolvedTtsProvider = (resolvedTtsProvider || 'sarvam').toLowerCase();
 
-    const parentRelationship = normalizeRelationship(dto.relationship || voiceProfileRel || user?.relationship || 'Appa');
+    const parentRelationship = normalizeRelationship(dto.relationship || voiceProfileRel || user?.relationship || 'Mother');
 
     // Collect included memories - only valid, existing memories from DynamoDB
     let realMemoryIds: string[] = [];
@@ -174,10 +184,10 @@ The entire environment must feel 100% safe, loving, cozy, and reassuring.`;
       }
     }
     if (dto.includeFamilyMembers) {
-      const familyMention = parentRelationship === 'Amma' 
-        ? 'Amma (அம்மா) and Appa (அப்பா)' 
-        : 'Appa (அப்பா) and Amma (அம்மா)';
-      personalizationRules.push(`Weave in loving references to family (${familyMention}, Thatha, Paati) giving warm hugs, tucking into bed, and keeping the child safe.`);
+      const familyMention = parentRelationship === 'Mother' 
+        ? 'Mother and Father' 
+        : 'Father and Mother';
+      personalizationRules.push(`Weave in loving references to family (${familyMention}, Grandparents) giving warm hugs, tucking into bed, and keeping the child safe.`);
     }
     if (memorySnippet) {
       personalizationRules.push(`Naturally weave in this cherished real-world family memory: "${memorySnippet}".`);
@@ -300,7 +310,7 @@ The entire environment must feel 100% safe, loving, cozy, and reassuring.`;
     }
 
     // Full System Instruction
-    const systemInstruction = `You are an affectionate Tamil ${parentRelationship} telling an intimate bedtime story to your child.
+    const systemInstruction = `You are an affectionate ${parentRelationship} telling an intimate bedtime story to your child.
 You speak with absolute parental love, warmth, and tenderness sitting right by the bed.
 
 CORE RULES:
@@ -406,10 +416,11 @@ STORYTELLING EXECUTION GUIDELINES:
       logger.info(`🎉 [StoryService] AI job returned: jobId=${job.jobId}, status=${job.status}`);
 
       if (job.status === 'COMPLETED' && job.result) {
-        logger.info(`🎉 [StoryService] AI job completed for storyId=${storyId}! Audio: ${job.result.audioUrl}`);
+        const finalAudioUrl = resolveAudioUrl(job.result.audioUrl);
+        logger.info(`🎉 [StoryService] AI job completed for storyId=${storyId}! Audio: ${finalAudioUrl}`);
         await storyDao.completeStory(storyId, {
           storyScript: job.result.storyScript,
-          audioUrl: job.result.audioUrl,
+          audioUrl: finalAudioUrl,
           audioS3Key: job.result.audioS3Key,
           audioDurationSeconds: job.result.durationSeconds || targetDurationMinutes * 60,
           coverImageUrl: 'https://cdn.nila.app/covers/default_moon.png',
@@ -420,7 +431,7 @@ STORYTELLING EXECUTION GUIDELINES:
           status: 'READY',
           progressPercent: 100,
           storyScript: job.result.storyScript,
-          audioUrl: job.result.audioUrl,
+          audioUrl: finalAudioUrl,
           audioS3Key: job.result.audioS3Key,
           audioDurationSeconds: job.result.durationSeconds || targetDurationMinutes * 60,
         };
@@ -448,7 +459,7 @@ STORYTELLING EXECUTION GUIDELINES:
       status: story.status,
       progressPercent: story.progressPercent,
       stageMessage: story.stageMessage,
-      audioUrl: story.audioUrl,
+      audioUrl: resolveAudioUrl(story.audioUrl),
     };
   }
 
@@ -457,14 +468,20 @@ STORYTELLING EXECUTION GUIDELINES:
     if (!story) {
       throw new NotFoundError(`Story ${storyId} not found`);
     }
-    return story;
+    return {
+      ...story,
+      audioUrl: resolveAudioUrl(story.audioUrl),
+    };
   }
 
   async getStories(userId: string, childId?: string): Promise<IStorySchema[]> {
-    if (childId) {
-      return await storyDao.getStoriesByChildId(childId);
-    }
-    return await storyDao.getStoriesByUserId(userId);
+    const list = childId
+      ? await storyDao.getStoriesByChildId(childId)
+      : await storyDao.getStoriesByUserId(userId);
+    return list.map((s) => ({
+      ...s,
+      audioUrl: resolveAudioUrl(s.audioUrl),
+    }));
   }
 
   async toggleFavorite(storyId: string, isFavorite: boolean): Promise<void> {

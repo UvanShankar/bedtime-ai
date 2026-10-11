@@ -22,13 +22,13 @@ export function normalizePhoneNumber(raw: string): string {
 }
 
 export function normalizeRelationship(rel?: string): string {
-  if (!rel) return 'Parent';
+  if (!rel) return 'Mother';
   const lower = rel.trim().toLowerCase();
-  if (lower === 'mother' || lower === 'mom' || lower === 'amma') return 'Amma';
-  if (lower === 'father' || lower === 'dad' || lower === 'appa') return 'Appa';
-  if (lower === 'grandmother' || lower === 'paati' || lower === 'patti') return 'Paati';
-  if (lower === 'grandfather' || lower === 'thatha' || lower === 'tata') return 'Thatha';
-  if (lower === 'other' || lower === 'guardian') return 'Other';
+  if (lower === 'mother' || lower === 'mom' || lower === 'amma') return 'Mother';
+  if (lower === 'father' || lower === 'dad' || lower === 'appa') return 'Father';
+  if (lower === 'grandmother' || lower === 'grandma' || lower === 'paati' || lower === 'patti') return 'Grandmother';
+  if (lower === 'grandfather' || lower === 'grandpa' || lower === 'thatha' || lower === 'tata') return 'Grandfather';
+  if (lower === 'other' || lower === 'guardian') return 'Guardian';
   return rel.trim();
 }
 

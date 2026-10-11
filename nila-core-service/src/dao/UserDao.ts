@@ -1,4 +1,4 @@
-import { putItem, getItem, queryItems, updateItem } from '../database/dynamoDBOperations';
+import { putItem, getItem, queryItems, updateItem, deleteItem } from '../database/dynamoDBOperations';
 import { IUserSchema } from '../models/User';
 
 export class UserDao {
@@ -65,6 +65,13 @@ export class UserDao {
       UpdateExpression: updateExp,
       ExpressionAttributeNames: attrNames,
       ExpressionAttributeValues: attrValues,
+    });
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    await deleteItem({
+      TableName: this.tableName,
+      Key: { userId },
     });
   }
 }

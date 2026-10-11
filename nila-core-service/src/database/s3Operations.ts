@@ -12,6 +12,8 @@ const hasExplicitAwsCredentials = !isLambda && !!(process.env.AWS_ACCESS_KEY_ID 
 
 export const s3Client = new S3Client({
   region,
+  requestChecksumCalculation: 'WHEN_REQUIRED',
+  responseChecksumValidation: 'WHEN_REQUIRED',
   ...(hasExplicitAwsCredentials && {
     credentials: {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID!,

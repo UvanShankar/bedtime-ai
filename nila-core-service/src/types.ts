@@ -43,7 +43,7 @@ export interface ISignupDTO {
   otp?: string;
   email?: string;
   password?: string;
-  relationship?: 'Appa' | 'Amma' | 'Paati' | 'Thatha' | 'Other';
+  relationship?: 'Mother' | 'Father' | 'Grandmother' | 'Grandfather' | 'Guardian' | 'Other' | 'Appa' | 'Amma' | string;
 }
 
 export interface ILoginDTO {
@@ -64,7 +64,7 @@ export interface IVerifyOtpDTO {
   phoneNumber?: string;
   otp: string;
   fullName?: string;
-  relationship?: 'Appa' | 'Amma' | 'Paati' | 'Thatha' | 'Other';
+  relationship?: 'Mother' | 'Father' | 'Grandmother' | 'Grandfather' | 'Guardian' | 'Other' | 'Appa' | 'Amma' | string;
 }
 
 export interface ICreateChildDTO {

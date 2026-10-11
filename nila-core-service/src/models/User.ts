@@ -4,7 +4,7 @@ export interface IUserSchema {
   email?: string;
   passwordHash?: string;
   fullName?: string;
-  relationship?: 'Appa' | 'Amma' | 'Paati' | 'Thatha' | 'Other' | string;
+  relationship?: 'Mother' | 'Father' | 'Grandmother' | 'Grandfather' | 'Guardian' | 'Other' | 'Appa' | 'Amma' | string;
   preferredLanguage?: string;
   preferredDialect?: 'Standard' | 'Chennai' | 'Kongu' | 'Madurai' | string;
   isVerified: boolean;
