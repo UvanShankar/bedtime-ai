@@ -12,6 +12,7 @@ import { NilaHeader } from "../../components/common/NilaHeader";
 import { NilaSlider } from "../../components/common/NilaSlider";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
+import { useToast } from "../../context/ToastContext";
 
 interface Props {
   navigation: any;
@@ -19,6 +20,7 @@ interface Props {
 
 export const StoryStyleScreen: React.FC<Props> = ({ navigation }) => {
   const { styleProfile, updateStyleProfile, selectedChild } = useNila();
+  const { showToast } = useToast();
 
   const [calmingLevel, setCalmingLevel] = useState(styleProfile.calmingLevel || 0.25);
   const [adventureDepth, setAdventureDepth] = useState(styleProfile.adventureDepth || 0.25);
@@ -41,7 +43,11 @@ export const StoryStyleScreen: React.FC<Props> = ({ navigation }) => {
       pacingSpeed,
       vocabularyLevel,
     });
-    Alert.alert("Style Updated", "Nila will use these storytelling adjustments for tonight's stories.");
+    showToast({
+      type: "success",
+      title: "Style Updated",
+      message: "Nila will use these storytelling adjustments for tonight's stories.",
+    });
     navigation.goBack();
   };
 

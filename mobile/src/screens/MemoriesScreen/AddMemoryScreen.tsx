@@ -16,6 +16,7 @@ import { NilaPill } from "../../components/common/NilaPill";
 import { NilaToggle } from "../../components/common/NilaToggle";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
+import { useToast } from "../../context/ToastContext";
 
 interface Props {
   route?: any;
@@ -25,6 +26,7 @@ interface Props {
 export const AddMemoryScreen: React.FC<Props> = ({ route, navigation }) => {
   const { memoryToEdit } = route?.params || {};
   const { selectedChild, addMemory, updateMemory } = useNila();
+  const { showToast } = useToast();
 
   const [description, setDescription] = useState(memoryToEdit?.description || "");
   const [title, setTitle] = useState(memoryToEdit?.title || "");
@@ -38,7 +40,7 @@ export const AddMemoryScreen: React.FC<Props> = ({ route, navigation }) => {
   );
 
   const whenOptions = ["Today", "Yesterday", "Choose date..."];
-  const whoOptions = [selectedChild?.name || "Child", "Amma", "Appa", "Paati", "Thatha"];
+  const whoOptions = [selectedChild?.name || "Child", "Mother", "Father", "Grandmother", "Grandfather"];
   const emotionOptions = ["Cozy", "Silly", "Happy", "Peaceful", "Emotional"];
 
   const toggleWho = (person: string) => {
@@ -92,6 +94,12 @@ export const AddMemoryScreen: React.FC<Props> = ({ route, navigation }) => {
         useInStories,
       });
     }
+
+    showToast({
+      type: "success",
+      title: memoryToEdit ? "Memory Updated" : "Memory Added",
+      message: `"${finalTitle}" saved to bedtime memories.`,
+    });
 
     navigation.goBack();
   };

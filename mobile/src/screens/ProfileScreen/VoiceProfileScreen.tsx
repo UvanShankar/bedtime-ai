@@ -101,7 +101,7 @@ export const VoiceProfileScreen: React.FC<Props> = ({ navigation }) => {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Active Hero Card */}
-        {voiceProfile && (
+        {voiceProfile && voiceProfile.id !== "voc_default_priya" && (
           <View style={styles.heroCard}>
             <View style={styles.micCircle}>
               <Ionicons name="mic" size={32} color={NilaColors.gold} />

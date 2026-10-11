@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,18 +6,41 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Modal,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
 import { useNila } from "../../context/NilaContext";
+import { useToast } from "../../context/ToastContext";
 
 interface Props {
   navigation: any;
 }
 
 export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
-  const { parent, selectedChild, voiceProfile } = useNila();
+  const { parent, selectedChild, voiceProfile, signOut } = useNila();
+  const { showToast } = useToast();
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const confirmSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      setShowSignOutModal(false);
+      try {
+        navigation.reset({ index: 0, routes: [{ name: "Welcome" }] });
+      } catch {
+        navigation.navigate("Welcome");
+      }
+    } catch (e) {
+      console.warn("Sign out error", e);
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   const menuItems = [
     {
@@ -31,6 +54,12 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
       title: voiceProfile?.displayName ? `Voice Profile (${voiceProfile.displayName})` : "Voice Profiles",
       icon: "mic-outline",
       onPress: () => navigation.navigate("VoiceProfile"),
+    },
+    {
+      id: "language",
+      title: `Story Language (${parent?.language || "Tamil"})`,
+      icon: "language-outline",
+      onPress: () => navigation.navigate("LanguageSettings"),
     },
     {
       id: "style",
@@ -54,19 +83,23 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
       id: "sharing",
       title: "Family Sharing & Invite",
       icon: "people-outline",
-      onPress: () => Alert.alert("Family Sharing", "Invite spouse or grandparents to narrate bedtime stories."),
-    },
-    {
-      id: "privacy",
-      title: "Privacy & Data Vault",
-      icon: "shield-checkmark-outline",
-      onPress: () => navigation.navigate("Settings"),
+      onPress: () =>
+        showToast({
+          type: "info",
+          title: "Family Sharing",
+          message: "Invite spouse or grandparents to narrate bedtime stories.",
+        }),
     },
     {
       id: "notifications",
       title: "Bedtime Notifications",
       icon: "notifications-outline",
-      onPress: () => Alert.alert("Bedtime Reminder", "Bedtime gentle chime is set for 8:30 PM daily."),
+      onPress: () =>
+        showToast({
+          type: "info",
+          title: "Bedtime Reminder",
+          message: "Bedtime gentle chime is set for 8:30 PM daily.",
+        }),
     },
   ];
 
@@ -87,9 +120,11 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           </View>
 
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>{parent?.name || "Uvan"}</Text>
+            <Text style={styles.userName}>
+              {parent?.name ? `${parent.name} (${parent.relationship || "Guardian"})` : parent?.relationship || "Guardian"}
+            </Text>
             <Text style={styles.userRole}>
-              Primary Guardian • {parent?.language || "Tamil"}
+              Language: {parent?.language || "Tamil"} · {parent?.dialect || "Standard"}
             </Text>
           </View>
 
@@ -118,7 +153,62 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Sign Out Action */}
+        <TouchableOpacity
+          style={styles.signOutButton}
+          onPress={() => setShowSignOutModal(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="log-out-outline" size={18} color={NilaColors.coral} />
+          <Text style={styles.signOutButtonText}>Sign Out of Nila</Text>
+        </TouchableOpacity>
       </ScrollView>
+
+      {/* Sign Out Confirmation Modal */}
+      <Modal
+        visible={showSignOutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !isSigningOut && setShowSignOutModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconCircle}>
+              <Ionicons name="log-out-outline" size={28} color={NilaColors.coral} />
+            </View>
+
+            <Text style={styles.modalTitle}>Sign Out of Nila?</Text>
+            <Text style={styles.modalSubtitle}>
+              Are you sure you want to sign out? You can sign back in anytime with your mobile number.
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowSignOutModal(false)}
+                disabled={isSigningOut}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalDestructiveButton}
+                onPress={confirmSignOut}
+                disabled={isSigningOut}
+                activeOpacity={0.7}
+              >
+                {isSigningOut ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalDestructiveText}>Sign Out</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -237,5 +327,93 @@ const styles = StyleSheet.create({
     color: NilaColors.textPrimary,
     fontSize: 15,
     fontWeight: "600",
+  },
+  signOutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 107, 107, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 107, 0.2)",
+    borderRadius: 16,
+    paddingVertical: 14,
+    marginTop: 24,
+    gap: 8,
+  },
+  signOutButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: NilaColors.coral,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(10, 14, 26, 0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 380,
+    backgroundColor: NilaColors.surface,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: NilaColors.cardBorder,
+    padding: 24,
+    alignItems: "center",
+  },
+  modalIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(255, 107, 107, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: NilaColors.textPrimary,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: NilaColors.textSecondary,
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: NilaColors.textSecondary,
+  },
+  modalDestructiveButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: NilaColors.coral,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalDestructiveText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
   },
 });
