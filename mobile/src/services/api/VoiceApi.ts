@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { ApiClient } from "./ApiClient";
 import { AppConfig } from "../../config";
@@ -77,20 +78,38 @@ export class VoiceApi {
 
       // Step B: Upload audio directly to Amazon S3
       logger.info("VOICE", `[Step 2/3] Uploading audio binary directly to AWS S3 (${input.audioUri})...`);
-      const uploadRes = await FileSystem.uploadAsync(uploadUrl, input.audioUri, {
-        httpMethod: "PUT",
-        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-        headers: {
-          "Content-Type": mimeType,
-        },
-      });
+      if (Platform.OS === "web") {
+        const audioBlob = await fetch(input.audioUri).then((r) => r.blob());
+        const uploadRes = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": mimeType,
+          },
+          body: audioBlob,
+        });
 
-      logger.info("VOICE", `[Step 2/3] S3 upload returned HTTP status ${uploadRes.status}`);
-      if (uploadRes.status < 200 || uploadRes.status >= 300) {
-        logger.error("VOICE", `[Step 2/3] S3 direct upload failed with status ${uploadRes.status}: ${uploadRes.body}`);
-        throw new Error(`S3 direct upload failed with status ${uploadRes.status}: ${uploadRes.body || "Could not upload audio to S3"}`);
+        logger.info("VOICE", `[Step 2/3] S3 upload on web returned HTTP status ${uploadRes.status}`);
+        if (!uploadRes.ok) {
+          const bodyText = await uploadRes.text().catch(() => "");
+          logger.error("VOICE", `[Step 2/3] S3 direct upload on web failed with status ${uploadRes.status}: ${bodyText}`);
+          throw new Error(`S3 direct upload on web failed with status ${uploadRes.status}: ${bodyText || "Could not upload audio to S3"}`);
+        }
+      } else {
+        const uploadRes = await FileSystem.uploadAsync(uploadUrl, input.audioUri, {
+          httpMethod: "PUT",
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+          headers: {
+            "Content-Type": mimeType,
+          },
+        });
+
+        logger.info("VOICE", `[Step 2/3] S3 upload returned HTTP status ${uploadRes.status}`);
+        if (uploadRes.status < 200 || uploadRes.status >= 300) {
+          logger.error("VOICE", `[Step 2/3] S3 direct upload failed with status ${uploadRes.status}: ${uploadRes.body}`);
+          throw new Error(`S3 direct upload failed with status ${uploadRes.status}: ${uploadRes.body || "Could not upload audio to S3"}`);
+        }
       }
-      logger.success("VOICE", `[Step 2/3] Audio sample binary successfully uploaded to Amazon S3 (status ${uploadRes.status})`);
+      logger.success("VOICE", `[Step 2/3] Audio sample binary successfully uploaded to Amazon S3`);
 
       // Step C: Register voice profile in DynamoDB via nila-core-service
       logger.info("VOICE", `[Step 3/3] Registering voice profile in backend with provider=${selectedProvider}...`);

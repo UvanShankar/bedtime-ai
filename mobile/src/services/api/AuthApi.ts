@@ -96,11 +96,11 @@ export class AuthApi {
   }
 
   static async logout(): Promise<void> {
-    logger.info("AUTH", "User logging out - clearing token");
-    await ApiClient.setAuthToken(null);
+    logger.info("AUTH", "User logging out - clearing all session data");
+    await ApiClient.clearAllSessionData();
   }
 
-  static async ensureAuth(defaultName = "Uvan Shankar", defaultMobile = "+919042278689"): Promise<string> {
+  static async ensureAuth(): Promise<string | null> {
     const existingToken = await ApiClient.loadToken();
     if (existingToken) {
       try {
@@ -110,32 +110,9 @@ export class AuthApi {
           return existingToken;
         }
       } catch {
-        logger.warn("AUTH", "Saved token expired or invalid, restoring session via OTP...");
+        logger.warn("AUTH", "Saved token expired or invalid");
       }
     }
-
-    try {
-      logger.info("AUTH", `Auto-authenticating session for ${defaultMobile}...`);
-      const authRes = await AuthApi.verifyOtp({
-        phoneNumber: defaultMobile,
-        otp: "123456",
-        fullName: defaultName,
-      });
-      return authRes.tokens.accessToken;
-    } catch {
-      try {
-        const otpRes = await AuthApi.sendOtp(defaultMobile);
-        const code = otpRes.otp || "123456";
-        const authRes = await AuthApi.verifyOtp({
-          phoneNumber: defaultMobile,
-          otp: code,
-          fullName: defaultName,
-        });
-        return authRes.tokens.accessToken;
-      } catch (e: any) {
-        logger.warn("AUTH", "ensureAuth fallback warning", e.message);
-        return existingToken || "";
-      }
-    }
+    return existingToken || null;
   }
 }

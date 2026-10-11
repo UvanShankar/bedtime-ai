@@ -49,6 +49,10 @@ export class ParentApi {
     return apiClient.put<CoreParentProfile>("/parent/profile", input);
   }
 
+  static async deleteProfile(): Promise<void> {
+    await apiClient.delete("/parent/profile");
+  }
+
   // Live Core Service API: /children
   static async createChild(input: {
     name: string;
@@ -185,7 +189,7 @@ export class ParentApi {
     return {
       id: res.userId,
       name: res.fullName,
-      relationship: res.relationship || "Appa",
+      relationship: res.relationship || "Mother",
       language: res.preferredLanguage === "ta" ? "Tamil" : "English",
       languageCode: res.preferredLanguage || "ta",
       dialect: res.preferredDialect || "Chennai",

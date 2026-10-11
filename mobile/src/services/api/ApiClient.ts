@@ -34,9 +34,19 @@ export class ApiClient {
     ApiClient.loadToken();
   }
 
+  private static onboardingFilePath = `${FileSystem.documentDirectory || ""}nila_onboarding_status.txt`;
+  private static onboardingCompleted = false;
+
   static async loadToken(): Promise<string | null> {
     if (ApiClient.authToken) return ApiClient.authToken;
     try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        const t = window.localStorage.getItem("nila_auth_token");
+        if (t) {
+          ApiClient.authToken = t.trim();
+          return ApiClient.authToken;
+        }
+      }
       if (FileSystem.documentDirectory) {
         const token = await FileSystem.readAsStringAsync(ApiClient.tokenFilePath);
         if (token) {
@@ -53,6 +63,10 @@ export class ApiClient {
   static async setAuthToken(token: string | null) {
     ApiClient.authToken = token;
     try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        if (token) window.localStorage.setItem("nila_auth_token", token);
+        else window.localStorage.removeItem("nila_auth_token");
+      }
       if (token && FileSystem.documentDirectory) {
         await FileSystem.writeAsStringAsync(ApiClient.tokenFilePath, token);
         logger.success("AUTH", "Auth session token securely persisted");
@@ -65,8 +79,57 @@ export class ApiClient {
     }
   }
 
+  static async isOnboardingCompleted(): Promise<boolean> {
+    if (ApiClient.onboardingCompleted) return true;
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        return window.localStorage.getItem("nila_onboarded") === "true";
+      }
+      if (FileSystem.documentDirectory) {
+        const val = await FileSystem.readAsStringAsync(ApiClient.onboardingFilePath);
+        ApiClient.onboardingCompleted = val?.trim() === "true";
+        return ApiClient.onboardingCompleted;
+      }
+    } catch {
+      // file not found
+    }
+    return false;
+  }
+
+  static async setOnboardingCompleted(completed: boolean): Promise<void> {
+    ApiClient.onboardingCompleted = completed;
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem("nila_onboarded", completed ? "true" : "false");
+      }
+      if (FileSystem.documentDirectory) {
+        await FileSystem.writeAsStringAsync(ApiClient.onboardingFilePath, completed ? "true" : "false");
+      }
+    } catch (e) {
+      logger.warn("AUTH", "Could not persist onboarding status", e);
+    }
+  }
+
   static getAuthToken(): string | null {
     return ApiClient.authToken;
+  }
+
+  static async clearAllSessionData(): Promise<void> {
+    ApiClient.authToken = null;
+    ApiClient.onboardingCompleted = false;
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.removeItem("nila_auth_token");
+        window.localStorage.removeItem("nila_onboarded");
+      }
+      if (FileSystem.documentDirectory) {
+        await FileSystem.deleteAsync(ApiClient.tokenFilePath, { idempotent: true }).catch(() => {});
+        await FileSystem.deleteAsync(ApiClient.onboardingFilePath, { idempotent: true }).catch(() => {});
+      }
+      logger.info("AUTH", "All session tokens and onboarding state purged");
+    } catch (e) {
+      logger.warn("AUTH", "Error clearing session data", e);
+    }
   }
 
   private async handleResponse<T>(response: Response, startTime: number, method: string, url: string): Promise<T> {
