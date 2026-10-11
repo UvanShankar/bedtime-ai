@@ -8,6 +8,7 @@ import {
   ParentStyleProfile,
   UserSettings,
 } from "../models";
+import { ApiClient } from "../services/api/ApiClient";
 import { StoryApi } from "../services/api/StoryApi";
 import { ParentApi } from "../services/api/ParentApi";
 import { AuthApi } from "../services/api/AuthApi";
@@ -23,6 +24,7 @@ interface NilaContextType {
   setSelectedChild: (child: ChildProfile) => void;
   updateChild: (child: ChildProfile) => void;
   addChild: (child: Partial<ChildProfile>) => void;
+  deleteChild: (childId: string) => Promise<void>;
   voiceProfile: VoiceProfile | null;
   setVoiceProfile: React.Dispatch<React.SetStateAction<VoiceProfile | null>>;
   voiceProfiles: VoiceProfile[];
@@ -46,17 +48,19 @@ interface NilaContextType {
   refreshMemoriesFromBackend: () => Promise<void>;
   refreshVoicesFromBackend: () => Promise<void>;
   ensureBackendProfile: () => Promise<{ parentId: string; childId: string }>;
+  signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const defaultParent: ParentProfile = {
-  id: "parent-uvan-001",
-  name: "Parent",
-  relationship: "Amma",
+  id: "",
+  name: "",
+  relationship: "Mother",
   language: "Tamil",
   languageCode: "ta",
-  dialect: "Chennai",
+  dialect: "Standard Tamil",
   script: "Native script",
-  preferredChildName: "Kanna",
+  preferredChildName: "Sweetheart",
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
@@ -95,7 +99,7 @@ const defaultVoice: VoiceProfile = {
   parentId: "parent-uvan-001",
   provider: "sarvam",
   providerVoiceId: "priya",
-  displayName: "Priya (Default Tamil Voice)",
+  displayName: "Gentle Whisper (AI Catalog)",
   sourceAudioKey: "",
   languageCode: "ta",
   status: "ready",
@@ -132,9 +136,9 @@ const defaultStories: Story[] = [
     audioStatus: "ready",
     audioDurationSeconds: 131,
     audioUrl: S3_STORY_AUDIO_1,
-    narratorName: "Amma / Priya",
-    narratorStyle: "Tamil · Chennai style",
-    inspiredByMemory: "Marina Beach",
+    narratorName: "Gentle Whisper",
+    narratorStyle: "Tamil · Conversational",
+    inspiredByMemory: "Beach Trip",
     isFavorite: true,
     createdAt: "Tonight",
   },
@@ -152,7 +156,7 @@ const defaultStories: Story[] = [
     audioStatus: "ready",
     audioDurationSeconds: 108,
     audioUrl: S3_STORY_AUDIO_2,
-    narratorName: "Amma's Voice",
+    narratorName: "Mother's Voice",
     narratorStyle: "Tamil · Soft & sleepy",
     isFavorite: true,
     createdAt: "Yesterday",
@@ -171,7 +175,7 @@ const defaultStories: Story[] = [
     audioStatus: "ready",
     audioDurationSeconds: 131,
     audioUrl: S3_STORY_AUDIO_1,
-    narratorName: "Amma's Voice",
+    narratorName: "Mother's Voice",
     narratorStyle: "Tamil · Chennai style",
     isFavorite: false,
     createdAt: "Yesterday",
@@ -213,11 +217,15 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [stories, setStories] = useState<Story[]>(defaultStories);
   const [styleProfile, setStyleProfile] = useState<ParentStyleProfile>(defaultStyleProfile);
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
-  const [isOnboarded, setIsOnboarded] = useState<boolean>(true); // default true for immediate browsing, can reset
+  const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
 
   // Ensure profile is synced on backend and stories refreshed
   useEffect(() => {
     logger.info("APP", "NilaContext mounted. Initializing backend profile sync...");
+    ApiClient.isOnboardingCompleted()
+      .then((val: boolean) => setIsOnboarded(val))
+      .catch(() => {});
+
     ensureBackendProfile().then(({ parentId }) => {
       if (parentId) {
         refreshStoriesFromBackend();
@@ -227,11 +235,17 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const ensureBackendProfile = async (): Promise<{ parentId: string; childId: string }> => {
     let currentParentId = parent.id;
-    let currentChildId = selectedChild.id;
+    let currentChildId = selectedChild?.id || "";
 
     try {
+      const token = await ApiClient.loadToken();
+      if (!token) {
+        logger.info("AUTH", "No token found. User is signed out; skipping profile sync.");
+        return { parentId: "", childId: "" };
+      }
+
       logger.info("AUTH", "Ensuring parent authentication session...");
-      await AuthApi.ensureAuth(parent.name || "Uvan");
+      await AuthApi.ensureAuth();
 
       // 2. Fetch authenticated parent profile from DynamoDB
       try {
@@ -242,7 +256,9 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ...prev,
             id: liveParent.userId,
             name: liveParent.fullName || prev.name,
-            relationship: liveParent.relationship || prev.relationship,
+            relationship: (liveParent.relationship as any) || prev.relationship,
+            language: liveParent.preferredLanguage || prev.language,
+            dialect: liveParent.preferredDialect || prev.dialect,
           }));
           logger.success("PROFILE", `Synced parent profile: ${liveParent.fullName} (${liveParent.userId})`);
         }
@@ -423,6 +439,23 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }).catch((err) => logger.warn("CHILD", "Child creation sync note", err));
   };
 
+  const deleteChild = async (childId: string) => {
+    logger.info("CHILD", `Deleting child: ${childId}`);
+    try {
+      await ParentApi.deleteChild(childId);
+      logger.success("CHILD", `Child ${childId} deleted from server`);
+    } catch (err) {
+      logger.warn("CHILD", "Child backend deletion note", err);
+    }
+    setChildrenList((prev) => {
+      const remaining = prev.filter((c) => c.id !== childId);
+      if (selectedChild?.id === childId && remaining.length > 0) {
+        setSelectedChild(remaining[0]);
+      }
+      return remaining;
+    });
+  };
+
   const addVoiceProfile = (newVoice: VoiceProfile) => {
     logger.info("VOICE", `Adding voice profile to context: ${newVoice.displayName} (${newVoice.id})`);
     setVoiceProfiles((prev) => [newVoice, ...prev.filter((v) => v.id !== newVoice.id)]);
@@ -532,6 +565,66 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSettings((prev) => ({ ...prev, ...partial }));
   };
 
+  const signOut = async () => {
+    logger.info("AUTH", "Signing out: purging tokens, reset state");
+    await ApiClient.clearAllSessionData();
+    setIsOnboarded(false);
+    setParent(defaultParent);
+    setChildrenList([]);
+    setSelectedChild({
+      id: "",
+      parentId: "",
+      name: "",
+      age: 4,
+      interests: [],
+      personality: [],
+      avoidTopics: [],
+      bedtimeAvoidances: [],
+      favoriteCharacters: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    setVoiceProfile(null);
+    setVoiceProfiles([]);
+    setMemories([]);
+    setStories([]);
+  };
+
+  const deleteAccount = async () => {
+    logger.info("AUTH", "Deleting user account and purging all local state");
+    try {
+      await ParentApi.deleteProfile();
+      logger.success("AUTH", "Account and all cloud data successfully deleted from server");
+    } catch (e: any) {
+      logger.warn("AUTH", "Error deleting account from server", e);
+    }
+    try {
+      await ApiClient.clearAllSessionData();
+    } catch (e) {
+      logger.warn("AUTH", "Error wiping account data", e);
+    }
+    setIsOnboarded(false);
+    setParent(defaultParent);
+    setChildrenList([]);
+    setSelectedChild({
+      id: "",
+      parentId: "",
+      name: "",
+      age: 4,
+      interests: [],
+      personality: [],
+      avoidTopics: [],
+      bedtimeAvoidances: [],
+      favoriteCharacters: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    setVoiceProfile(null);
+    setVoiceProfiles([]);
+    setMemories([]);
+    setStories([]);
+  };
+
   return (
     <NilaContext.Provider
       value={{
@@ -542,6 +635,7 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSelectedChild: handleSelectChild,
         updateChild,
         addChild,
+        deleteChild,
         voiceProfile,
         setVoiceProfile,
         voiceProfiles,
@@ -565,6 +659,8 @@ export const NilaProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshMemoriesFromBackend,
         refreshVoicesFromBackend,
         ensureBackendProfile,
+        signOut,
+        deleteAccount,
       }}
     >
       {children}

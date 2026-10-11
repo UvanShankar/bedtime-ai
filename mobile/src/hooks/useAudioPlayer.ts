@@ -12,6 +12,10 @@ import { logger } from "../utils/logger";
 
 function normalizeAudioUrl(url: string): string {
   if (!url) return url;
+  if (url.includes("nila-story-audio-dev.s3.ap-south-1.amazonaws.com")) {
+    const s3Host = Platform.OS === "android" ? "http://10.0.2.2:4566" : "http://localhost:4566";
+    url = url.replace("https://nila-story-audio-dev.s3.ap-south-1.amazonaws.com", `${s3Host}/nila-story-audio-dev`);
+  }
   if (
     AppConfig.apiBaseUrl.startsWith("http") &&
     !AppConfig.apiBaseUrl.includes("localhost") &&
