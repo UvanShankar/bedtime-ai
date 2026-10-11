@@ -6,6 +6,7 @@ import { NilaColors } from "../../theme/colors";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
 import { useAudioPlayer } from "../../hooks/useAudioPlayer";
+import { ApiClient } from "../../services/api/ApiClient";
 import { logger } from "../../utils/logger";
 
 interface Props {
@@ -14,7 +15,7 @@ interface Props {
 }
 
 export const VoiceReadyScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { voiceProfile } = useNila();
+  const { voiceProfile, setIsOnboarded } = useNila();
   const { state: audioState, controller } = useAudioPlayer();
 
   const sampleAudioUrl =
@@ -48,14 +49,32 @@ export const VoiceReadyScreen: React.FC<Props> = ({ route, navigation }) => {
     }
   };
 
-  const handleTryStory = () => {
+  const handleTryStory = async () => {
     controller.stop().catch(() => {});
-    navigation.navigate("StoryRequest");
+    await ApiClient.setOnboardingCompleted(true);
+    setIsOnboarded(true);
+    try {
+      navigation.reset({
+        index: 1,
+        routes: [{ name: "MainTabs" }, { name: "StoryRequest" }],
+      });
+    } catch {
+      navigation.replace("StoryRequest");
+    }
   };
 
-  const handleGoHome = () => {
+  const handleGoHome = async () => {
     controller.stop().catch(() => {});
-    navigation.navigate("MainTabs", { screen: "Home" });
+    await ApiClient.setOnboardingCompleted(true);
+    setIsOnboarded(true);
+    try {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "MainTabs" }],
+      });
+    } catch {
+      navigation.replace("MainTabs");
+    }
   };
 
   return (

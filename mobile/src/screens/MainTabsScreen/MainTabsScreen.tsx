@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import { NilaColors } from "../../theme/colors";
 import { NilaTabBar, TabName } from "../../components/common/NilaTabBar";
@@ -13,8 +13,24 @@ interface Props {
 }
 
 export const MainTabsScreen: React.FC<Props> = ({ route, navigation }) => {
-  const initialTab: TabName = route?.params?.initialTab || "Home";
-  const [activeTab, setActiveTab] = useState<TabName>(initialTab);
+  const getRequestedTab = (): TabName => {
+    const raw = route?.params?.screen || route?.params?.initialTab || route?.params?.tab;
+    if (!raw) return "Home";
+    const normalized = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+    if (["Home", "Stories", "Memories", "Profile"].includes(normalized)) {
+      return normalized as TabName;
+    }
+    return "Home";
+  };
+
+  const [activeTab, setActiveTab] = useState<TabName>(getRequestedTab());
+
+  useEffect(() => {
+    const requested = getRequestedTab();
+    if (requested) {
+      setActiveTab(requested);
+    }
+  }, [route?.params?.screen, route?.params?.initialTab, route?.params?.tab]);
 
   return (
     <View style={styles.container}>

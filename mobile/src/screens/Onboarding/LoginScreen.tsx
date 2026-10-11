@@ -15,6 +15,7 @@ import { NilaTextInput } from "../../components/common/NilaTextInput";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useNila } from "../../context/NilaContext";
 import { AuthApi } from "../../services/api/AuthApi";
+import { ParentApi } from "../../services/api/ParentApi";
 import { logger } from "../../utils/logger";
 
 interface Props {
@@ -107,9 +108,18 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
           id: res.user.userId,
           name: res.user.fullName || "Parent",
           phone: res.user.mobile,
+          relationship: res.user.relationship || "Mother",
         }));
+
+        const children = await ParentApi.getChildren().catch(() => []);
+        if (children && children.length > 0) {
+          navigation.navigate("MainTabs");
+        } else {
+          navigation.navigate("ParentProfileSetup");
+        }
+      } else {
+        navigation.navigate("MainTabs");
       }
-      navigation.navigate("MainTabs");
     } catch (err: any) {
       logger.error("AUTH", `[LoginScreen] OTP verification failed: ${err.message}`);
       setErrorMessage(err.message || "Invalid verification code. Please try again.");

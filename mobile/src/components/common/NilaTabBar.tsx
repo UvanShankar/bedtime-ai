@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
 
@@ -11,6 +12,10 @@ interface NilaTabBarProps {
 }
 
 export const NilaTabBar: React.FC<NilaTabBarProps> = ({ activeTab, onTabChange }) => {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === "ios" ? 10 : 6);
+  const barHeight = 56 + bottomPadding;
+
   const tabs: { name: TabName; label: string; iconFocused: any; iconOutline: any }[] = [
     { name: "Home", label: "Home", iconFocused: "home", iconOutline: "home-outline" },
     { name: "Stories", label: "Stories", iconFocused: "book", iconOutline: "book-outline" },
@@ -20,7 +25,7 @@ export const NilaTabBar: React.FC<NilaTabBarProps> = ({ activeTab, onTabChange }
 
   return (
     <View style={styles.container}>
-      <View style={styles.bar}>
+      <View style={[styles.bar, { height: barHeight, paddingBottom: bottomPadding }]}>
         {tabs.map((tab) => {
           const isFocused = activeTab === tab.name;
           const color = isFocused ? NilaColors.gold : NilaColors.textMuted;

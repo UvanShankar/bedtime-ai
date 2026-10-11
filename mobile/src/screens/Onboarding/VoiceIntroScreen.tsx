@@ -3,49 +3,71 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
-import { NilaHeader } from "../../components/common/NilaHeader";
+import { OnboardingHeader } from "../../components/common/OnboardingHeader";
 import { NilaButton } from "../../components/common/NilaButton";
+import { useNila } from "../../context/NilaContext";
+import { ApiClient } from "../../services/api/ApiClient";
 
 interface Props {
   navigation: any;
 }
 
 export const VoiceIntroScreen: React.FC<Props> = ({ navigation }) => {
+  const { setIsOnboarded } = useNila();
   const [consentAccepted, setConsentAccepted] = useState(true);
 
   const steps = [
     {
       num: "1",
-      title: "Record your voice",
-      desc: "We'll guide you to read a short, warm story script naturally.",
+      icon: "mic-outline",
+      title: "Read a 15-second bedtime passage",
+      desc: "Speak naturally in your ordinary, loving bedtime tone.",
     },
     {
       num: "2",
-      title: "Create your private voice profile",
-      desc: "Securely processed. Only accessible inside your family account.",
+      icon: "shield-checkmark-outline",
+      title: "Private & Secure to Your Family",
+      desc: "Encrypted and only used to narrate bedtime stories for your children.",
     },
     {
       num: "3",
-      title: "Tell stories in your voice",
-      desc: "Listen to beautiful customized tales narrated in your gentle tone.",
+      icon: "headset-outline",
+      title: "Listen to Endless Bedtime Tales",
+      desc: "Nila generates wonderful adventures told in your comforting voice.",
     },
   ];
 
+  const handleSkipToMain = async () => {
+    await ApiClient.setOnboardingCompleted(true);
+    setIsOnboarded(true);
+    navigation.replace("MainTabs");
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <NilaHeader
-        title="Let's capture your voice"
-        subtitle="Your child already knows your voice. That's what makes Nila feel like home."
+      <OnboardingHeader
+        step={4}
+        totalSteps={4}
+        title="Capture your loving voice"
+        subtitle="Your child knows and trusts your voice. That's what makes Nila bedtime stories feel like home."
         onBack={() => navigation.goBack()}
+        onSkip={handleSkipToMain}
+        skipLabel="Skip for now"
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Steps Card */}
         <View style={styles.stepsCard}>
           {steps.map((step, idx) => (
-            <View key={step.num} style={[styles.stepItem, idx < steps.length - 1 && styles.stepDivider]}>
+            <View
+              key={step.num}
+              style={[
+                styles.stepItem,
+                idx < steps.length - 1 && styles.stepDivider,
+              ]}
+            >
               <View style={styles.stepNumCircle}>
-                <Text style={styles.stepNumText}>{step.num}</Text>
+                <Ionicons name={step.icon as any} size={18} color={NilaColors.gold} />
               </View>
               <View style={styles.stepTextContent}>
                 <Text style={styles.stepTitle}>{step.title}</Text>
@@ -55,10 +77,6 @@ export const VoiceIntroScreen: React.FC<Props> = ({ navigation }) => {
           ))}
         </View>
 
-        <Text style={styles.disclaimerText}>
-          A short recording is used to create your voice profile for bedtime stories.
-        </Text>
-
         {/* Consent Checkbox */}
         <TouchableOpacity
           style={styles.consentRow}
@@ -66,29 +84,32 @@ export const VoiceIntroScreen: React.FC<Props> = ({ navigation }) => {
           activeOpacity={0.8}
         >
           <View style={[styles.checkbox, consentAccepted && styles.checkboxActive]}>
-            {consentAccepted && <Ionicons name="checkmark" size={14} color={NilaColors.midnight} />}
+            {consentAccepted && (
+              <Ionicons name="checkmark" size={14} color={NilaColors.midnight} />
+            )}
           </View>
           <Text style={styles.consentText}>
-            I give permission for Nila to create and use a voice model from my recording for my bedtime
-            stories. See <Text style={styles.linkText}>Voice consent details</Text> and{" "}
-            <Text style={styles.linkText}>Privacy policy</Text>.
+            I give permission for Nila to create and privately use my voice clone
+            exclusively for my family's bedtime stories.
           </Text>
         </TouchableOpacity>
       </ScrollView>
 
       <View style={styles.footer}>
         <NilaButton
-          title="Continue"
+          title="Record My Voice (15s)"
           onPress={() => navigation.navigate("VoiceRecording")}
           disabled={!consentAccepted}
           style={styles.continueButton}
         />
         <TouchableOpacity
           style={styles.skipButton}
-          onPress={() => navigation.navigate("MainTabs")}
+          onPress={handleSkipToMain}
           activeOpacity={0.7}
         >
-          <Text style={styles.skipButtonText}>Use a Nila voice for now</Text>
+          <Text style={styles.skipButtonText}>
+            Use Nila's Storyteller Voice for now
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -99,83 +120,70 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: NilaColors.midnight,
+    justifyContent: "space-between",
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 24,
   },
   stepsCard: {
-    backgroundColor: NilaColors.surface,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
     borderRadius: 20,
-    padding: 20,
+    padding: 18,
     borderWidth: 1,
-    borderColor: NilaColors.cardBorder,
+    borderColor: "rgba(255, 255, 255, 0.08)",
     marginBottom: 20,
   },
   stepItem: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 14,
+    paddingVertical: 12,
+    gap: 14,
   },
   stepDivider: {
     borderBottomWidth: 1,
-    borderBottomColor: NilaColors.cardBorderSubtle,
+    borderBottomColor: "rgba(255, 255, 255, 0.06)",
   },
   stepNumCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: NilaColors.surfaceLight,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(245, 199, 106, 0.12)",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
-    borderWidth: 1,
-    borderColor: NilaColors.goldMuted,
-  },
-  stepNumText: {
-    color: NilaColors.gold,
-    fontSize: 14,
-    fontWeight: "700",
   },
   stepTextContent: {
     flex: 1,
   },
   stepTitle: {
-    color: NilaColors.textPrimary,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
+    color: NilaColors.textPrimary,
     marginBottom: 4,
   },
   stepDesc: {
-    color: NilaColors.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  disclaimerText: {
+    fontSize: 12,
     color: NilaColors.textMuted,
-    fontSize: 13,
     lineHeight: 18,
-    marginBottom: 16,
-    paddingHorizontal: 4,
   },
   consentRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: NilaColors.surface,
-    padding: 16,
-    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    padding: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: NilaColors.cardBorder,
+    borderColor: "rgba(255, 255, 255, 0.06)",
+    gap: 12,
   },
   checkbox: {
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: NilaColors.cardBorder,
+    borderColor: "rgba(255, 255, 255, 0.3)",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
     marginTop: 2,
   },
   checkboxActive: {
@@ -184,31 +192,26 @@ const styles = StyleSheet.create({
   },
   consentText: {
     flex: 1,
-    color: NilaColors.textSecondary,
     fontSize: 12,
+    color: NilaColors.textMuted,
     lineHeight: 18,
-  },
-  linkText: {
-    color: NilaColors.gold,
-    textDecorationLine: "underline",
   },
   footer: {
     paddingHorizontal: 20,
     paddingBottom: 24,
     paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: NilaColors.cardBorderSubtle,
+    backgroundColor: NilaColors.midnight,
   },
   continueButton: {
     marginBottom: 12,
   },
   skipButton: {
     alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
   skipButtonText: {
-    color: NilaColors.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
+    color: NilaColors.textMuted,
     fontWeight: "500",
   },
 });

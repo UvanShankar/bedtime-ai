@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
 import { VoiceApi } from "../../services/api/VoiceApi";
+import { ApiClient } from "../../services/api/ApiClient";
 import { useNila } from "../../context/NilaContext";
 import { logger } from "../../utils/logger";
 
@@ -13,7 +14,7 @@ interface Props {
 }
 
 export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { parent, setParent, setVoiceProfile, addVoiceProfile, ensureBackendProfile } = useNila();
+  const { parent, setParent, setVoiceProfile, addVoiceProfile, ensureBackendProfile, setIsOnboarded } = useNila();
   const { recordingUri } = route.params || {};
 
   const [activeStep, setActiveStep] = useState(0);
@@ -67,6 +68,8 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
         if (res?.voiceProfile) {
           logger.success("VOICE", `[VoiceProcessingScreen] Voice registered in database: ${res.voiceProfile.displayName} (id: ${res.voiceProfile.id})`);
           addVoiceProfile(res.voiceProfile);
+          await ApiClient.setOnboardingCompleted(true);
+          setIsOnboarded(true);
           setParent((prev) => ({
             ...prev,
             relationship: chosenRel as any,
@@ -110,7 +113,7 @@ export const VoiceProcessingScreen: React.FC<Props> = ({ route, navigation }) =>
       <View style={styles.content}>
         <View style={styles.illustrationWrapper}>
           <View style={styles.glowCircle} />
-          <Text style={styles.moonIcon}>â˜¾</Text>
+          <Text style={styles.moonIcon}>☾</Text>
         </View>
 
         <Text style={styles.title}>

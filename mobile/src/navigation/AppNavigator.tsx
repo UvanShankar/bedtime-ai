@@ -35,6 +35,7 @@ import { VoiceProfileScreen } from "../screens/ProfileScreen/VoiceProfileScreen"
 import { StoryStyleScreen } from "../screens/ProfileScreen/StoryStyleScreen";
 import { SettingsScreen } from "../screens/ProfileScreen/SettingsScreen";
 import { ChildProfileScreen } from "../screens/ProfileScreen/ChildProfileScreen";
+import { LanguageSettingsScreen } from "../screens/ProfileScreen/LanguageSettingsScreen";
 import { logger } from "../utils/logger";
 
 const Stack = createNativeStackNavigator();
@@ -145,6 +146,11 @@ export const AppNavigator = () => {
         <Stack.Screen
           name="ChildProfile"
           component={ChildProfileScreen}
+          options={{ animation: "slide_from_right" }}
+        />
+        <Stack.Screen
+          name="LanguageSettings"
+          component={LanguageSettingsScreen}
           options={{ animation: "slide_from_right" }}
         />
       </Stack.Navigator>

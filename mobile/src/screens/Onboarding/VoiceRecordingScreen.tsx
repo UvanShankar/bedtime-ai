@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,71 +7,50 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
+import { OnboardingHeader } from "../../components/common/OnboardingHeader";
 import { NilaHeader } from "../../components/common/NilaHeader";
 import { NilaButton } from "../../components/common/NilaButton";
 import { useVoiceRecorder } from "../../hooks/useVoiceRecorder";
-import { VoiceApi } from "../../services/api/VoiceApi";
 import { ParentApi } from "../../services/api/ParentApi";
 import { useNila } from "../../context/NilaContext";
+import { ApiClient } from "../../services/api/ApiClient";
 import { logger } from "../../utils/logger";
+import { READING_SCRIPTS } from "../../config/localization";
 
 interface Props {
   navigation: any;
 }
 
 export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
-  const { parent, setParent, setVoiceProfile } = useNila();
+  const { parent, setParent, isOnboarded, setIsOnboarded } = useNila();
 
-  const [scriptsList, setScriptsList] = useState<string[]>([
-    "நிலா வானில் மெல்ல வந்து, படுக்கை அறையை தன் மென்மையான ஒளியால் நிறைத்தது. குட்டி மான் கண்ணை மூடி தூங்கியது.",
-    "கண்ணா... ஒரு அழகான காட்டில் ஒரு குட்டி அணில் இருந்துச்சாம். அது தன் அம்மாவோட சேர்ந்து இனிமையான பழங்களை சாப்பிட்டுச்சாம்.",
-    "அமைதியான இரவில், நட்சத்திரங்கள் வானத்தில் விளக்குகள் போல மின்னின. எல்லா குட்டி விலங்குகளும் தங்கள் கூட்டில் தூங்கின.",
-  ]);
-
+  const userLanguage = parent.language || "Tamil";
+  const scriptsList = READING_SCRIPTS[userLanguage] || READING_SCRIPTS["Tamil"];
   const [scriptIndex, setScriptIndex] = useState(0);
+  const [scriptMode, setScriptMode] = useState<"native" | "phonetic">("native");
 
-  const initialRel = parent?.relationship === "Amma" || parent?.relationship?.toLowerCase() === "mother"
-    ? "Amma"
-    : parent?.relationship === "Appa" || parent?.relationship?.toLowerCase() === "father"
-    ? "Appa"
-    : parent?.relationship || "Amma";
+  const activeScript = scriptsList[scriptIndex] || scriptsList[0];
 
-  const [selectedRelationship, setSelectedRelationship] = useState(initialRel);
+  const defaultVoiceName = parent?.name
+    ? `${parent.name}'s Voice`
+    : `${parent?.relationship || "Family"}'s Voice`;
 
-  const initialDefaultName = parent?.name ? `${parent.name}'s Voice` : `${initialRel}'s Voice`;
-  const [voiceName, setVoiceName] = useState(initialDefaultName);
-  const [selectedProvider, setSelectedProvider] = useState<"sarvam" | "elevenlabs">("sarvam");
-  const [showNameModal, setShowNameModal] = useState(false);
-
-  useEffect(() => {
-    VoiceApi.getPrompt().then((p) => {
-      if (p?.scriptTamil) {
-        setScriptsList((prev) => [p.scriptTamil, ...prev]);
-      }
-    }).catch(() => {});
-  }, []);
+  const [voiceName, setVoiceName] = useState(defaultVoiceName);
 
   const {
     state,
     durationSeconds,
     isPlayingPreview,
     recordingUri,
-    errorMessage,
     startRecording,
     stopRecording,
     playPreview,
     pausePreview,
     resetRecording,
-    setUploadingState,
-    setReadyState,
-    setErrorState,
   } = useVoiceRecorder();
 
   const formatTime = (secs: number) => {
@@ -84,50 +63,139 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
     setScriptIndex((prev) => (prev + 1) % scriptsList.length);
   };
 
-  const handleCreateVoice = () => {
-    // Before generation, explicitly prompt the user to confirm/update the voice name & engine
-    setShowNameModal(true);
+  const handleSkipToMain = async () => {
+    await ApiClient.setOnboardingCompleted(true);
+    setIsOnboarded(true);
+    navigation.replace("MainTabs");
   };
 
   const handleConfirmVoiceGeneration = () => {
-    setShowNameModal(false);
-    const finalName = voiceName.trim() || `${selectedRelationship}'s Voice`;
-    logger.info("VOICE", `[VoiceRecordingScreen] Confirmed voice creation: "${finalName}" | rel: ${selectedRelationship} | provider: ${selectedProvider}`);
-    setParent((prev) => ({
-      ...prev,
-      relationship: selectedRelationship as any,
-    }));
-    ParentApi.updateProfile({ relationship: selectedRelationship }).catch(() => {});
+    if (!recordingUri) {
+      Alert.alert("Recording Required", "Please record at least 10 seconds of audio first.");
+      return;
+    }
+
+    if (durationSeconds < 8) {
+      Alert.alert(
+        "Recording Too Short",
+        "Please speak for at least 8 to 10 seconds so Nila can capture your warm bedtime tone."
+      );
+      return;
+    }
+
+    // Automatically route engine without bothering parent:
+    // Sarvam for Indic languages (Tamil, Hindi, Telugu, Kannada, Malayalam); ElevenLabs for English
+    const chosenProvider = userLanguage === "English" ? "elevenlabs" : "sarvam";
+    const finalName = voiceName.trim() || defaultVoiceName;
+
+    logger.info(
+      "VOICE",
+      `[VoiceRecordingScreen] Starting voice synthesis: "${finalName}" | provider=${chosenProvider}`
+    );
+
     navigation.navigate("VoiceProcessing", {
       recordingUri,
       parentId: parent.id,
       displayName: finalName,
-      relationship: selectedRelationship,
-      provider: selectedProvider,
+      relationship: parent.relationship || "Parent",
+      provider: chosenProvider,
     });
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <NilaHeader
-        title="Just talk naturally"
-        subtitle="Don't try to sound perfect. Talk the way you normally talk to your child."
-        onBack={() => navigation.goBack()}
-      />
+      {isOnboarded ? (
+        <NilaHeader
+          title="Record Bedtime Voice"
+          subtitle="Speak naturally with your warm, soothing bedtime tone."
+          onBack={() => navigation.goBack()}
+        />
+      ) : (
+        <OnboardingHeader
+          step={4}
+          totalSteps={4}
+          title="Record your bedtime voice"
+          subtitle="Don't try to sound like a voice actor. Just speak the way you comfort your child at night."
+          onBack={() => navigation.goBack()}
+          onSkip={handleSkipToMain}
+          skipLabel="Skip for now"
+        />
+      )}
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Script Card */}
         <View style={styles.scriptCard}>
-          <Text style={styles.scriptHeader}>Tamil Reading Script</Text>
-          <Text style={styles.scriptText}>{scriptsList[scriptIndex]}</Text>
-          <TouchableOpacity
-            style={styles.refreshScriptRow}
-            onPress={handleNextScript}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="refresh" size={15} color={NilaColors.gold} />
-            <Text style={styles.refreshScriptText}>Give me another script</Text>
-          </TouchableOpacity>
+          <View style={styles.scriptCardTop}>
+            <View style={styles.scriptBadge}>
+              <Text style={styles.scriptBadgeText}>{userLanguage} Bedtime Script</Text>
+            </View>
+
+            {/* Script Display Toggle: Native vs English Alphabet */}
+            {userLanguage !== "English" && (
+              <View style={styles.scriptToggleRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.togglePill,
+                    scriptMode === "native" && styles.togglePillActive,
+                  ]}
+                  onPress={() => setScriptMode("native")}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.togglePillText,
+                      scriptMode === "native" && styles.togglePillTextActive,
+                    ]}
+                  >
+                    Script
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.togglePill,
+                    scriptMode === "phonetic" && styles.togglePillActive,
+                  ]}
+                  onPress={() => setScriptMode("phonetic")}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.togglePillText,
+                      scriptMode === "phonetic" && styles.togglePillTextActive,
+                    ]}
+                  >
+                    English Letters
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          <Text style={styles.scriptTitle}>{activeScript.title}</Text>
+          <Text style={styles.scriptBody}>
+            {scriptMode === "native" ? activeScript.native : activeScript.phonetic}
+          </Text>
+
+          {activeScript.meaning ? (
+            <View style={styles.meaningBox}>
+              <Ionicons name="sparkles-outline" size={13} color={NilaColors.gold} />
+              <Text style={styles.meaningText}>{activeScript.meaning}</Text>
+            </View>
+          ) : null}
+
+          {scriptsList.length > 1 && (
+            <TouchableOpacity
+              style={styles.refreshScriptRow}
+              onPress={handleNextScript}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="refresh" size={14} color={NilaColors.gold} />
+              <Text style={styles.refreshScriptText}>Try another story passage</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Recorder Centerpiece */}
@@ -142,7 +210,10 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={[styles.micCircle, state === "recorded" && styles.micCircleRecorded]}
+              style={[
+                styles.micCircle,
+                state === "recorded" && styles.micCircleRecorded,
+              ]}
               onPress={startRecording}
               activeOpacity={0.8}
             >
@@ -155,19 +226,17 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
           )}
 
           <View style={styles.statusRow}>
-            {state === "recording" && (
-              <View style={styles.recordingDot} />
-            )}
+            {state === "recording" && <View style={styles.recordingDot} />}
             <Text style={styles.timerText}>
               {state === "recording"
-                ? `Recording... ${formatTime(durationSeconds)}`
+                ? `Recording... ${formatTime(durationSeconds)} (Target: 10s-15s)`
                 : state === "recorded"
-                ? `Recorded: ${formatTime(durationSeconds)}`
-                : "Tap mic to start recording"}
+                ? `Captured: ${formatTime(durationSeconds)}`
+                : "Tap the microphone when you're ready"}
             </Text>
           </View>
 
-          {/* Action Row for Recorded state */}
+          {/* Playback Controls when Recorded */}
           {state === "recorded" && (
             <View style={styles.playbackControls}>
               <TouchableOpacity
@@ -190,215 +259,63 @@ export const VoiceRecordingScreen: React.FC<Props> = ({ navigation }) => {
                   color={NilaColors.textDark}
                 />
                 <Text style={styles.controlPillTextPrimary}>
-                  {isPlayingPreview ? "Pause" : "Play preview"}
+                  {isPlayingPreview ? "Pause" : "Listen Preview"}
                 </Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* Editable Voice Name Input */}
+          {/* Voice Profile Name Input */}
           {state === "recorded" && (
             <View style={styles.voiceNameCard}>
               <View style={styles.voiceNameHeader}>
-                <Ionicons name="pencil" size={15} color={NilaColors.lavender} />
-                <Text style={styles.voiceNameLabel}>Voice Profile Name</Text>
+                <Ionicons name="pencil" size={14} color={NilaColors.gold} />
+                <Text style={styles.voiceNameLabel}>Voice Name</Text>
               </View>
               <TextInput
                 style={styles.voiceNameInput}
                 value={voiceName}
                 onChangeText={setVoiceName}
-                placeholder="e.g. Uvan's Voice, Appa's Voice"
+                placeholder="e.g. Mother's Voice, David's Voice"
                 placeholderTextColor={NilaColors.textMuted}
                 autoCapitalize="words"
                 maxLength={30}
               />
-              <Text style={styles.voiceNameHint}>
-                Update the name to whatever you'd like it to appear as in stories.
-              </Text>
             </View>
           )}
-
-          {/* Quality Indicator */}
-          <View style={styles.qualityBadge}>
-            <View style={styles.qualityDot} />
-            <Text style={styles.qualityText}>
-              Excellent recording quality (Minimal background noise)
-            </Text>
-          </View>
         </View>
 
-        {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
-      </ScrollView>
+        {/* CTA Buttons */}
+        <View style={styles.bottomCtaContainer}>
+          <NilaButton
+            title={
+              state === "recorded"
+                ? "Create My Bedtime Voice"
+                : state === "recording"
+                ? "Finish Recording"
+                : "Start Recording (15s)"
+            }
+            onPress={
+              state === "recorded"
+                ? handleConfirmVoiceGeneration
+                : state === "recording"
+                ? stopRecording
+                : startRecording
+            }
+            style={styles.actionButton}
+          />
 
-      <View style={styles.footer}>
-        <NilaButton
-          title="Create my voice"
-          onPress={handleCreateVoice}
-          disabled={state === "recording"}
-        />
-      </View>
-
-      {/* Confirmation Modal Before Voice Generation */}
-      <Modal
-        visible={showNameModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowNameModal(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalIconCircle}>
-              <Ionicons name="mic" size={26} color={NilaColors.gold} />
-            </View>
-
-            <Text style={styles.modalTitle}>Voice Profile Setup</Text>
-            <Text style={styles.modalSubtitle}>
-              Who is speaking, and what should we call this voice profile?
+          <TouchableOpacity
+            style={styles.skipLink}
+            onPress={handleSkipToMain}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.skipLinkText}>
+              Skip and use Nila's gentle storyteller voice for now
             </Text>
-
-            <Text style={styles.modalFieldLabel}>Voice Belongs To</Text>
-            <View style={styles.modalRelRow}>
-              {[
-                { label: "🌸 Amma", val: "Amma" },
-                { label: "⭐ Appa", val: "Appa" },
-                { label: "👵 Paati", val: "Paati" },
-                { label: "👴 Thatha", val: "Thatha" },
-                { label: "✨ Other", val: "Other" },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.val}
-                  style={[
-                    styles.modalRelPill,
-                    selectedRelationship === item.val && styles.modalRelPillActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedRelationship(item.val);
-                    if (!voiceName || voiceName.endsWith("'s Voice")) {
-                      setVoiceName(parent?.name ? `${parent.name}'s Voice` : `${item.val}'s Voice`);
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.modalRelPillText,
-                      selectedRelationship === item.val && styles.modalRelPillTextActive,
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.modalFieldLabel}>Voice Profile Name</Text>
-            <View style={styles.modalInputWrapper}>
-              <Ionicons name="pencil" size={16} color={NilaColors.lavender} style={styles.modalInputIcon} />
-              <TextInput
-                style={styles.modalTextInput}
-                value={voiceName}
-                onChangeText={setVoiceName}
-                placeholder="e.g. Amma's Voice, Appa's Voice"
-                placeholderTextColor={NilaColors.textMuted}
-                autoFocus
-                autoCapitalize="words"
-                selectTextOnFocus
-                maxLength={30}
-              />
-            </View>
-
-            {/* AI Engine Selection (Testing Mode) */}
-            <Text style={styles.modalFieldLabel}>AI Voice Engine (Testing Mode)</Text>
-            <View style={styles.modalProviderRow}>
-              <TouchableOpacity
-                style={[
-                  styles.modalProviderCard,
-                  selectedProvider === "sarvam" && styles.modalProviderCardActive,
-                ]}
-                onPress={() => setSelectedProvider("sarvam")}
-                activeOpacity={0.8}
-              >
-                <View style={styles.modalProviderTop}>
-                  <Text style={styles.modalProviderBadge}>Tamil Specialist</Text>
-                  {selectedProvider === "sarvam" ? (
-                    <Ionicons name="checkmark-circle" size={16} color={NilaColors.gold} />
-                  ) : (
-                    <View style={styles.modalProviderRadio} />
-                  )}
-                </View>
-                <Text
-                  style={[
-                    styles.modalProviderTitle,
-                    selectedProvider === "sarvam" && styles.modalProviderTitleActive,
-                  ]}
-                >
-                  ⚡ Sarvam AI
-                </Text>
-                <Text style={styles.modalProviderDesc}>
-                  Authentic spoken Tamil dialect & cadence
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.modalProviderCard,
-                  selectedProvider === "elevenlabs" && styles.modalProviderCardActive,
-                ]}
-                onPress={() => setSelectedProvider("elevenlabs")}
-                activeOpacity={0.8}
-              >
-                <View style={styles.modalProviderTop}>
-                  <Text
-                    style={[
-                      styles.modalProviderBadge,
-                      { color: "#7AA2F7", backgroundColor: "rgba(122, 162, 247, 0.15)" },
-                    ]}
-                  >
-                    Multilingual
-                  </Text>
-                  {selectedProvider === "elevenlabs" ? (
-                    <Ionicons name="checkmark-circle" size={16} color={NilaColors.gold} />
-                  ) : (
-                    <View style={styles.modalProviderRadio} />
-                  )}
-                </View>
-                <Text
-                  style={[
-                    styles.modalProviderTitle,
-                    selectedProvider === "elevenlabs" && styles.modalProviderTitleActive,
-                  ]}
-                >
-                  🌐 ElevenLabs
-                </Text>
-                <Text style={styles.modalProviderDesc}>
-                  Studio-quality neural voice cloning
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.modalActionsRow}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setShowNameModal(false)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalCancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.modalConfirmButton}
-                onPress={handleConfirmVoiceGeneration}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.modalConfirmButtonText}>Create Voice ✨</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -410,56 +327,105 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingBottom: 40,
   },
   scriptCard: {
-    backgroundColor: NilaColors.surface,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
     borderRadius: 20,
-    padding: 20,
+    padding: 18,
     borderWidth: 1,
-    borderColor: NilaColors.cardBorder,
+    borderColor: "rgba(255, 255, 255, 0.08)",
     marginBottom: 24,
   },
-  scriptHeader: {
-    color: NilaColors.gold,
-    fontSize: 13,
+  scriptCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  scriptBadge: {
+    backgroundColor: "rgba(245, 199, 106, 0.12)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  scriptBadgeText: {
+    fontSize: 11,
     fontWeight: "700",
-    marginBottom: 10,
-    textTransform: "uppercase",
+    color: NilaColors.gold,
     letterSpacing: 0.5,
   },
-  scriptText: {
+  scriptToggleRow: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    borderRadius: 10,
+    padding: 2,
+  },
+  togglePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  togglePillActive: {
+    backgroundColor: "rgba(245, 199, 106, 0.2)",
+  },
+  togglePillText: {
+    fontSize: 11,
+    color: NilaColors.textMuted,
+    fontWeight: "500",
+  },
+  togglePillTextActive: {
+    color: NilaColors.gold,
+    fontWeight: "700",
+  },
+  scriptTitle: {
+    fontSize: 15,
+    fontWeight: "700",
     color: NilaColors.textPrimary,
-    fontSize: 16,
-    lineHeight: 26,
-    fontStyle: "italic",
-    marginBottom: 14,
+    marginBottom: 8,
+  },
+  scriptBody: {
+    fontSize: 15,
+    color: NilaColors.textPrimary,
+    lineHeight: 24,
+    marginBottom: 12,
+  },
+  meaningBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    padding: 10,
+    borderRadius: 10,
+    gap: 8,
+    marginBottom: 12,
+  },
+  meaningText: {
+    flex: 1,
+    fontSize: 12,
+    color: NilaColors.textMuted,
+    lineHeight: 16,
   },
   refreshScriptRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
+    paddingVertical: 6,
   },
   refreshScriptText: {
+    fontSize: 12,
     color: NilaColors.gold,
-    fontSize: 13,
     fontWeight: "600",
   },
   recorderContainer: {
     alignItems: "center",
-    backgroundColor: NilaColors.surface,
-    borderRadius: 20,
-    paddingVertical: 28,
-    paddingHorizontal: 20,
-    borderWidth: 1,
-    borderColor: NilaColors.cardBorder,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   micCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: NilaColors.surfaceLight,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: "rgba(245, 199, 106, 0.12)",
     borderWidth: 2,
     borderColor: NilaColors.gold,
     alignItems: "center",
@@ -467,304 +433,98 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   micCircleRecording: {
-    backgroundColor: NilaColors.coral,
-    borderColor: NilaColors.coral,
+    backgroundColor: NilaColors.gold,
+    borderColor: "#FFF",
   },
   micCircleRecorded: {
     borderColor: NilaColors.emerald,
+    backgroundColor: "rgba(52, 211, 153, 0.12)",
   },
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
     gap: 8,
+    marginBottom: 14,
   },
   recordingDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: NilaColors.coral,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FF5252",
   },
   timerText: {
-    color: NilaColors.textPrimary,
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 13,
+    color: NilaColors.textMuted,
   },
   playbackControls: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   controlPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: NilaColors.surfaceLight,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
     gap: 6,
-    borderWidth: 1,
-    borderColor: NilaColors.cardBorder,
   },
   controlPillPrimary: {
     backgroundColor: NilaColors.gold,
-    borderColor: NilaColors.gold,
   },
   controlPillText: {
-    color: NilaColors.textSecondary,
     fontSize: 13,
+    color: NilaColors.textPrimary,
     fontWeight: "600",
   },
   controlPillTextPrimary: {
-    color: NilaColors.textDark,
     fontSize: 13,
+    color: NilaColors.textDark,
     fontWeight: "700",
   },
-  qualityBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  qualityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: NilaColors.emerald,
-  },
-  qualityText: {
-    color: NilaColors.emerald,
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  errorText: {
-    color: NilaColors.coral,
-    fontSize: 13,
-    textAlign: "center",
-    marginTop: 8,
-  },
   voiceNameCard: {
-    backgroundColor: NilaColors.surfaceLight,
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 16,
     width: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    borderRadius: 16,
+    padding: 14,
     borderWidth: 1,
-    borderColor: NilaColors.cardBorder,
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   voiceNameHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
     gap: 6,
+    marginBottom: 8,
   },
   voiceNameLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: NilaColors.lavender,
+    fontSize: 12,
+    color: NilaColors.gold,
+    fontWeight: "700",
   },
   voiceNameInput: {
-    backgroundColor: NilaColors.midnight,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: NilaColors.textPrimary,
-    borderWidth: 1,
-    borderColor: NilaColors.cardBorder,
-  },
-  voiceNameHint: {
-    fontSize: 12,
-    color: NilaColors.textMuted,
-    marginTop: 6,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 24,
-  },
-  modalContent: {
-    backgroundColor: NilaColors.surface,
-    borderRadius: 24,
-    padding: 24,
-    width: "100%",
-    maxWidth: 380,
-    borderWidth: 1,
-    borderColor: NilaColors.cardBorder,
-    alignItems: "center",
-  },
-  modalIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "rgba(245, 199, 106, 0.15)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: NilaColors.textPrimary,
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: NilaColors.textSecondary,
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  modalFieldLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: NilaColors.lavender,
-    alignSelf: "flex-start",
-    marginBottom: 8,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  modalRelRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    width: "100%",
-    marginBottom: 16,
-  },
-  modalRelPill: {
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 14,
-    backgroundColor: NilaColors.midnight,
-    borderWidth: 1,
-    borderColor: NilaColors.cardBorderSubtle,
-  },
-  modalRelPillActive: {
-    backgroundColor: "rgba(245, 199, 106, 0.15)",
-    borderColor: NilaColors.gold,
-  },
-  modalRelPillText: {
-    fontSize: 13,
-    color: NilaColors.textSecondary,
-    fontWeight: "500",
-  },
-  modalRelPillTextActive: {
-    color: NilaColors.gold,
-    fontWeight: "700",
-  },
-  modalInputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: NilaColors.midnight,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: NilaColors.gold,
-    paddingHorizontal: 14,
-    width: "100%",
-    marginBottom: 16,
-  },
-  modalProviderRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 20,
-    width: "100%",
-  },
-  modalProviderCard: {
-    flex: 1,
-    backgroundColor: NilaColors.midnight,
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1.5,
-    borderColor: NilaColors.cardBorder,
-  },
-  modalProviderCardActive: {
-    borderColor: NilaColors.gold,
-    backgroundColor: "rgba(245, 199, 106, 0.08)",
-  },
-  modalProviderTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  modalProviderBadge: {
-    fontSize: 9,
-    fontWeight: "700",
-    color: NilaColors.gold,
-    backgroundColor: "rgba(245, 199, 106, 0.15)",
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  modalProviderRadio: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 1.5,
-    borderColor: NilaColors.cardBorder,
-  },
-  modalProviderTitle: {
-    fontSize: 13,
-    fontWeight: "700",
+    paddingVertical: 10,
+    fontSize: 14,
     color: NilaColors.textPrimary,
-    marginBottom: 3,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
-  modalProviderTitleActive: {
-    color: NilaColors.gold,
-  },
-  modalProviderDesc: {
-    fontSize: 10,
-    color: NilaColors.textMuted,
-    lineHeight: 14,
-  },
-  modalInputIcon: {
-    marginRight: 10,
-  },
-  modalTextInput: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: NilaColors.textPrimary,
-    fontWeight: "500",
-  },
-  modalActionsRow: {
-    flexDirection: "row",
+  bottomCtaContainer: {
     gap: 12,
+  },
+  actionButton: {
     width: "100%",
   },
-  modalCancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: NilaColors.surfaceLight,
+  skipLink: {
     alignItems: "center",
-    justifyContent: "center",
+    paddingVertical: 10,
   },
-  modalCancelButtonText: {
-    color: NilaColors.textSecondary,
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  modalConfirmButton: {
-    flex: 1.5,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: NilaColors.gold,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalConfirmButtonText: {
-    color: NilaColors.textDark,
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  footer: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: NilaColors.cardBorderSubtle,
+  skipLinkText: {
+    fontSize: 13,
+    color: NilaColors.textMuted,
+    textAlign: "center",
   },
 });

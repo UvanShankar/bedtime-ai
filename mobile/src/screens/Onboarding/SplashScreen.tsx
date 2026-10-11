@@ -15,11 +15,19 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
     const checkSession = async () => {
       try {
         const token = await ApiClient.loadToken();
+        const isOnboarded = await ApiClient.isOnboardingCompleted();
         if (token) {
           const profile = await ParentApi.getProfile();
           if (profile && profile.userId && isMounted) {
-            navigation.replace("MainTabs");
-            return;
+            const children = await ParentApi.getChildren().catch(() => []);
+            if (isOnboarded && children && children.length > 0) {
+              navigation.replace("MainTabs");
+              return;
+            } else {
+              // User has signed up but has not completed family setup
+              navigation.replace("ParentProfileSetup");
+              return;
+            }
           }
         }
       } catch (err) {

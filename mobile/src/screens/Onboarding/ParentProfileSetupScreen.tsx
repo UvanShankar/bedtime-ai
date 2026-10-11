@@ -1,8 +1,17 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { NilaColors } from "../../theme/colors";
-import { NilaHeader } from "../../components/common/NilaHeader";
+import { OnboardingHeader } from "../../components/common/OnboardingHeader";
 import { NilaTextInput } from "../../components/common/NilaTextInput";
 import { NilaPill } from "../../components/common/NilaPill";
 import { NilaButton } from "../../components/common/NilaButton";
@@ -14,102 +23,252 @@ interface Props {
 }
 
 export const ParentProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
-  const { parent, setParent } = useNila();
+  const { parent, setParent, addChild } = useNila();
 
-  const normalizedInitialRel = 
-    parent.relationship?.toLowerCase() === "mother" || parent.relationship === "Amma"
-      ? "Amma"
-      : parent.relationship?.toLowerCase() === "father" || parent.relationship === "Appa"
-      ? "Appa"
-      : parent.relationship || "Appa";
+  // Parent State (clean defaults, no hardcoded "Uvan")
+  const [parentName, setParentName] = useState(
+    parent.name && parent.name !== "Uvan" && parent.name !== "Parent" ? parent.name : ""
+  );
+  const [relationship, setRelationship] = useState(parent.relationship || "Mother");
+  const [childNickname, setChildNickname] = useState(
+    parent.preferredChildName && parent.preferredChildName !== "Kanna" ? parent.preferredChildName : ""
+  );
 
-  const [parentName, setParentName] = useState(parent.name || "Uvan");
-  const [relationship, setRelationship] = useState(normalizedInitialRel);
-  const [childNickname, setChildNickname] = useState(parent.preferredChildName || "Kanna");
+  // Child State (clean defaults)
+  const [childName, setChildName] = useState("");
+  const [age, setAge] = useState(4);
+  const [interests, setInterests] = useState<string[]>(["Animals", "Stories"]);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const relationships = [
-    { label: "🌸 Amma", value: "Amma" },
-    { label: "⭐ Appa", value: "Appa" },
-    { label: "👵 Paati", value: "Paati" },
-    { label: "👴 Thatha", value: "Thatha" },
-    { label: "✨ Other", value: "Other" },
+    { label: "🌸 Mother", value: "Mother" },
+    { label: "⭐ Father", value: "Father" },
+    { label: "👵 Grandmother", value: "Grandmother" },
+    { label: "👴 Grandfather", value: "Grandfather" },
+    { label: "✨ Guardian / Other", value: "Other" },
   ];
 
-  const nicknameSuggestions = ["Kanna", "Kutty", "Chellam", "Rasa", "Champ"];
+  const nicknameSuggestions = ["Sweetheart", "Champ", "Buddy", "Cutie", "Little One"];
+
+  const interestOptions = [
+    { label: "Animals", emoji: "🦁" },
+    { label: "Space", emoji: "🚀" },
+    { label: "Trains", emoji: "🚂" },
+    { label: "Magic", emoji: "✨" },
+    { label: "Dinosaurs", emoji: "🦖" },
+    { label: "Nature", emoji: "🌲" },
+    { label: "Drawing", emoji: "🎨" },
+    { label: "Sports", emoji: "⚽" },
+  ];
+
+  const toggleInterest = (item: string) => {
+    setInterests((prev) =>
+      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
+    );
+  };
 
   const handleContinue = async () => {
-    setParent((prev) => ({
-      ...prev,
-      name: parentName,
-      relationship: relationship as any,
-      preferredChildName: childNickname,
-    }));
+    setErrorMessage("");
+    const finalParentName = parentName.trim() || relationship;
+    const finalChildName = childName.trim() || childNickname.trim() || "Sweetheart";
+
+    setLoading(true);
     try {
+      // 1. Update Parent Profile in Context & Backend
+      setParent((prev) => ({
+        ...prev,
+        name: finalParentName,
+        relationship: relationship as any,
+        preferredChildName: childNickname.trim() || "Sweetheart",
+      }));
+
       await ParentApi.updateProfile({
-        fullName: parentName,
+        fullName: finalParentName,
         relationship,
+      }).catch((err) => console.warn("[FamilySetup] Parent update note:", err.message));
+
+      // 2. Create Child Profile in Context & Backend
+      addChild({
+        name: finalChildName,
+        age,
+        interests,
+        personality: ["Curious", "Playful"],
+        avoidTopics: ["Monsters"],
+        favoriteCharacters: [],
       });
-    } catch (e: any) {
-      console.warn("[ParentProfileSetup] Update backend profile note:", e.message);
+
+      // 3. Move forward to Step 3 (Language & Style)
+      navigation.navigate("LanguageStyleSetup");
+    } catch (err: any) {
+      console.warn("[FamilySetup] Save error:", err.message);
+      navigation.navigate("LanguageStyleSetup");
+    } finally {
+      setLoading(false);
     }
-    navigation.navigate("ChildProfileSetup");
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <NilaHeader
-        title="Let's get to know you"
-        subtitle="Nila uses this to make stories sound natural and personal."
+      <OnboardingHeader
+        step={2}
+        totalSteps={4}
+        title="Who's listening tonight?"
+        subtitle="Nila personalizes every bedtime story with familiar family warmth."
         onBack={() => navigation.goBack()}
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <NilaTextInput
-          label="Parent's Name"
-          placeholder="e.g. David"
-          value={parentName}
-          onChangeText={setParentName}
-        />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.keyboardView}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {errorMessage ? (
+            <View style={styles.errorBadge}>
+              <Ionicons name="alert-circle" size={18} color="#FF6B6B" />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Relationship to child</Text>
-          <View style={styles.pillsRow}>
-            {relationships.map((rel) => (
-              <NilaPill
-                key={rel.value}
-                label={rel.label}
-                selected={relationship === rel.value}
-                onPress={() => setRelationship(rel.value)}
-              />
-            ))}
+          {/* Card 1: Storyteller (Parent) */}
+          <View style={styles.sectionCard}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="person-outline" size={18} color={NilaColors.gold} />
+              <Text style={styles.cardTitle}>You (The Storyteller)</Text>
+            </View>
+
+            <NilaTextInput
+              label="Your Name"
+              placeholder="e.g. Priya or David"
+              value={parentName}
+              onChangeText={setParentName}
+            />
+
+            <Text style={styles.fieldLabel}>I am...</Text>
+            <View style={styles.pillsRow}>
+              {relationships.map((rel) => (
+                <NilaPill
+                  key={rel.value}
+                  label={rel.label}
+                  selected={relationship === rel.value}
+                  onPress={() => setRelationship(rel.value)}
+                />
+              ))}
+            </View>
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <NilaTextInput
-            label="What do you usually call your child?"
-            placeholder="e.g. sweetheart, champ, my little explorer"
-            value={childNickname}
-            onChangeText={setChildNickname}
+          {/* Card 2: Child Profile */}
+          <View style={styles.sectionCard}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="sparkles-outline" size={18} color={NilaColors.gold} />
+              <Text style={styles.cardTitle}>Your Child</Text>
+            </View>
+
+            <NilaTextInput
+              label="Child's Name"
+              placeholder="e.g. Aarav, Ananya"
+              value={childName}
+              onChangeText={setChildName}
+            />
+
+            <View style={{ marginBottom: 16 }}>
+              <NilaTextInput
+                label="What do you call your child at home?"
+                placeholder="e.g. Kanna, sweetheart, champ"
+                value={childNickname}
+                onChangeText={setChildNickname}
+                containerStyle={{ marginBottom: 8 }}
+              />
+              <Text style={styles.subtext}>Quick suggestions:</Text>
+              <View style={styles.chipsRow}>
+                {nicknameSuggestions.map((nick) => (
+                  <TouchableOpacity
+                    key={nick}
+                    style={[
+                      styles.quickChip,
+                      childNickname === nick && styles.quickChipActive,
+                    ]}
+                    onPress={() => setChildNickname(nick)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.quickChipText,
+                        childNickname === nick && styles.quickChipTextActive,
+                      ]}
+                    >
+                      {nick}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Age Stepper */}
+            <View style={styles.stepperRow}>
+              <Text style={styles.fieldLabel}>Age</Text>
+              <View style={styles.stepperContainer}>
+                <TouchableOpacity
+                  style={styles.stepperButton}
+                  onPress={() => setAge((prev) => Math.max(1, prev - 1))}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="remove" size={18} color={NilaColors.textPrimary} />
+                </TouchableOpacity>
+                <Text style={styles.stepperValue}>
+                  {age} <Text style={styles.stepperUnit}>years old</Text>
+                </Text>
+                <TouchableOpacity
+                  style={styles.stepperButton}
+                  onPress={() => setAge((prev) => Math.min(12, prev + 1))}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add" size={18} color={NilaColors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Favorite Interests */}
+            <Text style={styles.fieldLabel}>Things they love (Pick 2 or more)</Text>
+            <View style={styles.interestsGrid}>
+              {interestOptions.map((opt) => {
+                const selected = interests.includes(opt.label);
+                return (
+                  <TouchableOpacity
+                    key={opt.label}
+                    style={[
+                      styles.interestChip,
+                      selected && styles.interestChipSelected,
+                    ]}
+                    onPress={() => toggleInterest(opt.label)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.interestEmoji}>{opt.emoji}</Text>
+                    <Text
+                      style={[
+                        styles.interestText,
+                        selected && styles.interestTextSelected,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          <NilaButton
+            title={loading ? "Saving..." : "Continue to Language & Style"}
+            onPress={handleContinue}
+            disabled={loading}
+            style={styles.continueButton}
           />
-          <Text style={styles.subtext}>Or tap an example to use:</Text>
-          <View style={styles.pillsRow}>
-            {nicknameSuggestions.map((nick) => (
-              <NilaPill
-                key={nick}
-                label={nick}
-                selected={childNickname === nick}
-                onPress={() => setChildNickname(nick)}
-                variant="gold"
-              />
-            ))}
-          </View>
-        </View>
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <NilaButton title="Continue" onPress={handleContinue} />
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -119,34 +278,156 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: NilaColors.midnight,
   },
+  keyboardView: {
+    flex: 1,
+  },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingBottom: 40,
   },
-  section: {
+  sectionCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
     marginBottom: 20,
   },
-  sectionLabel: {
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.06)",
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
     color: NilaColors.textPrimary,
-    fontSize: 14,
+  },
+  fieldLabel: {
+    fontSize: 13,
     fontWeight: "600",
+    color: NilaColors.textPrimary,
     marginBottom: 10,
   },
   pillsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: 8,
   },
   subtext: {
+    fontSize: 12,
     color: NilaColors.textMuted,
-    fontSize: 13,
     marginBottom: 8,
-    marginTop: -4,
   },
-  footer: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: NilaColors.cardBorderSubtle,
+  chipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  quickChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  quickChipActive: {
+    backgroundColor: "rgba(245, 199, 106, 0.15)",
+    borderColor: NilaColors.gold,
+  },
+  quickChipText: {
+    fontSize: 12,
+    color: NilaColors.textMuted,
+  },
+  quickChipTextActive: {
+    color: NilaColors.gold,
+    fontWeight: "700",
+  },
+  stepperRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 18,
+  },
+  stepperContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    borderRadius: 14,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  stepperButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepperValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: NilaColors.textPrimary,
+    paddingHorizontal: 12,
+  },
+  stepperUnit: {
+    fontSize: 12,
+    fontWeight: "400",
+    color: NilaColors.textMuted,
+  },
+  interestsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  interestChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    gap: 6,
+  },
+  interestChipSelected: {
+    backgroundColor: "rgba(245, 199, 106, 0.15)",
+    borderColor: NilaColors.gold,
+  },
+  interestEmoji: {
+    fontSize: 15,
+  },
+  interestText: {
+    fontSize: 13,
+    color: NilaColors.textMuted,
+  },
+  interestTextSelected: {
+    color: NilaColors.gold,
+    fontWeight: "700",
+  },
+  continueButton: {
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  errorBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 107, 107, 0.12)",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  errorText: {
+    color: "#FF6B6B",
+    fontSize: 13,
   },
 });
