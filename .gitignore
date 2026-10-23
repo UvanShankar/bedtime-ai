@@ -9,6 +9,7 @@ build/
 .expo/
 web-build/
 *.apk
+*.zip
 
 # CDK Outputs
 cdk.out/
