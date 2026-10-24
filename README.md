@@ -57,25 +57,36 @@ D:\bedtime-ai\
 
 ### 1. Build and Run Generic AI Service
 ```bash
-cd D:\bedtime-ai\generic-ai-service
-npm.cmd install
-npm.cmd run build
-npm.cmd run dev
+cd generic-ai-service
+npm install
+cp .env.example .env # Configure GROQ_API_KEY
+npm run build
+npm run start
 ```
+
+#### Test Story Generation Pipeline
+```bash
+# Run Preset 1 (Bramble the Hedgehog, Age 5)
+npm run story 1
+
+# Run Preset 5 (Spoken Tamil Bedtime, Age 5)
+npm run story 5
+```
+See [`generic-ai-service/README.md`](generic-ai-service/README.md) for full setup, API key guides, and benchmarking instructions.
 
 ### 2. Build and Run Nila Core Service
 ```bash
-cd D:\bedtime-ai\nila-core-service
-npm.cmd install
-npm.cmd run build
-npm.cmd run dev
+cd nila-core-service
+npm install
+npm run build
+npm run dev
 ```
 
 ### 3. Deploy to AWS via CDK
 ```bash
-cd D:\bedtime-ai\infra-cdk
-npm.cmd install
-npm.cmd run build
-npx.cmd cdk synth
-npx.cmd cdk deploy --all
+cd infra-cdk
+npm install
+npm run build
+npx cdk synth
+npx cdk deploy --all
 ```
