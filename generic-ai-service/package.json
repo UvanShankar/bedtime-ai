@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "nodemon src/server.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "story": "node test-story.js"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.799.0",

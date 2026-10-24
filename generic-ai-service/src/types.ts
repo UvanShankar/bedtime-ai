@@ -5,8 +5,31 @@ export interface IResponse<Data, ErrorType = null> {
   error: ErrorType | null;
 }
 
-export type LLMProviderType = 'gemini' | 'openai' | 'claude' | 'mock';
-export type TTSProviderType = 'elevenlabs' | 'cartesia' | 'polly' | 'mock';
+export type LLMProviderType = 'gemini' | 'openai' | 'groq' | 'claude' | 'mock';
+export type TTSProviderType = 'elevenlabs' | 'cartesia' | 'polly' | 'sarvam' | 'mock';
+
+export interface IStoryCharacter {
+  type: string;
+  traits?: string[];
+  home?: string;
+  relationships?: Record<string, string>;
+}
+
+export interface IStorySeriesState {
+  seriesId: string;
+  characters: Record<string, IStoryCharacter>;
+  lastStory?: {
+    title: string;
+    summary: string;
+    events: string[];
+  };
+  openStoryThreads: string[];
+  recentPremises: string[];
+  childPreferences?: {
+    interests?: string[];
+    favoriteThemes?: string[];
+  };
+}
 
 export interface ITextGenerateDTO {
   provider?: LLMProviderType;
@@ -25,6 +48,7 @@ export interface ITextGenerateResult {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  finishReason?: string;
 }
 
 export interface IStructuredGenerateDTO<T = any> extends ITextGenerateDTO {

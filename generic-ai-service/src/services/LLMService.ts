@@ -1,6 +1,7 @@
 import { ILLMProvider } from '../providers/llm/ILLMProvider';
 import { GeminiProvider } from '../providers/llm/GeminiProvider';
 import { OpenAIProvider } from '../providers/llm/OpenAIProvider';
+import { GroqProvider } from '../providers/llm/GroqProvider';
 import { MockLLMProvider } from '../providers/llm/MockLLMProvider';
 import {
   ITextGenerateDTO,
@@ -17,6 +18,7 @@ export class LLMService {
   constructor() {
     this.openAIProvider = new OpenAIProvider();
     this.registerProvider(this.openAIProvider);
+    this.registerProvider(new GroqProvider());
     this.registerProvider(new GeminiProvider());
     this.registerProvider(new MockLLMProvider());
   }
@@ -29,6 +31,8 @@ export class LLMService {
     let selected: ILLMProvider;
     if (preferred && this.providers.has(preferred)) {
       selected = this.providers.get(preferred)!;
+    } else if (process.env.GROQ_API_KEY && this.providers.has('groq')) {
+      selected = this.providers.get('groq')!;
     } else if (process.env.OPENAI_API_KEY && this.providers.has('openai')) {
       selected = this.providers.get('openai')!;
     } else if (process.env.GEMINI_API_KEY && this.providers.has('gemini')) {

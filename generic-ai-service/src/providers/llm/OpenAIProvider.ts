@@ -65,7 +65,9 @@ export class OpenAIProvider implements ILLMProvider {
     const duration = Date.now() - startTime;
     logger.debug(`[OpenAIProvider] Received completion from OpenAI in ${duration}ms (totalTokens=${response.usage?.total_tokens || 0})`);
 
-    const text = response.choices[0]?.message?.content || '';
+    const choice = response.choices[0];
+    const text = choice?.message?.content || '';
+    const finishReason = choice?.finish_reason || 'stop';
     return {
       text,
       provider: this.name,
@@ -73,6 +75,7 @@ export class OpenAIProvider implements ILLMProvider {
       promptTokens: response.usage?.prompt_tokens,
       completionTokens: response.usage?.completion_tokens,
       totalTokens: response.usage?.total_tokens,
+      finishReason,
     };
   }
 

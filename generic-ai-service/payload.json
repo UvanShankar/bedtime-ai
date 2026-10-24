@@ -1,0 +1,19 @@
+{
+  "jobType": "STORY_PIPELINE",
+  "ownerProject": "nila",
+  "externalReferenceId": "story_rabbit_star_test",
+  "payload": {
+    "childName": "Aarav",
+    "childAge": 5,
+    "interests": "Little blue trains, starry sky",
+    "genre": "Bedtime",
+    "narrativeRole": "STORYBOOK_CHARACTER",
+    "language": "English",
+    "languageCode": "en-US",
+    "targetDurationMinutes": 3,
+    "llmProvider": "groq",
+    "ttsProvider": "mock",
+    "enableQualityReview": true,
+    "promptIdea": "Pip meets a sleepy rabbit by the tracks who always watches the first star before bed as her good-night signal, but tonight tall meadow grass blocks the view from her burrow. Pip takes her to Starry Hill so she can spot it, leading to a gentle realization before bedtime."
+  }
+}
